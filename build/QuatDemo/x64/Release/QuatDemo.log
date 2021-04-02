@@ -1,0 +1,10 @@
+﻿  FrameResource.cpp
+  QuatApp.cpp
+  Ssao.cpp
+  FbxImporter.cpp
+  GameTimer.cpp
+  d3dApp.cpp
+  Generating code
+  All 3713 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  QuatDemo.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\QuatDemo\release\QuatDemo.exe

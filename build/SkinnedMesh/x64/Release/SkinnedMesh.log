@@ -1,0 +1,15 @@
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  FBXImporter.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  LoadM3d.cpp
+  ShadowMap.cpp
+  SkinnedData.cpp
+  SkinnedMeshApp.cpp
+  Ssao.cpp
+LINK : fatal error LNK1104: cannot open file 'libfbxsdk.lib'

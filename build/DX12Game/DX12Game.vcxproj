@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{622B99DB-52D9-43B3-8EC5-B4B00E87B926}</ProjectGuid>
+    <RootNamespace>DX12Game</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB);</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB);</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\DX12Game\Camera.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\TpsActor.cpp" />
+    <ClInclude Include="..\..\include\DX12Game\Camera.h" />
+    <ClInclude Include="..\..\include\DX12Game\FbxImporter.h" />
+    <ClInclude Include="..\..\include\DX12Game\GameCamera.h" />
+    <ClInclude Include="..\..\include\DX12Game\CameraComponent.h" />
+    <ClInclude Include="..\..\include\DX12Game\Component.h">
+      <FileType>CppHeader</FileType>
+    </ClInclude>
+    <ClCompile Include="..\..\src\common\d3dUtil.cpp" />
+    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp" />
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
+    <ClCompile Include="..\..\src\common\MathHelper.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Actor.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\AudioSystem.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\GameCamera.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\CameraComponent.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Component.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\FpsActor.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\FrameResource.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\InputSystem.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Mesh.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\MeshComponent.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ShadowMap.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\SoundEvent.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Ssao.cpp" />
+    <ClInclude Include="..\..\include\DX12Game\GameCore.h" />
+    <ClInclude Include="..\..\include\DX12Game\GameTimer.h" />
+    <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h" />
+    <ClInclude Include="..\..\include\DX12Game\SkinnedData.h" />
+    <ClInclude Include="..\..\include\DX12Game\StringUtil.h" />
+    <ClInclude Include="..\..\include\DX12Game\ThreadUtil.h" />
+    <ClInclude Include="..\..\include\DX12Game\TpsActor.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\common\d3dUtil.h" />
+    <ClInclude Include="..\..\include\common\d3dx12.h" />
+    <ClInclude Include="..\..\include\common\DDSTextureLoader.h" />
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h" />
+    <ClInclude Include="..\..\include\common\MathHelper.h" />
+    <ClInclude Include="..\..\include\common\UploadBuffer.h" />
+    <ClInclude Include="..\..\include\common\Utilities.h" />
+    <ClInclude Include="..\..\include\DX12Game\Actor.h" />
+    <ClInclude Include="..\..\include\DX12Game\AudioSystem.h" />
+    <ClInclude Include="..\..\include\DX12Game\FpsActor.h" />
+    <ClInclude Include="..\..\include\DX12Game\FrameResource.h" />
+    <ClInclude Include="..\..\include\DX12Game\GameWorld.h" />
+    <ClInclude Include="..\..\include\DX12Game\InputSystem.h" />
+    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\Mesh.h" />
+    <ClInclude Include="..\..\include\DX12Game\MeshComponent.h" />
+    <ClInclude Include="..\..\include\DX12Game\Renderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\ShadowMap.h" />
+    <ClInclude Include="..\..\include\DX12Game\SoundEvent.h" />
+    <ClInclude Include="..\..\include\DX12Game\Ssao.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

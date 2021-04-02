@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Common Files">
+      <UniqueIdentifier>{793c9caa-05d6-4952-bedf-9a2e2fb7c659}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Private">
+      <UniqueIdentifier>{1af6f2d4-8fc5-47c8-851a-1bf9f9cc114a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Public">
+      <UniqueIdentifier>{f3b7315d-958f-4fe7-8571-ef8dc0d44aa4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\Crate\CrateApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dApp.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GameTimer.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Crate\FrameResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\Crate\CrateApp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dApp.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dUtil.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dx12.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GameTimer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\MathHelper.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\UploadBuffer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\Crate\FrameResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

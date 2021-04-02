@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Common Files">
+      <UniqueIdentifier>{5ac2c737-3e06-40bd-9607-51a6cc2b9b9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Private">
+      <UniqueIdentifier>{e8fa2b32-958e-4dc5-81b7-9bae651148d8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Public">
+      <UniqueIdentifier>{58f164ec-3e20-4f84-ac3e-21bb6143b247}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\SkinnedMesh\SkinnedMeshApp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SkinnedMesh\FrameResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SkinnedMesh\LoadM3d.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SkinnedMesh\ShadowMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SkinnedMesh\SkinnedData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\SkinnedMesh\Ssao.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\Camera.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dApp.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\FBXImporter.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GameTimer.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\SkinnedMesh\SkinnedMeshApp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SkinnedMesh\FrameResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SkinnedMesh\LoadM3d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SkinnedMesh\ShadowMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SkinnedMesh\SkinnedData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\SkinnedMesh\Ssao.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\Camera.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dApp.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dUtil.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dx12.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\FBXImporter.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GameTimer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\MathHelper.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\UploadBuffer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\Utilities.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

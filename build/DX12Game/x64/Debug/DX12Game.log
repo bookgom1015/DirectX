@@ -1,0 +1,31 @@
+﻿  Camera.cpp
+  FbxImporter.cpp
+  GameTimer.cpp
+  SkeletalMeshComponent.cpp
+  SkinnedData.cpp
+  StringUtil.cpp
+  ThreadUtil.cpp
+  TpsActor.cpp
+  d3dUtil.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  Actor.cpp
+  AudioSystem.cpp
+  GameCamera.cpp
+  CameraComponent.cpp
+  Component.cpp
+  FpsActor.cpp
+  FrameResource.cpp
+  GameWorld.cpp
+  InputSystem.cpp
+  Generating Code...
+  Compiling...
+  LowRenderer.cpp
+  Mesh.cpp
+  MeshComponent.cpp
+  Renderer.cpp
+  ShadowMap.cpp
+  SoundEvent.cpp
+  Ssao.cpp
+  Generating Code...
+  DX12Game.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe

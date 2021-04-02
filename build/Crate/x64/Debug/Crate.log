@@ -1,0 +1,11 @@
+﻿  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+f:\synologydrive\visual studio project\window projects\directx\include\common\mathhelper.h(51): warning C4244: 'return': conversion from 'double' to 'float', possible loss of data
+  CrateApp.cpp
+  FrameResource.cpp
+  Generating Code...
+  Crate.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Crate\Crate.exe
