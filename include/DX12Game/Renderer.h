@@ -34,6 +34,10 @@ struct RenderItem {
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
+	DirectX::BoundingBox AABB;
+	DirectX::BoundingOrientedBox OBB;
+	DirectX::BoundingSphere Sphere;
+
 	// DrawIndexedInstanced parameters.
 	UINT IndexCount = 0;
 	UINT StartIndexLocation = 0;
@@ -43,6 +47,7 @@ struct RenderItem {
 	int SkinnedCBIndex = -1;
 
 	bool Visibility = true;
+	bool IsCulled = false;
 };
 
 enum class RenderLayer : int {
@@ -118,9 +123,9 @@ protected:
 
 private:
 	//* Extracts vertices and indices data from the mesh and builds geometry.
-	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo);
+	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 	//* Extracts skinned vertices and indices data from the mesh and builds geometry.
-	void LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo);
+	void LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 
 	//* Builds the skeleton geometry(for debugging) that is composed lines(2-vertices).
 	void AddSkeletonGeometry(const Mesh* inMesh);
@@ -258,4 +263,6 @@ private:
 	UINT mMatBufferIndex = 0;
 	UINT mMiscTextureMapIndex = 0;
 	UINT mTextureMapIndex = 0;
+
+	DirectX::BoundingFrustum mCamFrustum;
 };

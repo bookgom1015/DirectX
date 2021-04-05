@@ -114,3 +114,20 @@ void StringUtil::Logln(const std::wstring& text) {
 
 	mLogFileMutex.unlock();
 }
+
+void StringUtil::SetTextToWnd(HWND hWnd, LPCWSTR newText) {
+	SetWindowText(hWnd, newText);
+}
+
+void StringUtil::AppendTextToWnd(HWND hWnd, LPCWSTR newText) {
+	int finalLength = GetWindowTextLength(hWnd) + lstrlen(newText) + 1;
+	wchar_t* buf = (wchar_t*)std::malloc(finalLength * sizeof(wchar_t));
+
+	GetWindowText(hWnd, buf, finalLength);
+
+	wcscat_s(buf, finalLength, newText);
+
+	SetWindowText(hWnd, buf);
+
+	std::free(buf);
+}

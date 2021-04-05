@@ -22,6 +22,7 @@ public:
 		EPlay,
 		EPaused
 	};
+
 public:
 	GameWorld(HINSTANCE hInstance);
 	virtual ~GameWorld();
@@ -41,9 +42,18 @@ public:
 	bool Initialize();
 	//* Loads mesh, audio, etc. data.
 	bool LoadData();
+	//*
 	void UnloadData();
 	//* Start the game engine loop.
 	int RunLoop();
+
+#if !defined(MT_World)
+	//* Ticks timer, process input, updates game, and draws screen.
+	int GameLoop();
+#else
+	//* Multi-threaded version of the fuction GameLoop.
+	int MTGameLoop();
+#endif
 
 	//* Registers the actor in the game engine(Actor automatically registers themself).
 	void AddActor(Actor* inActor);
@@ -73,6 +83,9 @@ public:
 
 	//* Processes window messages.
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	//* Temporary function that show visible object count as text.
+	void SetVCount(UINT inCount);
 
 private:
 #if !defined(MT_World)
@@ -158,4 +171,6 @@ private:
 	SoundEvent mMusicEvent;
 
 	float mPrevBusVolume = 0.0f;
+
+	UINT mVCount = 0;
 };

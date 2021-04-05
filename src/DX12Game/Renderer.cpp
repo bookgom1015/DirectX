@@ -222,6 +222,9 @@ void Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 		// Resources changed, so need to rebuild descriptors.
 		mSsao->RebuildDescriptors(mDepthStencilBuffer.Get());
 	}
+
+	if (mMainCamera != nullptr)
+		BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 }
 
 void Renderer::UpdateWorldTransform(const std::string& inRenderItemName, 
@@ -290,10 +293,12 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = geoName;
 
+	BoundingBox bound;
+
 	if (inMesh->GetIsSkeletal())
-		LoadDataFromSkeletalMesh(inMesh, geo.get());
+		LoadDataFromSkeletalMesh(inMesh, geo.get(), bound);
 	else
-		LoadDataFromMesh(inMesh, geo.get());
+		LoadDataFromMesh(inMesh, geo.get(), bound);
 
 	const auto& drawArgs = inMesh->GetDrawArgs();
 	const auto& subsets = inMesh->GetSubsets();
@@ -303,6 +308,7 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 		submesh.IndexCount = subsets[i].first;
 		submesh.StartIndexLocation = subsets[i].second;
 		submesh.BaseVertexLocation = 0;
+		submesh.AABB = bound;
 
 		geo->DrawArgs[drawArgs[i]] = submesh;
 	}
@@ -359,6 +365,7 @@ void Renderer::AddRenderItem(std::string& ioRenderItemName, const DirectX::XMMAT
 		ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
 		ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
 		ritem->BaseVertexLocation = ritem->Geo->DrawArgs[drawArgs[i]].BaseVertexLocation;
+		ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
 		
 		if (inMesh->GetIsSkeletal()) {
 			ritem->SkinnedCBIndex = mNumSkinnedCB;
@@ -445,7 +452,7 @@ void Renderer::CreateRtvAndDsvDescriptorHeaps() {
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
-void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo) {
+void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, BoundingBox& inBound) {
 	const auto& vertices = inMesh->GetVertices();
 	const auto& indices = inMesh->GetIndices();
 
@@ -453,6 +460,21 @@ void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo) {
 
 	const UINT vbByteSize = static_cast<UINT>(vertices.size() * vertexSize);
 	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
+
+	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
+	for (size_t i = 0; i < vertices.size(); ++i) {
+		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&inBound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&inBound.Extents, 0.5f * (vMax - vMin));
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &outGeo->VertexBufferCPU));
 	CopyMemory(outGeo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -472,7 +494,7 @@ void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo) {
 	outGeo->IndexBufferByteSize = ibByteSize;
 }
 
-void Renderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo) {
+void Renderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo, BoundingBox& inBound) {
 	const auto& vertices = mesh->GetSkinnedVertices();
 	const auto& indices = mesh->GetIndices();
 
@@ -480,6 +502,21 @@ void Renderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo) {
 
 	const UINT vbByteSize = static_cast<UINT>(vertices.size() * vertexSize);
 	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
+
+	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
+	for (size_t i = 0; i < vertices.size(); ++i) {
+		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&inBound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&inBound.Extents, 0.5f * (vMax - vMin));
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -511,6 +548,23 @@ void Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	const UINT vbByteSize = static_cast<UINT>(vertices.size() * vertexSize);
 	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
 
+	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
+	BoundingBox bound;
+
+	for (size_t i = 0; i < vertices.size(); ++i) {
+		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
 
@@ -532,6 +586,8 @@ void Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	submesh.IndexCount = (UINT)indices.size();
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
+	submesh.AABB = bound;
+
 	geo->DrawArgs["skeleton"] = submesh;
 
 	mGeometries[geo->Name] = std::move(geo);
@@ -778,25 +834,50 @@ void Renderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>&
 void Renderer::AnimateMaterials(const GameTimer& gt) {}
 
 void Renderer::UpdateObjectCBs(const GameTimer& gt) {
+	XMMATRIX view = mMainCamera->GetView();
+	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
+	UINT visibleObjectCount = 0;
+
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 	for (auto& e : mAllRitems) {
-		// Only update the cbuffer data if the constants have changed.  
-		// This needs to be tracked per frame resource.
-		if (e->NumFramesDirty > 0) {
-			XMMATRIX world = XMLoadFloat4x4(&e->World);
-			XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
+		XMMATRIX world = XMLoadFloat4x4(&e->World);
+		XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
 
-			ObjectConstants objConstants;
-			XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-			XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-			objConstants.MaterialIndex = e->Mat->MatCBIndex;
-		
-			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
+		XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
-			// Next FrameResource need to be updated too.
-			e->NumFramesDirty--;
+		// View space to the object's local space.
+		XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
+
+		// Transform the camera frustum from view space to the object's local space.
+		BoundingFrustum localSpaceFrustum;
+		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
+
+		if ((localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
+			// Only update the cbuffer data if the constants have changed.  
+			// This needs to be tracked per frame resource.
+			if (e->NumFramesDirty > 0) {
+				ObjectConstants objConstants;
+				XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+				XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
+				objConstants.MaterialIndex = e->Mat->MatCBIndex;
+
+				currObjectCB->CopyData(e->ObjCBIndex, objConstants);
+
+				// Next FrameResource need to be updated too.
+				e->NumFramesDirty--;
+
+				++visibleObjectCount;
+			}
+
+			e->IsCulled = false;
+		}
+		else {
+			e->IsCulled = true;
 		}
 	}
+
+	GameWorld::GetWorld()->SetVCount(visibleObjectCount);
 }
 
 void Renderer::UpdateSkinnedCBs(const GameTimer& gt) {
@@ -1457,41 +1538,97 @@ void Renderer::BuildStandardGeometry() {
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
+	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+
+	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+
+	BoundingBox bound;
+
 	UINT k = 0;
 	for (size_t i = 0; i < box.Vertices.size(); ++i, ++k) {
 		vertices[k].Pos = box.Vertices[i].Position;
 		vertices[k].Normal = box.Vertices[i].Normal;
 		vertices[k].TexC = box.Vertices[i].TexC;
 		vertices[k].TangentU = box.Vertices[i].TangentU;
-	}
 
+		XMVECTOR P = XMLoadFloat3(&vertices[k].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+	boxSubmesh.AABB = bound;
+
+	vMin = XMLoadFloat3(&vMinf3);
+	vMax = XMLoadFloat3(&vMaxf3);
 	for (size_t i = 0; i < grid.Vertices.size(); ++i, ++k) {
 		vertices[k].Pos = grid.Vertices[i].Position;
 		vertices[k].Normal = grid.Vertices[i].Normal;
 		vertices[k].TexC = grid.Vertices[i].TexC;
 		vertices[k].TangentU = grid.Vertices[i].TangentU;
-	}
 
+		XMVECTOR P = XMLoadFloat3(&vertices[k].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+	gridSubmesh.AABB = bound;
+
+	vMin = XMLoadFloat3(&vMinf3);
+	vMax = XMLoadFloat3(&vMaxf3);
 	for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k) {
 		vertices[k].Pos = sphere.Vertices[i].Position;
 		vertices[k].Normal = sphere.Vertices[i].Normal;
 		vertices[k].TexC = sphere.Vertices[i].TexC;
 		vertices[k].TangentU = sphere.Vertices[i].TangentU;
-	}
 
+		XMVECTOR P = XMLoadFloat3(&vertices[k].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+	sphereSubmesh.AABB = bound;
+
+	vMin = XMLoadFloat3(&vMinf3);
+	vMax = XMLoadFloat3(&vMaxf3);
 	for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k) {
 		vertices[k].Pos = cylinder.Vertices[i].Position;
 		vertices[k].Normal = cylinder.Vertices[i].Normal;
 		vertices[k].TexC = cylinder.Vertices[i].TexC;
 		vertices[k].TangentU = cylinder.Vertices[i].TangentU;
-	}
 
+		XMVECTOR P = XMLoadFloat3(&vertices[k].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
+	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+	cylinderSubmesh.AABB = bound;
+
+	vMin = XMLoadFloat3(&vMinf3);
+	vMax = XMLoadFloat3(&vMaxf3);
 	for (int i = 0; i < quad.Vertices.size(); ++i, ++k) {
 		vertices[k].Pos = quad.Vertices[i].Position;
 		vertices[k].Normal = quad.Vertices[i].Normal;
 		vertices[k].TexC = quad.Vertices[i].TexC;
 		vertices[k].TangentU = quad.Vertices[i].TangentU;
+
+		XMVECTOR P = XMLoadFloat3(&vertices[k].Pos);
+
+		vMin = XMVectorMin(vMin, P);
+		vMax = XMVectorMax(vMax, P);
 	}
+	XMStoreFloat3(&bound.Center, 0.5f * (vMax + vMin));
+	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
+	quadSubmesh.AABB = bound;
 
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
@@ -1566,6 +1703,7 @@ void Renderer::BuildStandardRenderItems() {
 	skyRitem->IndexCount = skyRitem->Geo->DrawArgs["sphere"].IndexCount;
 	skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
 	skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+	skyRitem->AABB = skyRitem->Geo->DrawArgs["sphere"].AABB;
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
@@ -1579,6 +1717,7 @@ void Renderer::BuildStandardRenderItems() {
 	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
+	boxRitem->AABB = boxRitem->Geo->DrawArgs["box"].AABB;
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
@@ -1592,6 +1731,7 @@ void Renderer::BuildStandardRenderItems() {
 	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
 	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	quadRitem->AABB = quadRitem->Geo->DrawArgs["quad"].AABB;
 	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
@@ -1605,6 +1745,7 @@ void Renderer::BuildStandardRenderItems() {
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	gridRitem->AABB = gridRitem->Geo->DrawArgs["grid"].AABB;
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }
@@ -1820,7 +1961,7 @@ void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std:
 	// For each render item...
 	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
 		auto ri = inRitems[i];
-		if (!ri->Visibility)
+		if (!ri->Visibility || ri->IsCulled)
 			continue;
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());

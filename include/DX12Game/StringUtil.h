@@ -12,6 +12,9 @@ public:
 	static void Logln(std::initializer_list<std::wstring> texts);
 	static void Logln(const std::wstring& text);
 
+	static void SetTextToWnd(HWND hWnd, LPCWSTR newText);
+	static void AppendTextToWnd(HWND hWnd, LPCWSTR newText);
+
 private:
 	static HANDLE mhLogFile;
 

@@ -1,7 +1,13 @@
-﻿  GameWorld.cpp
+﻿  FpsActor.cpp
+  GameWorld.cpp
+  Mesh.cpp
+  MeshComponent.cpp
+  Renderer.cpp
+  SkeletalMeshComponent.cpp
+  TpsActor.cpp
   Generating code
-  6 of 10822 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+  17 of 10855 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    1 functions had inline decision re-evaluated but remain unchanged
+    3 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe

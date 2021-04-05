@@ -24,12 +24,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 		if (!game.Initialize())
 			return 0;
 
-		if (!game.LoadData())
-			return 0;
-
 		int status = game.RunLoop();
 
-		game.UnloadData();
 		return status;
 	}
 	catch (DxException& e) {
@@ -45,6 +41,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 		MessageBox(nullptr, wsstream.str().c_str(), L"HR Failed", MB_OK);
 		return 0;
 	}
+}
+
+LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	// Forward hwnd on because we can get messages (e.g., WM_CREATE)
+	// before CreateWindow returns, and thus before mhMainWnd is valid
+	return GameWorld::GetWorld()->MsgProc(hwnd, msg, wParam, lParam);
 }
 
 GameWorld* GameWorld::mWorld = nullptr;
@@ -188,6 +190,24 @@ void GameWorld::UnloadData() {
 }
 
 int GameWorld::RunLoop() {
+	if (!LoadData())
+		return -1;
+
+	OnResize();
+
+#if defined(MT_World)
+	int status = MTGameLoop();
+#else
+	int status = GameLoop();
+#endif
+
+	UnloadData();
+
+	return status;
+}
+
+#if !defined(MT_World)
+int GameWorld::GameLoop() {
 	MSG msg = { 0 };
 	float beginTime = 0.0f;
 	float endTime;
@@ -195,7 +215,43 @@ int GameWorld::RunLoop() {
 
 	mTimer.Reset();
 
-#if defined(MT_World)
+	while (msg.message != WM_QUIT) {
+		// If there are Window messages then process them
+		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		// Otherwise, do animation/game stuff
+		else {
+			mTimer.Tick();
+
+			endTime = mTimer.TotalTime();
+			elapsedTime = endTime - beginTime;
+
+			if (elapsedTime > mTimer.GetLimitFrameRate()) {
+				beginTime = endTime;
+				if (!mAppPaused) {
+					CalculateFrameStats();
+					ProcessInput();
+				}
+				UpdateGame(mTimer);
+				if (!mAppPaused)
+					Draw(mTimer);
+			}
+		}
+	}
+
+	return (int)msg.wParam;
+}
+#else
+int GameWorld::MTGameLoop() {
+	MSG msg = { 0 };
+	float beginTime = 0.0f;
+	float endTime;
+	float elapsedTime;
+
+	mTimer.Reset();
+
 	UINT numProcessors = (UINT)ThreadUtil::GetNumberOfProcessors();
 	CVBarrier barrier(numProcessors);
 
@@ -249,36 +305,10 @@ int GameWorld::RunLoop() {
 
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i)
 		mThreads[i].join();
-#else
-	while (msg.message != WM_QUIT) {
-		// If there are Window messages then process them
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		// Otherwise, do animation/game stuff
-		else {
-			mTimer.Tick();
-
-			endTime = mTimer.TotalTime();
-			elapsedTime = endTime - beginTime;
-
-			if (elapsedTime > mTimer.GetLimitFrameRate()) {
-				beginTime = endTime;
-				if (!mAppPaused) {
-					CalculateFrameStats();
-					ProcessInput();
-				}
-				UpdateGame(mTimer);
-				if (!mAppPaused)
-					Draw(mTimer);
-			}
-		}
-	}
-#endif
 
 	return (int)msg.wParam;
 }
+#endif
 
 void GameWorld::AddActor(Actor* inActor) {
 #if defined(MT_World)
@@ -485,12 +515,6 @@ void GameWorld::Draw(const GameTimer& gt) {
 	mRenderer->Draw(gt);
 }
 
-LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	// Forward hwnd on because we can get messages (e.g., WM_CREATE)
-	// before CreateWindow returns, and thus before mhMainWnd is valid
-	return GameWorld::GetWorld()->MsgProc(hwnd, msg, wParam, lParam);
-}
-
 bool GameWorld::InitMainWindow() {
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -665,6 +689,10 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+void GameWorld::SetVCount(UINT inCount) {
+	mVCount = inCount;
+}
+
 void GameWorld::OnResize() {
 	mRenderer->OnResize(mClientWidth, mClientHeight);
 }
@@ -688,7 +716,8 @@ void GameWorld::CalculateFrameStats() {
 
 		std::wstring windowText = mMainWndCaption +
 			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr;
+			L"   mspf: " + mspfStr +
+			L"    voc: " + std::to_wstring(mVCount);
 		SetWindowText(mhMainWnd, windowText.c_str());
 
 		// Reset for next average
