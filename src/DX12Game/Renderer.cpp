@@ -853,7 +853,7 @@ void Renderer::UpdateObjectCBs(const GameTimer& gt) {
 		BoundingFrustum localSpaceFrustum;
 		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-		if ((localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
+		if (e->DrawAlways || (localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
 			// Only update the cbuffer data if the constants have changed.  
 			// This needs to be tracked per frame resource.
 			if (e->NumFramesDirty > 0) {
@@ -1732,6 +1732,7 @@ void Renderer::BuildStandardRenderItems() {
 	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->AABB = quadRitem->Geo->DrawArgs["quad"].AABB;
+	quadRitem->DrawAlways = true;
 	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
@@ -1961,7 +1962,7 @@ void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std:
 	// For each render item...
 	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
 		auto ri = inRitems[i];
-		if (!ri->Visibility || ri->IsCulled)
+		if (ri->IsCulled || !ri->Visibility)
 			continue;
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());

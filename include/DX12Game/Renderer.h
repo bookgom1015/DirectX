@@ -48,6 +48,7 @@ struct RenderItem {
 
 	bool Visibility = true;
 	bool IsCulled = false;
+	bool DrawAlways = false;
 };
 
 enum class RenderLayer : int {
