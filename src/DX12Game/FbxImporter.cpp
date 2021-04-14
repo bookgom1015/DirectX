@@ -841,7 +841,7 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 		auto alphaProp = material->FindProperty(FbxSurfaceMaterial::sTransparentColor);
 
 		int alphaMapCount = alphaProp.GetSrcObjectCount<FbxTexture>();
-		ThreadUtil::Logln(std::to_wstring(alphaMapCount));
+		//ThreadUtil::Logln(std::to_wstring(alphaMapCount));
 
 		XMStoreFloat4x4(&mMaterials[meshName].MatTransform, XMMatrixScaling(1.0f, -1.0f, 0.0f));
 		mMaterials[meshName].DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };

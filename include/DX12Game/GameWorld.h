@@ -5,8 +5,6 @@
 #include <crtdbg.h>
 #endif
 
-#define MT_World
-
 #include "DX12Game/SoundEvent.h"
 
 // Forward declarations.

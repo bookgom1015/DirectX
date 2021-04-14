@@ -15,15 +15,15 @@ struct RenderItem {
 	// World matrix of the shape that describes the object's local space
 	// relative to the world space, which defines the position, orientation,
 	// and scale of the object in the world.
-	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+	//DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 
-	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+	//DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
 	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 	// Because we have an object cbuffer for each FrameResource, we have to apply the
 	// update to each FrameResource.  Thus, when we modify obect data we should set 
 	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
-	int NumFramesDirty = gNumFrameResources;
+	//int NumFramesDirty = gNumFrameResources;
 
 	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 	int ObjCBIndex = -1;
@@ -38,17 +38,17 @@ struct RenderItem {
 	DirectX::BoundingOrientedBox OBB;
 	DirectX::BoundingSphere Sphere;
 
+	std::vector<InstanceData> Instances;
+
 	// DrawIndexedInstanced parameters.
 	UINT IndexCount = 0;
 	UINT StartIndexLocation = 0;
-	int BaseVertexLocation = 0;
+	UINT BaseVertexLocation = 0;
 
 	// Only applicable to skinned render-items.
 	int SkinnedCBIndex = -1;
 
-	bool Visibility = true;
-	bool IsCulled = false;
-	bool DrawAlways = false;
+	UINT NumInstancesToDraw = 0;
 };
 
 enum class RenderLayer : int {
@@ -95,16 +95,16 @@ public:
 	void UpdateSkinnedTransforms(const std::string& inRenderItemName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms);
 
 	//* Set visibility status for the render item.
-	void SetVisible(const std::string& inRenderItemName, bool inStatus);
+	void SetVisible(const std::string& inRenderItemName, bool inState);
 	//* Set visibility status for the render item's skeleton.
-	void SetSkeletonVisible(const std::string& inRenderItemName, bool inStatus);
+	void SetSkeletonVisible(const std::string& inRenderItemName, bool inState);
 
 	//* Builds the geometry in the mesh.
 	//* After that, Call the function AddMaterials.
 	void AddGeometry(const Mesh* inMesh);
 	//* Builds render item.
 	//* Also, registers the instance name. if it was overlapped, append a suffix.
-	void AddRenderItem(std::string& ioRenderItemName, const DirectX::XMMATRIX& inTransform, const Mesh* inMesh);
+	void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh);
 	//* First, loads diffuse, normal and specular textures.
 	//* Second, builds descriptor heaps.
 	//* Finally, builds materials.
@@ -123,6 +123,11 @@ protected:
 	virtual void CreateRtvAndDsvDescriptorHeaps() override;
 
 private:
+	//*
+	void GenerateRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
+	//*
+	void BuildInstanceData(const std::string& inRenderItemName, const Mesh* inMesh);
+
 	//* Extracts vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 	//* Extracts skinned vertices and indices data from the mesh and builds geometry.
@@ -131,7 +136,7 @@ private:
 	//* Builds the skeleton geometry(for debugging) that is composed lines(2-vertices).
 	void AddSkeletonGeometry(const Mesh* inMesh);
 	//* Builds the skeleton(for debugging) render item.
-	void AddSkeletonRenderItem(const std::string& inRenderItemName, const DirectX::XMMATRIX& inTransform, const Mesh* inMesh);
+	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
 
 	//* Loads textures(diffuse, normal, specular...) and creates DDXTexture.
 	void AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
@@ -139,7 +144,8 @@ private:
 	void AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
-	void UpdateObjectCBs(const GameTimer& gt);
+	//void UpdateObjectCBs(const GameTimer& gt);
+	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
 	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
@@ -191,7 +197,6 @@ private:
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
-	std::unordered_map<std::string, std::vector<RenderItem*>> mRefAllRitems;
 
 	// Render items divided by PSO.
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
@@ -261,9 +266,15 @@ private:
 	UINT mObjectCBIndex = 0;
 	UINT mSkinedCBIndex = 0;
 	UINT mPassCBIndex = 0;
+	UINT mInstBufferIndex = 0;
 	UINT mMatBufferIndex = 0;
 	UINT mMiscTextureMapIndex = 0;
 	UINT mTextureMapIndex = 0;
 
 	DirectX::BoundingFrustum mCamFrustum;
+
+	std::vector<const Mesh*> mNestedMeshes;
+	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
+	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
 };

@@ -24,10 +24,10 @@ public:
 
 protected:
 	//* Helper function for loading mesh.
-	bool ProcessMeshLoading(const std::string& inMeshName, const std::string& inFileName, 
+	bool ProcessLoadingMesh(const std::string& inMeshName, const std::string& inFileName,
 							bool inIsSkeletal = false, bool inNeedToBeAligned = false);
 	//* Multi-thraded version of the function ProcessMeshLoading.
-	bool MTProcessMeshLoading(const std::string& inMeshName, const std::string& inFileName, 
+	bool MTProcessLoadingMesh(const std::string& inMeshName, const std::string& inFileName,
 							bool inIsSkeletal = false, bool inNeedToBeAligned = false);
 
 protected:

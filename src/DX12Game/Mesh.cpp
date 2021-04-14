@@ -223,7 +223,7 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 			return false;
 	}
 	timer.SetEndTime();
-	StringUtil::Log({ inFileName, " Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
+	StringUtil::Log({ inFileName, " MT Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
 
 	std::thread vertThread;
 	if (mIsSkeletal)

@@ -298,8 +298,13 @@ void SpinlockBarrier::Wait() {
 		return;
 	}
 
-	while ((currGen == mGeneration) && (mCurrCount != 0))
+	while (!bWakeUp && (currGen == mGeneration) && (mCurrCount != 0))
 		std::this_thread::yield();
+}
+
+void SpinlockBarrier::WakeUp() {
+	++mGeneration;
+	bWakeUp = true;
 }
 
 ThreadPool::ThreadPool(size_t inNumThreads) {

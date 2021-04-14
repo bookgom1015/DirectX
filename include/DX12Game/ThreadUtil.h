@@ -73,6 +73,10 @@ private:
 class ThreadBarrier {
 public:
 	virtual void Wait() = 0;
+	virtual void WakeUp() = 0;
+
+protected:
+	bool bWakeUp = false;
 };
 
 class CVBarrier : public ThreadBarrier{
@@ -89,7 +93,7 @@ private:
 
 public:
 	void Wait() override final;
-	void WakeUp();
+	void WakeUp() override final;
 
 private:
 	std::mutex mMutex;
@@ -97,8 +101,6 @@ private:
 	UINT mInitCount;
 	UINT mCurrCount;
 	std::uint64_t mGeneration;
-
-	bool bWakeUp = false;
 };
 
 class SpinlockBarrier : public ThreadBarrier {
@@ -115,6 +117,7 @@ private:
 
 public:
 	void Wait() override final;
+	void WakeUp() override final;
 
 private:
 	UINT mInitCount;

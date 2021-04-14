@@ -32,12 +32,12 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 
 bool SkeletalMeshComponent::LoadSkeletalMesh(const std::string& inMeshName, const std::string& inFileName, 
 										bool inNeedToBeAligned) {
-	return ProcessMeshLoading(inMeshName, inFileName, true, inNeedToBeAligned);
+	return ProcessLoadingMesh(inMeshName, inFileName, true, inNeedToBeAligned);
 }
 
 bool SkeletalMeshComponent::MTLoadSkeletalMesh(const std::string& inMeshName, const std::string& inFileName, 
 										bool inNeedToBeAligned) {
-	return MTProcessMeshLoading(inMeshName, inFileName, true, inNeedToBeAligned);
+	return MTProcessLoadingMesh(inMeshName, inFileName, true, inNeedToBeAligned);
 }
 
 void SkeletalMeshComponent::SetClipName(const std::string& inClipName) {
@@ -48,11 +48,11 @@ void SkeletalMeshComponent::SetClipName(const std::string& inClipName) {
 	mClipIsChanged = true;
 }
 
-void SkeletalMeshComponent::SetVisible(bool inStatus) {
-	mRenderer->SetVisible(mMeshName, inStatus);
-	mRenderer->SetSkeletonVisible(mMeshName, inStatus);
+void SkeletalMeshComponent::SetVisible(bool inState) {
+	mRenderer->SetVisible(mMeshName, inState);
+	mRenderer->SetSkeletonVisible(mMeshName, inState);
 }
 
-void SkeletalMeshComponent::SetSkeleletonVisible(bool inStatus) {
-	mRenderer->SetSkeletonVisible(mMeshName, inStatus);
+void SkeletalMeshComponent::SetSkeleletonVisible(bool inState) {
+	mRenderer->SetSkeletonVisible(mMeshName, inState);
 }

@@ -11,6 +11,8 @@ using namespace DirectX::PackedVector;
 namespace {
 	const std::wstring textureFileNamePrefix = L"./../../../../Assets/Textures/";
 	const std::wstring shaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
+
+	const UINT gMaxInstanceCount = 32;
 }
 
 Renderer::Renderer() 
@@ -82,7 +84,8 @@ void Renderer::Update(const GameTimer& gt) {
 	}
 
 	AnimateMaterials(gt);
-	UpdateObjectCBs(gt);
+	//UpdateObjectCBs(gt);
+	UpdateObjectCBsAndInstanceBuffer(gt);
 	UpdateSkinnedCBs(gt);
 	UpdateMaterialBuffer(gt);
 	UpdateShadowTransform(gt);
@@ -112,6 +115,9 @@ void Renderer::Draw(const GameTimer& gt) {
 	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
 
+	auto instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(mInstBufferIndex, instBuffer->GetGPUVirtualAddress());
+
 	// Bind null SRV for shadow map pass.
 	mCommandList->SetGraphicsRootDescriptorTable(mMiscTextureMapIndex, mNullSrv);
 
@@ -126,7 +132,7 @@ void Renderer::Draw(const GameTimer& gt) {
 	// Normal/depth pass.
 	//
 	DrawNormalsAndDepth();
-
+	
 	//
 	// Compute SSAO.
 	//
@@ -176,16 +182,16 @@ void Renderer::Draw(const GameTimer& gt) {
 
 	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Skeleton]);
-
+	
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
-
+	
 	mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::SkinnedOpaque]);
-
+	
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
-
+	
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -229,26 +235,54 @@ void Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 void Renderer::UpdateWorldTransform(const std::string& inRenderItemName, 
 									const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) {
-	auto iter = mRefAllRitems.find(inRenderItemName);
-	if (iter != mRefAllRitems.cend()) {
-		for (auto ritem : iter->second) {
-			XMStoreFloat4x4(&ritem->World, inTransform);
-			ritem->NumFramesDirty = gNumFrameResources;
-		}
+	//auto iter = mRefAllRitems.find(inRenderItemName);
+	//if (iter != mRefAllRitems.cend()) {
+	//	for (auto ritem : iter->second) {
+	//		XMStoreFloat4x4(&ritem->World, inTransform);
+	//		ritem->NumFramesDirty = gNumFrameResources;
+	//	}
+	//
+	//	if (inIsSkeletal) {
+	//		auto skelIter = mRefAllRitems.find(inRenderItemName + "_skeleton");
+	//		if (skelIter != mRefAllRitems.cend()) {
+	//			for (auto ritem : skelIter->second) {
+	//				XMStoreFloat4x4(&ritem->World, inTransform);
+	//				ritem->NumFramesDirty = gNumFrameResources;
+	//			}
+	//		}
+	//	}
+	//}
 
+	auto iter = mRefRitems.find(inRenderItemName);
+	if (iter != mRefRitems.end()) {
+		{
+			auto& ritems = iter->second;
+			for (auto ritem : ritems) {
+				UINT index = mInstancesIndex[inRenderItemName];
+
+				XMStoreFloat4x4(&ritem->Instances[index].World, inTransform);
+				ritem->Instances[index].NumFramesDirty = gNumFrameResources;
+			}
+		}
+	
+		std::string name = inRenderItemName + "_skeleton";
 		if (inIsSkeletal) {
-			auto skelIter = mRefAllRitems.find(inRenderItemName + "_skeleton");
-			if (skelIter != mRefAllRitems.cend()) {
-				for (auto ritem : skelIter->second) {
-					XMStoreFloat4x4(&ritem->World, inTransform);
-					ritem->NumFramesDirty = gNumFrameResources;
+			auto skelIter = mRefRitems.find(name);
+			if (skelIter != mRefRitems.cend()) {
+				auto& ritems = skelIter->second;
+				for (auto ritem : ritems) {
+					UINT index = mInstancesIndex[name];
+
+					XMStoreFloat4x4(&ritem->Instances[index].World, inTransform);
+					ritem->Instances[index].NumFramesDirty = gNumFrameResources;
 				}
 			}
 		}
 	}
 }
 
-void Renderer::UpdateSkinnedTransforms(const std::string& inRenderItemName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms) {
+void Renderer::UpdateSkinnedTransforms(const std::string& inRenderItemName, 
+										const std::vector<DirectX::XMFLOAT4X4>& inTransforms) {
 	auto idxIter = mSkinnedIndices.find(inRenderItemName);
 	if (idxIter != mSkinnedIndices.end()) {
 		int index = idxIter->second;
@@ -260,20 +294,33 @@ void Renderer::UpdateSkinnedTransforms(const std::string& inRenderItemName, cons
 	}
 }
 
-void Renderer::SetVisible(const std::string& inRenderItemName, bool inStatus) {
-	auto iter = mRefAllRitems.find(inRenderItemName);
-	if (iter != mRefAllRitems.cend()) {
-		for (auto ritem : iter->second) {
-			ritem->Visibility = inStatus;
+void Renderer::SetVisible(const std::string& inRenderItemName, bool inState) {
+	auto iter = mRefRitems.find(inRenderItemName);
+	if (iter != mRefRitems.cend()) {
+		auto& ritems = iter->second;
+		for (auto ritem : ritems) {
+			UINT index = mInstancesIndex[inRenderItemName];
+
+			if (inState)
+				ritem->Instances[index].State &= ~EInstanceDataState::EID_Invisible;
+			else
+				ritem->Instances[index].State |= EInstanceDataState::EID_Invisible;
 		}
 	}
 }
 
-void Renderer::SetSkeletonVisible(const std::string& inRenderItemName, bool inStatus) {
-	auto iter = mRefAllRitems.find(inRenderItemName + "_skeleton");
-	if (iter != mRefAllRitems.cend()) {
-		for (auto ritem : iter->second) {
-			ritem->Visibility = inStatus;
+void Renderer::SetSkeletonVisible(const std::string& inRenderItemName, bool inState) {
+	std::string name = inRenderItemName + "_skeleton";
+	auto iter = mRefRitems.find(name);
+	if (iter != mRefRitems.cend()) {
+		auto& ritems = iter->second;
+		for (auto ritem : ritems) {
+			UINT index = mInstancesIndex[name];
+
+			if (inState)
+				ritem->Instances[index].State &= ~EInstanceDataState::EID_Invisible;
+			else
+				ritem->Instances[index].State |= EInstanceDataState::EID_Invisible;
 		}
 	}
 }
@@ -330,60 +377,41 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 		AddMaterials(inMesh->GetMaterials());
 }
 
-void Renderer::AddRenderItem(std::string& ioRenderItemName, const DirectX::XMMATRIX& inTransform, const Mesh* inMesh) {
-	std::string originName = ioRenderItemName;
-	UINT suffix = 1;
-	auto iter = mRefAllRitems.find(ioRenderItemName);
-	while (iter != mRefAllRitems.cend()) {
+void Renderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) {
+	auto iter = mRefRitems.find(ioRenderItemName);
+	if (iter != mRefRitems.cend()) {
 		std::stringstream sstream;
-		sstream << originName << '_' << suffix++;
+		UINT suffix = 1;
+
+		do {
+			sstream.str("");
+			std::string modifiedName;
+			sstream << ioRenderItemName << '_' << suffix++;
+			modifiedName = sstream.str();
+			iter = mRefRitems.find(modifiedName);
+		} while (iter != mRefRitems.cend());
+
 		ioRenderItemName = sstream.str();
-		iter = mRefAllRitems.find(ioRenderItemName);
 	}
 
-	const auto& drawArgs = inMesh->GetDrawArgs();
-	const auto& materials = inMesh->GetMaterials();
-	for (size_t i = 0, end = drawArgs.size(); i < end; ++i) {
-		auto ritem = std::make_unique<RenderItem>();
-		XMStoreFloat4x4(&ritem->World, inTransform);
-		ritem->TexTransform = MathHelper::Identity4x4();
-		ritem->ObjCBIndex = mNumObjCB++;		
-	
-		ritem->Mat = mMaterials["default"].get();
-		if (!materials.empty()) {
-			auto iter = materials.find(drawArgs[i]);
-			if (iter != materials.cend()) {
-				auto matIter = mMaterials.find(iter->second.MaterialName);
-				if (matIter != mMaterials.cend())
-					ritem->Mat = matIter->second.get();
-			}
-		}
-		
-		ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
-		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-		ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
-		ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
-		ritem->BaseVertexLocation = ritem->Geo->DrawArgs[drawArgs[i]].BaseVertexLocation;
-		ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
-		
-		if (inMesh->GetIsSkeletal()) {
-			ritem->SkinnedCBIndex = mNumSkinnedCB;
-			mRitemLayer[(int)RenderLayer::SkinnedOpaque].push_back(ritem.get());
-		}
-		else {
-			mRitemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
-		}
-
-		mRefAllRitems[ioRenderItemName].push_back(ritem.get());
-		mAllRitems.push_back(std::move(ritem));
+	bool isNested = false;
+	{
+		auto iter = std::find(mNestedMeshes.begin(), mNestedMeshes.end(), inMesh);
+		if (iter != mNestedMeshes.end())
+			isNested = true;
 	}
+	mNestedMeshes.push_back(inMesh);
+
+	if (isNested)
+		BuildInstanceData(ioRenderItemName, inMesh);
+	else
+		GenerateRenderItem(ioRenderItemName, inMesh);
 
 	if (inMesh->GetIsSkeletal()) {
 		mSkinnedIndices[ioRenderItemName] = mNumSkinnedCB;
 		mSkinnedInstances[mNumSkinnedCB].resize(gNumBones);
 
-		AddSkeletonRenderItem(ioRenderItemName, inTransform, inMesh);
+		AddSkeletonRenderItem(ioRenderItemName, inMesh);
 	}
 }
 
@@ -452,6 +480,59 @@ void Renderer::CreateRtvAndDsvDescriptorHeaps() {
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
+void Renderer::GenerateRenderItem(const std::string& inRenderItemName, const Mesh* inMesh) {
+	const auto& drawArgs = inMesh->GetDrawArgs();
+	const auto& materials = inMesh->GetMaterials();
+
+	for (size_t i = 0, end = drawArgs.size(); i < end; ++i) {
+		auto ritem = std::make_unique<RenderItem>();
+		ritem->ObjCBIndex = mNumObjCB++;
+
+		ritem->Mat = mMaterials["default"].get();
+		if (!materials.empty()) {
+			auto iter = materials.find(drawArgs[i]);
+			if (iter != materials.cend()) {
+				auto matIter = mMaterials.find(iter->second.MaterialName);
+				if (matIter != mMaterials.cend())
+					ritem->Mat = matIter->second.get();
+			}
+		}
+
+		ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
+		ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
+		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
+		ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
+		ritem->BaseVertexLocation = ritem->Geo->DrawArgs[drawArgs[i]].BaseVertexLocation;
+		ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
+
+		if (inMesh->GetIsSkeletal()) {
+			ritem->SkinnedCBIndex = mNumSkinnedCB;
+			mRitemLayer[(int)RenderLayer::SkinnedOpaque].push_back(ritem.get());
+		}
+		else {
+			mRitemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
+		}
+
+		mMeshToRitem[inMesh].push_back(ritem.get());
+		mRefRitems[inRenderItemName].push_back(ritem.get());
+		mInstancesIndex[inRenderItemName] = 0;
+		mAllRitems.push_back(std::move(ritem));
+	}
+}
+
+void Renderer::BuildInstanceData(const std::string& inRenderItemName, const Mesh* inMesh) {
+	auto iter = mMeshToRitem.find(inMesh);
+	if (iter != mMeshToRitem.end()) {
+		auto& ritems = iter->second;
+		for (auto ritem : ritems) {
+			ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
+			mRefRitems[inRenderItemName].push_back(ritem);
+			mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->Instances.size() - 1);
+		}
+	}
+}
+
 void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, BoundingBox& inBound) {
 	const auto& vertices = inMesh->GetVertices();
 	const auto& indices = inMesh->GetIndices();
@@ -465,7 +546,7 @@ void Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, Boundi
 	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
 
 	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
-	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+	XMVECTOR vMax = XMLoadFloat3(&vMaxf3); 
 
 	for (size_t i = 0; i < vertices.size(); ++i) {
 		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
@@ -593,22 +674,22 @@ void Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, 
-										const DirectX::XMMATRIX& inTransform, const Mesh* inMesh) {
+void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh) {
 	auto ritem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&ritem->World, inTransform);
-	ritem->TexTransform = MathHelper::Identity4x4();
 	ritem->ObjCBIndex = mNumObjCB++;
 	ritem->SkinnedCBIndex = mNumSkinnedCB++;
 	ritem->Mat = mMaterials["default"].get();
 	ritem->Geo = mGeometries[inMesh->GetGeometryName() + "_skeleton"].get();
 	ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 	ritem->IndexCount = ritem->Geo->DrawArgs["skeleton"].IndexCount;
+	ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
 	ritem->StartIndexLocation = ritem->Geo->DrawArgs["skeleton"].StartIndexLocation;
 	ritem->BaseVertexLocation = ritem->Geo->DrawArgs["skeleton"].BaseVertexLocation;
 
+	std::string name = inRenderItemName + "_skeleton";
 	mRitemLayer[(int)RenderLayer::Skeleton].push_back(ritem.get());
-	mRefAllRitems[inRenderItemName + "_skeleton"].push_back(ritem.get());
+	mRefRitems[name].push_back(ritem.get());
+	mInstancesIndex[name] = 0;
 	mAllRitems.push_back(std::move(ritem));
 }
 
@@ -833,6 +914,7 @@ void Renderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>&
 
 void Renderer::AnimateMaterials(const GameTimer& gt) {}
 
+/*
 void Renderer::UpdateObjectCBs(const GameTimer& gt) {
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -854,7 +936,7 @@ void Renderer::UpdateObjectCBs(const GameTimer& gt) {
 		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
 		if (e->DrawAlways || (localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
-			// Only update the cbuffer data if the constants have changed.  
+			// Only update the cbuffer data if the constants have changed.
 			// This needs to be tracked per frame resource.
 			if (e->NumFramesDirty > 0) {
 				ObjectConstants objConstants;
@@ -865,7 +947,7 @@ void Renderer::UpdateObjectCBs(const GameTimer& gt) {
 				currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 
 				// Next FrameResource need to be updated too.
-				e->NumFramesDirty--;
+				--e->NumFramesDirty;
 
 				++visibleObjectCount;
 			}
@@ -874,6 +956,74 @@ void Renderer::UpdateObjectCBs(const GameTimer& gt) {
 		}
 		else {
 			e->IsCulled = true;
+		}
+	}
+
+	GameWorld::GetWorld()->SetVCount(visibleObjectCount);
+}
+*/
+
+void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
+	XMMATRIX view = mMainCamera->GetView();
+	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
+	UINT visibleObjectCount = 0;
+	UINT index;
+
+	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
+	auto currInstBuffer = mCurrFrameResource->InstanceBuffer.get();
+	for (auto& e : mAllRitems) {
+		index = e->ObjCBIndex * gMaxInstanceCount;
+		UINT offset = 0;
+
+		bool needToBeUpdated = false;
+		for (auto& i : e->Instances) {
+			XMMATRIX world = XMLoadFloat4x4(&i.World);
+			XMMATRIX texTransform = XMLoadFloat4x4(&i.TexTransform);
+
+			XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+			
+			// View space to the object's local space.
+			XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
+			
+			// Transform the camera frustum from view space to the object's local space.
+			BoundingFrustum localSpaceFrustum;
+			mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
+
+			if (i.State == EInstanceDataState::EID_DrawAlways || 
+					(i.State & EInstanceDataState::EID_Invisible) == 0 &&
+					(localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
+				// Only update the cbuffer data if the constants have changed.
+				// This needs to be tracked per frame resource.
+				//if (i.NumFramesDirty > 0) {
+					InstanceData instData;
+					XMStoreFloat4x4(&instData.World, XMMatrixTranspose(world));
+					XMStoreFloat4x4(&instData.TexTransform, XMMatrixTranspose(texTransform));
+					instData.MaterialIndex = i.MaterialIndex;
+
+					currInstBuffer->CopyData(index + offset, instData);
+
+					// Next FrameResource need to be updated too.
+					//--i.NumFramesDirty;
+					needToBeUpdated = true;
+				//}
+
+				i.State &= ~EInstanceDataState::EID_Culled;
+				++offset;
+				++visibleObjectCount;
+			}
+			else {
+				i.State |= EInstanceDataState::EID_Culled;
+			}
+		}
+
+		e->NumInstancesToDraw = offset;
+
+		if (needToBeUpdated) {
+			ObjectConstants objConstants;
+			objConstants.InstanceIndex = e->ObjCBIndex;
+		
+			currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 		}
 	}
 
@@ -1174,28 +1324,32 @@ void Renderer::BuildRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable1;
 	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 4, 0);
 
-	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[6];
+	const UINT numParameters = 7;
 
-	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstantBufferView(1);
-	slotRootParameter[2].InitAsConstantBufferView(2);
-	slotRootParameter[3].InitAsShaderResourceView(0, 1);
-	slotRootParameter[4].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[5].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+	// Root parameter can be a table, root descriptor or root constants.
+	CD3DX12_ROOT_PARAMETER slotRootParameter[numParameters];
 
 	mObjectCBIndex = 0;
 	mSkinedCBIndex = 1;
 	mPassCBIndex = 2;
-	mMatBufferIndex = 3;
-	mMiscTextureMapIndex = 4;
-	mTextureMapIndex = 5;
+	mInstBufferIndex = 3;
+	mMatBufferIndex = 4;
+	mMiscTextureMapIndex = 5;
+	mTextureMapIndex = 6;
+
+	// Perfomance TIP: Order from most frequent to least frequent.
+	slotRootParameter[mObjectCBIndex].InitAsConstantBufferView(0);
+	slotRootParameter[mSkinedCBIndex].InitAsConstantBufferView(1);
+	slotRootParameter[mPassCBIndex].InitAsConstantBufferView(2);
+	slotRootParameter[mInstBufferIndex].InitAsShaderResourceView(0, 1);
+	slotRootParameter[mMatBufferIndex].InitAsShaderResourceView(1, 1);
+	slotRootParameter[mMiscTextureMapIndex].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[mTextureMapIndex].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
 
 	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(6, slotRootParameter,
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(numParameters, slotRootParameter,
 		(UINT)staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -1693,9 +1847,10 @@ void Renderer::BuildStandardMaterials() {
 }
 
 void Renderer::BuildStandardRenderItems() {
+	XMFLOAT4X4 world;
+	XMFLOAT4X4 tex;
+
 	auto skyRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&skyRitem->World, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-	skyRitem->TexTransform = MathHelper::Identity4x4();
 	skyRitem->ObjCBIndex = mNumObjCB++;
 	skyRitem->Mat = mMaterials["sky"].get();
 	skyRitem->Geo = mGeometries["standardGeo"].get();
@@ -1704,12 +1859,12 @@ void Renderer::BuildStandardRenderItems() {
 	skyRitem->StartIndexLocation = skyRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
 	skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 	skyRitem->AABB = skyRitem->Geo->DrawArgs["sphere"].AABB;
+	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
+	skyRitem->Instances.push_back({ world, MathHelper::Identity4x4(), (UINT)skyRitem->Mat->MatCBIndex });
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	boxRitem->ObjCBIndex = mNumObjCB++;
 	boxRitem->Mat = mMaterials["default"].get();
 	boxRitem->Geo = mGeometries["standardGeo"].get();
@@ -1718,12 +1873,12 @@ void Renderer::BuildStandardRenderItems() {
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 	boxRitem->AABB = boxRitem->Geo->DrawArgs["box"].AABB;
+	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+	boxRitem->Instances.push_back({ world, MathHelper::Identity4x4(), (UINT)boxRitem->Mat->MatCBIndex });
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto quadRitem = std::make_unique<RenderItem>();
-	quadRitem->World = MathHelper::Identity4x4();
-	quadRitem->TexTransform = MathHelper::Identity4x4();
 	quadRitem->ObjCBIndex = mNumObjCB++;
 	quadRitem->Mat = mMaterials["default"].get();
 	quadRitem->Geo = mGeometries["standardGeo"].get();
@@ -1732,13 +1887,12 @@ void Renderer::BuildStandardRenderItems() {
 	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->AABB = quadRitem->Geo->DrawArgs["quad"].AABB;
-	quadRitem->DrawAlways = true;
+	quadRitem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)quadRitem->Mat->MatCBIndex });
+	quadRitem->Instances[0].State = EInstanceDataState::EID_DrawAlways;
 	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
-	gridRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->ObjCBIndex = mNumObjCB++;
 	gridRitem->Mat = mMaterials["default"].get();
 	gridRitem->Geo = mGeometries["standardGeo"].get();
@@ -1747,6 +1901,8 @@ void Renderer::BuildStandardRenderItems() {
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	gridRitem->AABB = gridRitem->Geo->DrawArgs["grid"].AABB;
+	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
+	gridRitem->Instances.push_back({ MathHelper::Identity4x4(), tex, (UINT)gridRitem->Mat->MatCBIndex });
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }
@@ -1948,7 +2104,7 @@ void Renderer::BuildPSOs() {
 void Renderer::BuildFrameResources() {
 	for (UINT i = 0; i < gNumFrameResources; ++i) {
 		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			2, 128, 128, 128));
+			2, 128, gMaxInstanceCount, 128, 128));
 	}
 }
 
@@ -1962,30 +2118,28 @@ void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std:
 	// For each render item...
 	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
 		auto ri = inRitems[i];
-		if (ri->IsCulled || !ri->Visibility)
-			continue;
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->Geo->VertexBufferView());
 		outCmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 		outCmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
+		outCmdList->SetGraphicsRootConstantBufferView(mObjectCBIndex, objCBAddress);
 
 		// CD3DX12_GPU_DESCRIPTOR_HANDLE tex(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 		// tex.Offset(ri->Mat->DiffuseSrvHeapIndex, mCbvSrvDescriptorSize);
-		
-		outCmdList->SetGraphicsRootConstantBufferView(mObjectCBIndex, objCBAddress);
 
 		if (ri->SkinnedCBIndex != -1) {
-			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = skinnedCB->GetGPUVirtualAddress() + 
-															ri->SkinnedCBIndex * skinnedCBByteSize;
+			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = 
+				skinnedCB->GetGPUVirtualAddress() + ri->SkinnedCBIndex * skinnedCBByteSize;
 			outCmdList->SetGraphicsRootConstantBufferView(mSkinedCBIndex, skinnedCBAddress);
 		}
 		else {
 			outCmdList->SetGraphicsRootConstantBufferView(mSkinedCBIndex, 0);
 		}
 		
-		outCmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+		outCmdList->DrawIndexedInstanced(ri->IndexCount, ri->NumInstancesToDraw, 
+			ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 	}
 }
 

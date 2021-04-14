@@ -32,33 +32,33 @@ void MeshComponent::OnUpdateWorldTransform() {
 }
 
 bool MeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName) {
-	return ProcessMeshLoading(inMeshName, inFileName, false, false);
+	return ProcessLoadingMesh(inMeshName, inFileName, false, false);
 }
 
 bool MeshComponent::MTLoadMesh(const std::string& inMeshName, const std::string& inFileName) {
-	return MTProcessMeshLoading(inMeshName, inFileName, false, false);
+	return MTProcessLoadingMesh(inMeshName, inFileName, false, false);
 }
 
-bool MeshComponent::ProcessMeshLoading(const std::string& inMeshName, const std::string& inFileName, 
+bool MeshComponent::ProcessLoadingMesh(const std::string& inMeshName, const std::string& inFileName,
 										bool inIsSkeletal, bool inNeedToBeAligned) {
 	mMesh = GameWorld::GetWorld()->AddMesh(inFileName, inIsSkeletal, inNeedToBeAligned);
 	if (mMesh == nullptr)
 		return false;
 
 	mMeshName = inMeshName;
-	mRenderer->AddRenderItem(mMeshName, GetOwner()->GetWorldTransform(), mMesh);
+	mRenderer->AddRenderItem(mMeshName, mMesh);
 
 	return true;
 }
 
-bool MeshComponent::MTProcessMeshLoading(const std::string& inMeshName, const std::string& inFileName,
+bool MeshComponent::MTProcessLoadingMesh(const std::string& inMeshName, const std::string& inFileName,
 											bool inIsSkeletal, bool inNeedToBeAligned) {
 	mMesh = GameWorld::GetWorld()->MTAddMesh(inFileName, inIsSkeletal, inNeedToBeAligned);
 	if (mMesh == nullptr)
 		return false;
 
 	mMeshName = inMeshName;
-	mRenderer->AddRenderItem(mMeshName, GetOwner()->GetWorldTransform(), mMesh);
+	mRenderer->AddRenderItem(mMeshName, mMesh);
 
 	return true;
 }

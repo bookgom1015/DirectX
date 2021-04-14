@@ -106,7 +106,7 @@ void TpsActor::ActorInput(const InputState& input) {
 bool TpsActor::OnLoadingData() {
 	if (!mSkeletalMeshComponent->MTLoadSkeletalMesh("leoni", "leoni.fbx"))
 		return false;
-	mSkeletalMeshComponent->SetSkeleletonVisible(false);
+	mSkeletalMeshComponent->SetSkeleletonVisible(true);
 
 	return true;
 }

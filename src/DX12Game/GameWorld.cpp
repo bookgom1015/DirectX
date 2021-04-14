@@ -134,6 +134,15 @@ bool GameWorld::LoadData() {
 	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
 		return false;
 
+	Actor* leoniActor = new Actor();
+	leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
+	leoniActor->SetQuaternion(rotateYPi);
+	SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
+	if (!leoniMeshComp->MTLoadSkeletalMesh("leoni", "leoni.fbx"))
+		return false;
+	leoniMeshComp->SetClipName("Idle");
+	leoniMeshComp->SetSkeleletonVisible(false);
+
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
 	for (int i = -1; i <= 1; ++i) {
@@ -151,7 +160,7 @@ bool GameWorld::LoadData() {
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
 
 			treeMeshComp = new MeshComponent(treeActor);
-			if (!treeMeshComp->MTLoadMesh("tree", "tree_1.fbx"))
+			if (!treeMeshComp->MTLoadMesh("tree", "tree_a.fbx"))
 				return false;
 		}
 	}
@@ -265,8 +274,6 @@ int GameWorld::MTGameLoop() {
 						MTProcessInput(tid, std::ref(inBarrier));
 					MTUpdateGame(mTimer, tid, std::ref(inBarrier));
 				}
-
-				inBarrier.Wait();
 			}
 		}, std::ref(msg), i + 1, std::ref(elapsedTime), std::ref(barrier));
 	}
@@ -296,8 +303,6 @@ int GameWorld::MTGameLoop() {
 				if (!mAppPaused)
 					Draw(mTimer);
 			}
-
-			barrier.Wait();
 		}
 	}
 
@@ -717,7 +722,7 @@ void GameWorld::CalculateFrameStats() {
 		std::wstring windowText = mMainWndCaption +
 			L"    fps: " + fpsStr +
 			L"   mspf: " + mspfStr +
-			L"    voc: " + std::to_wstring(mVCount);
+			L"     vo: " + std::to_wstring(mVCount);
 		SetWindowText(mhMainWnd, windowText.c_str());
 
 		// Reset for next average

@@ -22,9 +22,9 @@ public:
 	//* Set clip name that mesh will animate.
 	void SetClipName(const std::string& inClipName);
 	//* Set visibility for this mesh and it's skeleton.
-	virtual void SetVisible(bool inStatus) override;
+	virtual void SetVisible(bool inState) override;
 	//* Set visibility for skeleton of this mesh.
-	void SetSkeleletonVisible(bool inStatus);
+	void SetSkeleletonVisible(bool inState);
 
 private:
 	std::vector<DirectX::XMFLOAT4X4> mBoneTransforms;
