@@ -88,8 +88,8 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	for(int i = 0; i < 8; ++i) {
 		// Assume no nonuniform scaling when transforming normals, so 
 		// that we do not have to use the inverse-transpose.
-	if (indices[i] == -1)
-		break;
+		if (indices[i] == -1)
+			break;
 
 		posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[indices[i]]).xyz;
 		normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[indices[i]]);

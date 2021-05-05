@@ -6,14 +6,6 @@ const size_t gNumBones = 512;
 #include "common/UploadBuffer.h"
 
 struct ObjectConstants {
-	/*
-    DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	UINT     MaterialIndex;
-	UINT     ObjPad0;
-	UINT     ObjPad1;
-	UINT     ObjPad2;
-	*/
 	UINT InstanceIndex = 0;
 	UINT ObjectPad0;
 	UINT ObjectPad1;

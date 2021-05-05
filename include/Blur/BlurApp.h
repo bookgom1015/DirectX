@@ -17,8 +17,8 @@
 //#define Ex2 
 //#define Ex3 // Bind resource to ConsumeStructuredBuffer appropriately
 //#define Ex4
-//#define Ex5
-#define Ex6
+#define Ex5
+//#define Ex6
 
 const int gNumFrameResources = 3;
 
