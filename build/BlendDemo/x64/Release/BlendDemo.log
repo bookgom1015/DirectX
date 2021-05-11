@@ -1,0 +1,13 @@
+﻿  BlendApp.cpp
+  FrameResource.cpp
+  Waves.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  Generating code
+  All 2976 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  BlendDemo.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\BlendDemo\Release\BlendDemo.exe

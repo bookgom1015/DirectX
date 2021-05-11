@@ -1,8 +1,8 @@
 ﻿  d3dApp.cpp
-f:\synologydrive\visual studio project\window projects\directx\src\common\d3dapp.cpp(1): fatal error C1083: Cannot open include file: 'common/d3dApp.h': No such file or directory
   d3dUtil.cpp
-f:\synologydrive\visual studio project\window projects\directx\src\common\d3dutil.cpp(2): fatal error C1083: Cannot open include file: 'common/d3dUtil.h': No such file or directory
   GameTimer.cpp
-f:\synologydrive\visual studio project\window projects\directx\src\common\gametimer.cpp(4): fatal error C1083: Cannot open include file: 'common/GameTimer.h': No such file or directory
   InitDirect3D.cpp
-f:\synologydrive\visual studio project\window projects\directx\src\initdirect3d\initdirect3d.cpp(1): fatal error C1083: Cannot open include file: 'InitDirect3D/InitDirect3D.h': No such file or directory
+  Generating code
+  All 404 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  InitDirect3D.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\InitDirect3D\Release\InitDirect3D.exe

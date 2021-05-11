@@ -1,0 +1,14 @@
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  ShadowMap.cpp
+  ShadowsMapApp.cpp
+  Generating code
+  All 3160 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Shadows.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Shadows\Release\Shadows.exe

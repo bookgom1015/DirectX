@@ -20,12 +20,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return result;
 	}
 	catch (DxException& e) {
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -324,7 +328,7 @@ void PickingApp::UpdateMainPassCB(const GameTimer& gt) {
 void PickingApp::LoadTextures() {
 	auto defaultDiffuseTex = std::make_unique<Texture>();
 	defaultDiffuseTex->Name = "defaultDiffuseTex";
-	defaultDiffuseTex->Filename = L"./../../../Textures/white1x1.dds";
+	defaultDiffuseTex->Filename = L"./../../../../Assets/Textures/white1x1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), defaultDiffuseTex->Filename.c_str(),
 		defaultDiffuseTex->Resource, defaultDiffuseTex->UploadHeap));

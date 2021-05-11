@@ -1,0 +1,13 @@
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  PickingApp.cpp
+  Generating code
+  All 2587 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Picking.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Picking\Release\Picking.exe

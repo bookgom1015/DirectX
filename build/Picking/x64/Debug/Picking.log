@@ -1,1 +1,10 @@
-﻿
+﻿  FrameResource.cpp
+  PickingApp.cpp
+  Camera.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  Generating Code...
+  Picking.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Picking\Debug\Picking.exe

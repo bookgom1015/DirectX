@@ -427,14 +427,14 @@ void BlendApp::UpdateWaves(const GameTimer& gt) {
 void BlendApp::LoadTextures() {
 	auto grassTex = std::make_unique<Texture>();
 	grassTex->Name = "grassTex";
-	grassTex->Filename = L"./../../../Textures/grass.dds";
+	grassTex->Filename = L"./../../../../Assets/Textures/grass.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), grassTex->Filename.c_str(),
 		grassTex->Resource, grassTex->UploadHeap));
 
 	auto waterTex = std::make_unique<Texture>();
 	waterTex->Name = "waterTex";
-	waterTex->Filename = L"./../../../Textures/water1.dds";
+	waterTex->Filename = L"./../../../../Assets/Textures/water1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), waterTex->Filename.c_str(),
 		waterTex->Resource, waterTex->UploadHeap));
@@ -442,9 +442,9 @@ void BlendApp::LoadTextures() {
 	auto fenceTex = std::make_unique<Texture>();
 	fenceTex->Name = "fenceTex";
 #if defined(Ex7)
-	fenceTex->Filename = L"./../../../Textures/Bolt001.dds";
+	fenceTex->Filename = L"./../../../../Assets/Textures/Bolt001.dds";
 #else
-	fenceTex->Filename = L"./../../../Textures/WireFence.dds";
+	fenceTex->Filename = L"./../../../../Assets/Textures/WireFence.dds";
 #endif
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), fenceTex->Filename.c_str(),
@@ -453,14 +453,14 @@ void BlendApp::LoadTextures() {
 #if defined(Ex8)
 	auto azaTex = std::make_unique<Texture>();
 	azaTex->Name = "azaTex";
-	azaTex->Filename = L"./../../../Textures/aza.dds";
+	azaTex->Filename = L"./../../../../Assets/Textures/aza.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), azaTex->Filename.c_str(),
 		azaTex->Resource, azaTex->UploadHeap));
 #elif defined(Ex9)
 	auto azaTex = std::make_unique<Texture>();
 	azaTex->Name = "azaTex";
-	azaTex->Filename = L"./../../../Textures/white1x1.dds";
+	azaTex->Filename = L"./../../../../Assets/Textures/white1x1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), azaTex->Filename.c_str(),
 		azaTex->Resource, azaTex->UploadHeap));

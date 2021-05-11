@@ -18,12 +18,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEUBG)
 		CloseHandle(hLogFile);
+#endif
 		return result;
 	}
 	catch (DxException& e) {
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+#if defined(_DEUBG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -146,11 +150,13 @@ void BlurApp::OnResize() {
 	if (mBlurFilter != nullptr)
 		mBlurFilter->OnResize(mClientWidth, mClientHeight);
 
+#if defined(Ex6)
 	if (mSobelFilter != nullptr)
 		mSobelFilter->OnResize(mClientWidth, mClientHeight);
 
 	if (mOffscreenRT != nullptr)
 		mOffscreenRT->OnResize(mClientWidth, mClientHeight);
+#endif
 }
 
 void BlurApp::Update(const GameTimer& gt) {
@@ -670,21 +676,21 @@ void BlurApp::UpdateWaves(const GameTimer& gt) {
 void BlurApp::LoadTextures() {
 	auto grassTex = std::make_unique<Texture>();
 	grassTex->Name = "grassTex";
-	grassTex->Filename = L"./../../../Textures/grass.dds";
+	grassTex->Filename = L"./../../../../Assets/Textures/grass.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), grassTex->Filename.c_str(),
 		grassTex->Resource, grassTex->UploadHeap));
 
 	auto waterTex = std::make_unique<Texture>();
 	waterTex->Name = "waterTex";
-	waterTex->Filename = L"./../../../Textures/water1.dds";
+	waterTex->Filename = L"./../../../../Assets/Textures/water1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), waterTex->Filename.c_str(),
 		waterTex->Resource, waterTex->UploadHeap));
 
 	auto fenceTex = std::make_unique<Texture>();
 	fenceTex->Name = "fenceTex";
-	fenceTex->Filename = L"./../../../Textures/WireFence.dds";
+	fenceTex->Filename = L"./../../../../Assets/Textures/WireFence.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), fenceTex->Filename.c_str(),
 		fenceTex->Resource, fenceTex->UploadHeap));
@@ -692,7 +698,7 @@ void BlurApp::LoadTextures() {
 #if defined(Ex6)
 	auto skullTex = std::make_unique<Texture>();
 	skullTex->Name = "skullTex";
-	skullTex->Filename = L"./../../../Textures/WireFence.dds";
+	skullTex->Filename = L"./../../../../Assets/Textures/WireFence.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), skullTex->Filename.c_str(),
 		skullTex->Resource, skullTex->UploadHeap));

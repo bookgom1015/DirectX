@@ -569,13 +569,13 @@ void SkinnedMeshApp::LoadTextures() {
 	};
 
 	std::vector<std::wstring> texFilenames = {
-		L"./../../../Textures/bricks2.dds",
-		L"./../../../Textures/bricks2_nmap.dds",
-		L"./../../../Textures/tile.dds",
-		L"./../../../Textures/tile_nmap.dds",
-		L"./../../../Textures/white1x1.dds",
-		L"./../../../Textures/default_nmap.dds",
-		L"./../../../Textures/desertcube1024.dds"
+		L"./../../../../Assets/Textures/bricks2.dds",
+		L"./../../../../Assets/Textures/bricks2_nmap.dds",
+		L"./../../../../Assets/Textures/tile.dds",
+		L"./../../../../Assets/Textures/tile_nmap.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/default_nmap.dds",
+		L"./../../../../Assets/Textures/desertcube1024.dds"
 	};
 
 	// Add skinned model textures to list so we can reference by name later.
@@ -583,8 +583,8 @@ void SkinnedMeshApp::LoadTextures() {
 		std::string diffuseName = mSkinnedMats[i].DiffuseMapName;
 		std::string normalName = mSkinnedMats[i].NormalMapName;
 
-		std::wstring diffuseFilename = L"./../../../Textures/" + AnsiToWString(diffuseName);
-		std::wstring normalFilename = L"./../../../Textures/" + AnsiToWString(normalName);
+		std::wstring diffuseFilename = L"./../../../../Assets/Textures/" + AnsiToWString(diffuseName);
+		std::wstring normalFilename = L"./../../../../Assets/Textures/" + AnsiToWString(normalName);
 
 		// strip off extension
 		diffuseName = diffuseName.substr(0, diffuseName.find_last_of("."));

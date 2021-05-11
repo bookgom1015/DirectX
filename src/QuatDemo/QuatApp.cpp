@@ -1,5 +1,5 @@
 #include "QuatDemo/QuatApp.h"
-#include "common/FbxImporter.h"
+#include "DX12Game/FbxImporter.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -596,12 +596,12 @@ void QuatApp::LoadTextures() {
 	};
 
 	std::vector<std::wstring> texFileNames = {
-		L"./../../../../Textures/bricks2.dds",
-		L"./../../../../Textures/stone.dds",
-		L"./../../../../Textures/tile.dds",
-		L"./../../../../Textures/WoodCrate01.dds",
-		L"./../../../../Textures/white1x1.dds",
-		L"./../../../../Textures/skycube.dds"
+		L"./../../../../Assets/Textures/bricks2.dds",
+		L"./../../../../Assets/Textures/stone.dds",
+		L"./../../../../Assets/Textures/tile.dds",
+		L"./../../../../Assets/Textures/WoodCrate01.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/skycube.dds"
 	};
 
 	for (int i = 0; i < texNames.size(); ++i) {
@@ -1100,7 +1100,7 @@ void QuatApp::BuildFbxGeometry() {
 	
 	fbxImporter.LoadFile("./../../../../Models/monkey.fbx");
 	
-	const std::vector<FbxVertex>& fbxVertices = std::as_const(fbxImporter).GetVertices();
+	const std::vector<DxFbxVertex>& fbxVertices = std::as_const(fbxImporter).GetVertices();
 	
 	std::vector<Vertex> vertices;
 	

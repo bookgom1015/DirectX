@@ -47,7 +47,7 @@ D3D12_RECT ShadowMap::ScissorRect() const {
 void ShadowMap::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	                             CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 	                             CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv) {
-	// Save references to the descriptors. 
+	// Save references to the descriptors.
 	mhCpuSrv = hCpuSrv;
 	mhGpuSrv = hGpuSrv;
     mhCpuDsv = hCpuDsv;

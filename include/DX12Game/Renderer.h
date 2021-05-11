@@ -5,6 +5,7 @@
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
 #include "DX12Game/GameCamera.h"
+#include "DX12Game/AnimationsMap.h"
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -50,6 +51,55 @@ enum class RenderLayer : int {
 class Mesh;
 
 class Renderer : public LowRenderer {
+private:
+	struct RootParameters {
+		UINT ObjectCBIndex;
+		UINT SkinedCBIndex;
+		UINT PassCBIndex;
+		UINT InstBufferIndex;
+		UINT MatBufferIndex;
+		UINT MiscTextureMapIndex;
+		UINT TextureMapIndex;
+		UINT AnimationsMapIndex;
+	};
+
+	struct DescriptorHeapIndices {
+		UINT SkyTexHeapIndex;
+		UINT BlurSkyTexHeapIndex;
+		UINT ShadowMapHeapIndex;
+		UINT SsaoHeapIndexStart;
+		UINT SsaoAmbientMapIndex;
+		UINT AnimationsMapIndex;
+		UINT NullCubeSrvIndex;
+		UINT NullBlurCubeSrvIndex;
+		UINT NullTexSrvIndex1;
+		UINT NullTexSrvIndex2;
+		UINT CurrSrvHeapIndex;
+	};
+
+	struct LightUtil {
+		float LightNearZ = 0.0f;
+		float LightFarZ = 0.0f;
+
+		DirectX::XMFLOAT3 LightPosW;
+		DirectX::XMFLOAT4X4 LightView = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 LightProj = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
+
+		float LightRotationAngle = 0.0f;
+		DirectX::XMFLOAT3 BaseLightStrengths[3] = {
+			DirectX::XMFLOAT3(0.7f, 0.6670f, 0.6423f),
+			DirectX::XMFLOAT3(0.4f, 0.3811f, 0.367f),
+			DirectX::XMFLOAT3(0.1f, 0.0952f, 0.0917f)
+		};
+
+		DirectX::XMFLOAT3 BaseLightDirections[3] = {
+			DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
+			DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
+			DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
+		};
+	};
+
 public:
 	Renderer();
 	virtual ~Renderer();
@@ -96,6 +146,9 @@ public:
 	//* Second, builds descriptor heaps.
 	//* Finally, builds materials.
 	void AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+
+	//*
+
 
 	virtual ID3D12Device* GetDevice() const override;
 	virtual ID3D12GraphicsCommandList* GetCommandList() const override;
@@ -171,7 +224,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
@@ -198,21 +251,9 @@ private:
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
 	UINT mNumSkinnedCB = 0;
-
-	UINT mSkyTexHeapIndex = 0;
-	UINT mBlurSkyTexHeapIndex = 0;
-	UINT mShadowMapHeapIndex = 0;
-	UINT mSsaoHeapIndexStart = 0;
-	UINT mSsaoAmbientMapIndex = 0;
-
 	UINT mNumDescriptor = 0;
 
-	UINT mCurrSrvHeapIndex = 0;
-
-	UINT mNullCubeSrvIndex = 0;
-	UINT mNullBlurCubeSrvIndex = 0;
-	UINT mNullTexSrvIndex1 = 0;
-	UINT mNullTexSrvIndex2 = 0;
+	DescriptorHeapIndices mDescHeapIdx;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
@@ -228,35 +269,11 @@ private:
 	std::unordered_map<int /* Skinned constant buffer index */, std::vector<DirectX::XMFLOAT4X4>> mSkinnedInstances;
 	std::unordered_map<std::string /* Render item name */, int> mSkinnedIndices;
 
-	float mLightNearZ = 0.0f;
-	float mLightFarZ = 0.0f;
-	DirectX::XMFLOAT3 mLightPosW;
-	DirectX::XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
-
-	float mLightRotationAngle = 0.0f;
-	DirectX::XMFLOAT3 mBaseLightStrengths[3] = {
-		DirectX::XMFLOAT3(0.7f, 0.6670f, 0.6423f),
-		DirectX::XMFLOAT3(0.4f, 0.3811f, 0.367f),
-		DirectX::XMFLOAT3(0.1f, 0.0952f, 0.0917f)
-	};
-
-	DirectX::XMFLOAT3 mBaseLightDirections[3] = {
-		DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
-		DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
-		DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
-	};
+	LightUtil mLightUtil;
 
 	GameCamera* mMainCamera = nullptr;
 
-	UINT mObjectCBIndex = 0;
-	UINT mSkinedCBIndex = 0;
-	UINT mPassCBIndex = 0;
-	UINT mInstBufferIndex = 0;
-	UINT mMatBufferIndex = 0;
-	UINT mMiscTextureMapIndex = 0;
-	UINT mTextureMapIndex = 0;
+	RootParameters mRootParams;
 
 	DirectX::BoundingFrustum mCamFrustum;
 
@@ -264,4 +281,6 @@ private:
 	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
 	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
+
+	std::unique_ptr<AnimationsMap> mAnimsMap;
 };

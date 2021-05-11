@@ -1,2 +1,10 @@
-﻿  TreeBillboardsApp.cpp
-  TreeBillboards.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\TreeBillboards\TreeBillboards.exe
+﻿  FrameResource.cpp
+  TreeBillboardsApp.cpp
+  Waves.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  Generating Code...
+  TreeBillboards.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\TreeBillboards\Debug\TreeBillboards.exe

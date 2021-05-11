@@ -189,5 +189,8 @@ float4 PS(VertexOut pin) : SV_Target {
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
 
+	float4 rgb = gAnimationsDataMap.Sample(gsamPointClamp, float2(0.9f, 0.9f));
+	litColor = rgb;
+
     return litColor;
 }

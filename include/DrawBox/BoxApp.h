@@ -9,7 +9,7 @@
 //#define Ex3D
 //#define Ex3E
 //#define Ex4
-#define Ex6
+//#define Ex6
 //#define Ex7
 //#define Ex8
 //#define Ex9N

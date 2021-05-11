@@ -306,7 +306,7 @@ void CrateApp::LoadTextures() {
 #if defined(Ex3) || defined(Ex4_Trans) || defined(Ex4_Shader)
 	auto flareTex = std::make_unique<Texture>();
 	flareTex->Name = "flareTex";
-	flareTex->Filename = L"./../../../Exercise Media/flare.dds";
+	flareTex->Filename = L"./../../../../Assets/Textures/flare.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), flareTex->Filename.c_str(),
 		flareTex->Resource, flareTex->UploadHeap));
@@ -315,7 +315,7 @@ void CrateApp::LoadTextures() {
 
 	auto alphaTex = std::make_unique<Texture>();
 	alphaTex->Name = "alphaTex";
-	alphaTex->Filename = L"./../../../Exercise Media/flarealpha.dds";
+	alphaTex->Filename = L"./../../../../Assets/Textures/flarealpha.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), alphaTex->Filename.c_str(),
 		alphaTex->Resource, alphaTex->UploadHeap));
@@ -324,7 +324,7 @@ void CrateApp::LoadTextures() {
 #elif defined(Ex6)
 	auto boxTex = std::make_unique<Texture>();
 	boxTex->Name = "boxTex";
-	boxTex->Filename = L"./../../../Textures/stone.dds";
+	boxTex->Filename = L"./../../../../Assets/Textures/stone.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), boxTex->Filename.c_str(),
 		boxTex->Resource, boxTex->UploadHeap));
@@ -332,7 +332,7 @@ void CrateApp::LoadTextures() {
 
 	auto gridTex = std::make_unique<Texture>();
 	gridTex->Name = "gridTex";
-	gridTex->Filename = L"./../../../Textures/tile.dds";
+	gridTex->Filename = L"./../../../../Assets/Textures/tile.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), gridTex->Filename.c_str(),
 		gridTex->Resource, gridTex->UploadHeap));
@@ -340,7 +340,7 @@ void CrateApp::LoadTextures() {
 
 	auto cylTex = std::make_unique<Texture>();
 	cylTex->Name = "cylTex";
-	cylTex->Filename = L"./../../../Textures/bricks.dds";
+	cylTex->Filename = L"./../../../../Assets/Textures/bricks.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), cylTex->Filename.c_str(),
 		cylTex->Resource, cylTex->UploadHeap));
@@ -349,9 +349,9 @@ void CrateApp::LoadTextures() {
 	auto woodCrateTex = std::make_unique<Texture>();
 	woodCrateTex->Name = "woodCrateTex";
 #if defined(Ex2) || defined(Ex2_Linear)
-	woodCrateTex->Filename = L"./../../../Textures/aza.dds";
+	woodCrateTex->Filename = L"./../../../../Assets/Textures/aza.dds";
 #else
-	woodCrateTex->Filename = L"./../../../Textures/WoodCrate01.dds";
+	woodCrateTex->Filename = L"./../../../../Assets/Textures/WoodCrate01.dds";
 #endif
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), woodCrateTex->Filename.c_str(),

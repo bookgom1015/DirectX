@@ -98,20 +98,9 @@ struct Vertex {
 	DirectX::XMFLOAT3 TangentU = { 0.0f, 0.0f, 0.0f };
 
 	Vertex() = default;
+	Vertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
 
-	Vertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent) {
-		Pos = pos;
-		Normal = normal;
-		TexC = texC;
-		TangentU = tangent;
-	}
-
-	friend bool operator==(const Vertex& lhs, const Vertex& rhs) {
-		return MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-			MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-			MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-			MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
-	}
+	friend bool operator==(const Vertex& lhs, const Vertex& rhs);
 };
 
 struct SkinnedVertex {
@@ -125,31 +114,9 @@ struct SkinnedVertex {
 	int BoneIndices1[4] = { -1 };
 
 	SkinnedVertex() = default;
+	SkinnedVertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
 
-	SkinnedVertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent) {
-		Pos = pos;
-		Normal = normal;
-		TexC = texC;
-		TangentU = tangent;
-	}
-
-	friend bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
-		bool bResult = MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-			MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-			MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-			MathHelper::IsEqual(lhs.TangentU, rhs.TangentU) &&
-			MathHelper::IsEqual(lhs.BoneWeights0, rhs.BoneWeights0) &&
-			MathHelper::IsEqual(lhs.BoneWeights1, rhs.BoneWeights1);
-		if (bResult != true)
-			return false;
-
-		for (size_t i = 0; i < 4; ++i) {
-			if (lhs.BoneIndices0[i] != rhs.BoneIndices0[i] || lhs.BoneIndices1[i] != rhs.BoneIndices1[i])
-				return false;
-		}
-
-		return true;
-	}
+	friend bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs);
 };
 
 // Stores the resources needed for the CPU to build the command lists

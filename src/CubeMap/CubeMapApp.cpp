@@ -20,12 +20,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return result;
 	}
 	catch (DxException& e) {
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -332,13 +336,13 @@ void CubeMapApp::LoadTextures() {
 	};
 
 	std::vector<std::wstring> texFilenames = {
-		L"./../../../Textures/bricks2.dds",
-		L"./../../../Textures/tile.dds",
-		L"./../../../Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/bricks2.dds",
+		L"./../../../../Assets/Textures/tile.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
 #if defined(Ex2)
-		L"./../../../Textures/skycube.dds"
+		L"./../../../../Assets/Textures/skycube.dds"
 #else
-		L"./../../../Textures/grasscube1024.dds"
+		L"./../../../../Assets/Textures/grasscube1024.dds"
 #endif
 	};
 
