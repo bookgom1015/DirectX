@@ -107,6 +107,7 @@ namespace {
 			anim.mFrameDuration = animIter->second.GetFrameDuration();
 
 			const auto& curves = animIter->second.GetCurves();
+			anim.mCurves.resize(curves.size());
 			for (auto curveIter = curves.cbegin(), end = curves.cend(); curveIter != end; ++curveIter) {
 				for (const auto& curve : curveIter->second)
 					anim.mCurves[curveIter->first].push_back(curve);
@@ -259,6 +260,16 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 
 	mRenderer->AddGeometry(this);
 
+	const auto& anims = mSkinnedData.mAnimations;
+	for (const auto& anim : anims) {
+		UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
+		StringUtil::Logln({ " ", anim.first, " Index: ", std::to_string(idx) });
+
+		mClipsIndex[anim.first] = idx;
+	}
+	if (!anims.empty())
+		mRenderer->UpdateAnimationsMap();
+
 	return true;
 }
 
@@ -304,6 +315,11 @@ const std::vector<Vertex>& Mesh::GetSkeletonVertices() const {
 
 const std::vector<std::uint32_t> Mesh::GetSkeletonIndices() const {
 	return mSkeletonIndices;
+}
+
+UINT Mesh::GetClipIndex(const std::string& inClipName) const {
+	auto iter = mClipsIndex.find(inClipName);
+	return iter != mClipsIndex.end() ? iter->second : std::numeric_limits<UINT>::infinity();
 }
 
 void Mesh::GenerateSkeletonData() {

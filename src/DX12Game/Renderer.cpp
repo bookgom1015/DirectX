@@ -45,7 +45,7 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 		mCommandList.Get(),
 		mClientWidth, mClientHeight);
 
-	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get());
+	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get(), mCommandList.Get());
 
 	LoadStandardTextures();
 	BuildRootSignature();
@@ -55,9 +55,6 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	BuildStandardGeometry();
 	BuildStandardMaterials();
 	BuildStandardRenderItems();
-
-	mAnimsMap->BuildAnimationsMap(mCommandList.Get());
-
 	BuildFrameResources();
 	BuildPSOs();
 
@@ -258,7 +255,7 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 				UINT index = mInstancesIndex[inRenderItemName];
 
 				XMStoreFloat4x4(&ritem->Instances[index].World, inTransform);
-				ritem->Instances[index].NumFramesDirty = gNumFrameResources;
+				//ritem->Instances[index].NumFramesDirty = gNumFrameResources;
 			}
 		}
 	
@@ -271,7 +268,7 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 					UINT index = mInstancesIndex[name];
 
 					XMStoreFloat4x4(&ritem->Instances[index].World, inTransform);
-					ritem->Instances[index].NumFramesDirty = gNumFrameResources;
+					//ritem->Instances[index].NumFramesDirty = gNumFrameResources;
 				}
 			}
 		}
@@ -288,6 +285,20 @@ void Renderer::UpdateSkinnedTransforms(const std::string& inRenderItemName,
 			auto& transforms = instIter->second;
 			std::copy(std::begin(inTransforms), std::end(inTransforms), std::begin(transforms));
 		}			
+	}
+}
+
+void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName, UINT inAnimClipIdx, float inTimePose) {
+	auto iter = mRefRitems.find(inRenderItemName);
+	if (iter != mRefRitems.end()) {
+		auto& ritems = iter->second;
+		for (auto ritem : ritems) {
+			UINT index = mInstancesIndex[inRenderItemName];
+
+			ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+			//StringUtil::Logln({ "AnimClipIndex: ", std::to_string(ritem->Instances[index].AnimClipIndex) });
+			ritem->Instances[index].TimePose = inTimePose;
+		}
 	}
 }
 
@@ -439,6 +450,40 @@ void Renderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& i
 	}
 }
 
+UINT Renderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
+	std::vector<std::vector<XMFLOAT4>> data;
+	data.resize(inAnim.mNumFrames);
+
+	for (size_t frame = 0; frame < inAnim.mNumFrames; ++frame) {
+		for (const auto& curve : inAnim.mCurves) {
+			for (int row = 0; row < 4; ++row) {
+				data[frame].emplace_back(
+					curve[frame].m[row][0],
+					curve[frame].m[row][1],
+					curve[frame].m[row][2],
+					curve[frame].m[row][3]);
+			}
+		}		
+	}
+
+	return mAnimsMap->AddAnimation(inClipName, data);
+}
+
+void Renderer::UpdateAnimationsMap() {
+	// Reset the command list to prep for initialization commands.
+	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+
+	mAnimsMap->UpdateAnimationsMap();
+
+	// Execute the initialization commands.
+	ThrowIfFailed(mCommandList->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	// Wait until initialization is complete.
+	FlushCommandQueue();
+}
+
 ID3D12Device* Renderer::GetDevice() const {
 	return LowRenderer::GetDevice();
 }
@@ -495,7 +540,9 @@ void Renderer::GenerateRenderItem(const std::string& inRenderItemName, const Mes
 			}
 		}
 
-		ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
+		ritem->Instances.push_back({ 
+			MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
+			0.0f, (UINT)ritem->Mat->MatCBIndex, 0});
 		ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
 		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
@@ -523,7 +570,8 @@ void Renderer::BuildInstanceData(const std::string& inRenderItemName, const Mesh
 	if (iter != mMeshToRitem.end()) {
 		auto& ritems = iter->second;
 		for (auto ritem : ritems) {
-			ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
+			ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
+				0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
 			mRefRitems[inRenderItemName].push_back(ritem);
 			mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->Instances.size() - 1);
 		}
@@ -679,7 +727,8 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 	ritem->Geo = mGeometries[inMesh->GetGeometryName() + "_skeleton"].get();
 	ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 	ritem->IndexCount = ritem->Geo->DrawArgs["skeleton"].IndexCount;
-	ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)ritem->Mat->MatCBIndex });
+	ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
+		0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
 	ritem->StartIndexLocation = ritem->Geo->DrawArgs["skeleton"].StartIndexLocation;
 	ritem->BaseVertexLocation = ritem->Geo->DrawArgs["skeleton"].BaseVertexLocation;
 
@@ -996,7 +1045,9 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 					InstanceData instData;
 					XMStoreFloat4x4(&instData.World, XMMatrixTranspose(world));
 					XMStoreFloat4x4(&instData.TexTransform, XMMatrixTranspose(texTransform));
-					instData.MaterialIndex = i.MaterialIndex;
+					instData.TimePose = i.TimePose;
+					instData.AnimClipIndex = i.AnimClipIndex;
+					instData.MaterialIndex = i.MaterialIndex;					
 
 					currInstBuffer->CopyData(index + offset, instData);
 
@@ -1339,21 +1390,19 @@ void Renderer::BuildRootSignature() {
 	mRootParams.AnimationsMapIndex = 7;
 
 	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[mRootParams.ObjectCBIndex].InitAsConstantBufferView(0);
+	slotRootParameter[mRootParams.ObjectCBIndex].InitAsConstantBufferView(
+		0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	slotRootParameter[mRootParams.PassCBIndex].InitAsConstantBufferView(1);
 	slotRootParameter[mRootParams.SkinedCBIndex].InitAsConstantBufferView(2);
-	slotRootParameter[mRootParams.InstBufferIndex].InitAsShaderResourceView(0, 1);
+	slotRootParameter[mRootParams.InstBufferIndex].InitAsShaderResourceView(
+		0, 1, D3D12_SHADER_VISIBILITY_VERTEX);
 	slotRootParameter[mRootParams.MatBufferIndex].InitAsShaderResourceView(1, 1);
 	slotRootParameter[mRootParams.MiscTextureMapIndex].InitAsDescriptorTable(
-		1, 
-		&texTable0, 
-		D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[mRootParams.TextureMapIndex].InitAsDescriptorTable(1,
-		&texTable1, 
-		D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[mRootParams.AnimationsMapIndex].InitAsDescriptorTable(1, 
-		&texTable2,
-		D3D12_SHADER_VISIBILITY_PIXEL);
+		1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[mRootParams.TextureMapIndex].InitAsDescriptorTable(
+		1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[mRootParams.AnimationsMapIndex].InitAsDescriptorTable(
+		1, &texTable2, D3D12_SHADER_VISIBILITY_VERTEX);
 
 	auto staticSamplers = GetStaticSamplers();
 
@@ -1874,7 +1923,8 @@ void Renderer::BuildStandardRenderItems() {
 	skyRitem->BaseVertexLocation = skyRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 	skyRitem->AABB = skyRitem->Geo->DrawArgs["sphere"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-	skyRitem->Instances.push_back({ world, MathHelper::Identity4x4(), (UINT)skyRitem->Mat->MatCBIndex });
+	skyRitem->Instances.push_back({ world, MathHelper::Identity4x4(),
+		0.0f, (UINT)skyRitem->Mat->MatCBIndex, 0 });
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
@@ -1888,7 +1938,8 @@ void Renderer::BuildStandardRenderItems() {
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 	boxRitem->AABB = boxRitem->Geo->DrawArgs["box"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	boxRitem->Instances.push_back({ world, MathHelper::Identity4x4(), (UINT)boxRitem->Mat->MatCBIndex });
+	boxRitem->Instances.push_back({ world, MathHelper::Identity4x4(), 
+		0.0f, (UINT)boxRitem->Mat->MatCBIndex, 0 });
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
@@ -1901,7 +1952,8 @@ void Renderer::BuildStandardRenderItems() {
 	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->AABB = quadRitem->Geo->DrawArgs["quad"].AABB;
-	quadRitem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), (UINT)quadRitem->Mat->MatCBIndex });
+	quadRitem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
+		0.0f, (UINT)quadRitem->Mat->MatCBIndex, 0 });
 	quadRitem->Instances[0].State = EInstanceDataState::EID_DrawAlways;
 	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
@@ -1916,7 +1968,8 @@ void Renderer::BuildStandardRenderItems() {
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 	gridRitem->AABB = gridRitem->Geo->DrawArgs["grid"].AABB;
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
-	gridRitem->Instances.push_back({ MathHelper::Identity4x4(), tex, (UINT)gridRitem->Mat->MatCBIndex });
+	gridRitem->Instances.push_back({ MathHelper::Identity4x4(), tex, 
+		0.0f, (UINT)gridRitem->Mat->MatCBIndex, 0 });
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }

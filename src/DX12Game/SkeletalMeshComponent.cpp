@@ -27,7 +27,8 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 		mClipIsChanged = false;
 	}
 
-	mMesh->GetSkinnedData().GetFinalTransforms(mClipName, gt.TotalTime() - mLastTotalTime, mBoneTransforms);
+	float timePose = mMesh->GetSkinnedData().GetTimePosition(mClipName, gt.TotalTime() - mLastTotalTime);
+	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePose);
 }
 
 bool SkeletalMeshComponent::LoadSkeletalMesh(const std::string& inMeshName, const std::string& inFileName, 

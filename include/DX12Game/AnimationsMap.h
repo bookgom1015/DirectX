@@ -4,19 +4,23 @@
 
 class AnimationsMap {
 public:
-	AnimationsMap(ID3D12Device* inDevice, UINT inWidth = 512, UINT inHeight = 512);
+	AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
 	virtual ~AnimationsMap();
 
 public:
-	UINT AddAnimation(const std::string& inClipName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms);
+	UINT AddAnimation(const std::string& inClipName, const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves);
 
 	void BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv);
-	void BuildAnimationsMap(ID3D12GraphicsCommandList* inCmdList);
+
+	void UpdateAnimationsMap();
 
 	ID3D12Resource* GetAnimationsMap() const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMapSrv() const;
+
+	UINT GetLineSize() const;
+	double GetInvLineSize() const;
 
 private:
 	void BuildResource();
@@ -27,6 +31,7 @@ public:
 
 private:
 	ID3D12Device* md3dDevice;
+	ID3D12GraphicsCommandList* mCommandList;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAnimsMap;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAnimsMapUploadBuffer;
@@ -34,11 +39,7 @@ private:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAnimsMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAnimsMapGpuSrv;
 
-	UINT mAnimsMapWidth;
-	UINT mAnimsMapHeight;
-
-	std::vector<DirectX::XMFLOAT4X4> mAnimations;
-	std::unordered_map<std::string /* Clip name */, UINT /* Index */> mClipsIndex;
+	std::vector<DirectX::XMFLOAT4> mAnimations;
 
 	UINT mCurrIndex = 0;
 	UINT mNumSubresources;

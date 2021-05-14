@@ -261,4 +261,9 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Assets\Shaders\Default.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
+  </ItemGroup>
 </Project>

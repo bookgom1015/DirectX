@@ -17,6 +17,8 @@ Bone::Bone(const std::string inName, int inParentIndex,
 
 void SkinnedData::GetFinalTransforms(const std::string& inClipName, float inTimePos,
 										std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const {
+	// This function won't be used, if using instancing
+#if false
 	auto animtIter = mAnimations.find(inClipName);
 	if (animtIter != mAnimations.cend()) {
 		const auto& anim = animtIter->second;
@@ -41,4 +43,25 @@ void SkinnedData::GetFinalTransforms(const std::string& inClipName, float inTime
 			XMStoreFloat4x4(&outFinalTransforms[index], interpolatedTransform);
 		}
 	}
+#endif
+}
+
+float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
+	auto animtIter = mAnimations.find(inClipName);
+	if (animtIter == mAnimations.cend())
+		return 0.0f;
+
+	const auto& anim = animtIter->second;
+	float animTime = inTime;
+	while (animTime >= anim.mDuration)
+		animTime -= anim.mDuration;
+
+	float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
+	size_t frame = (size_t)frameTime;
+	size_t nextFrame = frame + 1;
+	if (nextFrame >= anim.mNumFrames)
+		nextFrame = 0;
+	float pct = frameTime - (float)frame;
+
+	return static_cast<float>(nextFrame + pct);
 }

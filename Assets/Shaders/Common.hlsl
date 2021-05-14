@@ -2,17 +2,20 @@
 // Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
 //***************************************************************************************
 
+#ifndef __COMMON_HLSL__
+#define __COMMOM_HLSL__
+
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-    #define NUM_DIR_LIGHTS 3
+#define NUM_DIR_LIGHTS 3
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
+#define NUM_POINT_LIGHTS 0
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 0
+#define NUM_SPOT_LIGHTS 0
 #endif
 
 #define MAX_INSTANCE_DATA 32
@@ -23,10 +26,10 @@
 struct InstanceData {
 	float4x4 World;
 	float4x4 TexTransform;
+	float TimePose;
 	uint MaterialIndex;
+	uint AnimClipIndex;
 	uint InstPad0;
-	uint InstPad1;
-	uint InstPad2;
 };
 
 struct MaterialData {
@@ -92,11 +95,11 @@ cbuffer cbPass : register(b1) {
 	float gDeltaTime;
 	float4 gAmbientLight;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
-    Light gLights[MaxLights];
+	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
+	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
+	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
+	// are spot lights for a maximum of MaxLights per object.
+	Light gLights[MaxLights];
 };
 
 cbuffer cbSkinned : register(b2) {
@@ -201,3 +204,5 @@ float3 BoxCubeMapLookup(float3 rayOrigin, float3 unitRayDir, float3 boxCenter, f
 	// create coordinate relative to center of box.
 	return p + t * unitRayDir;
 }
+
+#endif

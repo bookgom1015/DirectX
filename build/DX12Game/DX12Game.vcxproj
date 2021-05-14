@@ -204,6 +204,13 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Assets\Shaders\Default.hlsl">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+    </FxCompile>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets" Condition="Exists('..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets')" />

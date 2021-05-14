@@ -36,6 +36,8 @@ public:
 	const std::vector<Vertex>& GetSkeletonVertices() const;
 	const std::vector<std::uint32_t> GetSkeletonIndices() const;
 
+	UINT GetClipIndex(const std::string& inClipName) const;
+
 private:
 	//* Generates vertices and indices for the skeleton.
 	//* It's organized as line-lists.
@@ -67,4 +69,6 @@ protected:
 
 	std::vector<Vertex> mSkeletonVertices;
 	std::vector<std::uint32_t> mSkeletonIndices;
+
+	std::unordered_map<std::string /* Clip name */, UINT /* Index */> mClipsIndex;
 };

@@ -1139,7 +1139,7 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 	if (inClusterIndex == 0) {
 		outAnimation.mNumFrames = endFrameCount - startFrameCount;
 		outAnimation.mDuration = static_cast<float>(endTime.GetSecondDouble() - startTime.GetSecondDouble());
-		outAnimation.mFrameDuration = outAnimation.mDuration / (outAnimation.mNumFrames);
+		outAnimation.mFrameDuration = outAnimation.mDuration / (outAnimation.mNumFrames++);
 	}
 	
 	const auto& animCurveTransX = inCluster->GetLink()->LclTranslation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_X);
@@ -1152,7 +1152,7 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 	const auto& animCurveScaleY = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 	const auto& animCurveScaleZ = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z);
 	
-	for (auto currFrame = startFrameCount; currFrame < endFrameCount; ++currFrame) {
+	for (auto currFrame = startFrameCount; currFrame <= endFrameCount; ++currFrame) {
 		FbxTime currTime;
 		currTime.SetFrame(currFrame, timeMode);
 		
@@ -1208,10 +1208,10 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo* inTakeInfo, FbxCluster*
 	if (inClusterIndex == 0) {
 		outAnimation.mNumFrames = endFrameCount - startFrameCount;
 		outAnimation.mDuration = static_cast<float>(endTime.GetSecondDouble() - startTime.GetSecondDouble());
-		outAnimation.mFrameDuration = outAnimation.mDuration / (outAnimation.mNumFrames);
+		outAnimation.mFrameDuration = outAnimation.mDuration / (outAnimation.mNumFrames++);
 	}
 
-	for (auto currFrame = startFrameCount; currFrame < endFrameCount; ++currFrame) {
+	for (auto currFrame = startFrameCount; currFrame <= endFrameCount; ++currFrame) {
 		FbxTime currTime;
 		currTime.SetFrame(currFrame, timeMode);
 

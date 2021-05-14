@@ -4,22 +4,38 @@ using namespace DirectX;
 using namespace DirectX::PackedVector;
 using namespace Microsoft::WRL;
 
-AnimationsMap::AnimationsMap(ID3D12Device* inDevice, UINT inWidth /* = 512 */, UINT inHeight /* = 512 */)
-	: mAnimsMapWidth(inWidth), 
-	  mAnimsMapHeight(inHeight) {
+namespace {
+	const size_t LineSize = 2048;
+	const double InvLineSize = static_cast<double>(1.0 / LineSize);
+}
+
+AnimationsMap::AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
 	md3dDevice = inDevice;
+	mCommandList = inCmdList;
+
+	mAnimations.resize(LineSize * LineSize);
 
 	BuildResource();
 }
 
 AnimationsMap::~AnimationsMap() {}
 
-UINT AnimationsMap::AddAnimation(const std::string& inClipName, const std::vector<XMFLOAT4X4>& inTransforms) {
-	std::copy(std::begin(inTransforms), std::end(inTransforms), std::end(mAnimations));
+UINT AnimationsMap::AddAnimation(const std::string& inClipName, 
+		const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves) {
+	size_t numFrames = inAnimCurves.size();
+	UINT ret = mCurrIndex;
+	
+	for (size_t frame = 0; frame < numFrames; ++frame) {
+		const auto& animCurves = inAnimCurves[frame];
+		UINT paddingSize = static_cast<UINT>(LineSize - animCurves.size());
 
-	mClipsIndex[inClipName] = mCurrIndex;
+		for (const auto& curve : animCurves)
+			mAnimations[mCurrIndex++] = curve;
 
-	return mCurrIndex++;
+		mCurrIndex += paddingSize;
+	}
+
+	return ret;
 }
 
 void AnimationsMap::BuildDescriptors(
@@ -33,19 +49,11 @@ void AnimationsMap::BuildDescriptors(
 	BuildDescriptors();
 }
 
-void AnimationsMap::BuildAnimationsMap(ID3D12GraphicsCommandList* inCmdList) {
-	std::vector<XMFLOAT4> initData(mAnimsMapWidth * mAnimsMapHeight);
-	for (UINT i = 0; i < mAnimsMapWidth; ++i) {
-		for (UINT j = 0; j < mAnimsMapHeight; ++j)
-			initData[i * mAnimsMapWidth + j] = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	}
-
-	initData[mAnimsMapWidth * mAnimsMapHeight - 1] = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-
+void AnimationsMap::UpdateAnimationsMap() {
 	D3D12_SUBRESOURCE_DATA subResourceData = {};
-	subResourceData.pData = initData.data();
-	subResourceData.RowPitch = mAnimsMapWidth * sizeof(XMFLOAT4);
-	subResourceData.SlicePitch = subResourceData.RowPitch * mAnimsMapHeight;
+	subResourceData.pData = mAnimations.data();
+	subResourceData.RowPitch = LineSize * sizeof(XMFLOAT4);
+	subResourceData.SlicePitch = subResourceData.RowPitch * LineSize;
 
 	//
 	// Schedule to copy the data to the default resource, and change states.
@@ -53,11 +61,11 @@ void AnimationsMap::BuildAnimationsMap(ID3D12GraphicsCommandList* inCmdList) {
 	// read by a shader.
 	//
 
-	inCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
-	UpdateSubresources(inCmdList, mAnimsMap.Get(), mAnimsMapUploadBuffer.Get(),
+	UpdateSubresources(mCommandList, mAnimsMap.Get(), mAnimsMapUploadBuffer.Get(),
 		0, 0, mNumSubresources, &subResourceData);
-	inCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
 		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
@@ -69,6 +77,14 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMap::AnimationsMapSrv() const {
 	return mhAnimsMapGpuSrv;
 }
 
+UINT AnimationsMap::GetLineSize() const {
+	return LineSize;
+}
+
+double AnimationsMap::GetInvLineSize() const {
+	return InvLineSize;
+}
+
 void AnimationsMap::BuildResource() {
 	// Free the old resources if they exist.
 	mAnimsMap = nullptr;
@@ -77,8 +93,8 @@ void AnimationsMap::BuildResource() {
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	texDesc.Alignment = 0;
-	texDesc.Width = mAnimsMapWidth;
-	texDesc.Height = mAnimsMapHeight;
+	texDesc.Width = LineSize;
+	texDesc.Height = LineSize;
 	texDesc.DepthOrArraySize = 1;
 	texDesc.MipLevels = 1;
 	texDesc.Format = AnimationsMap::AnimationsMapFormat;

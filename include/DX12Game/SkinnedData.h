@@ -40,7 +40,8 @@ public:
 	// Duration of each frame in the animation.
 	float mFrameDuration;
 
-	std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	//std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	std::vector<std::vector<DirectX::XMFLOAT4X4>> mCurves;
 };
 
 class SkinnedData {
@@ -51,6 +52,7 @@ public:
 public:
 	void GetFinalTransforms(const std::string& inClipName, float inTimePos, 
 							std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const;
+	float GetTimePosition(const std::string& inClipName, float inTime) const;
 
 public:
 	Skeleton mSkeleton;

@@ -49,6 +49,7 @@ enum class RenderLayer : int {
 };
 
 class Mesh;
+class Animation;
 
 class Renderer : public LowRenderer {
 private:
@@ -130,6 +131,8 @@ public:
 								const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
 	//* Updates pose matrix data at the time for the actor.
 	void UpdateSkinnedTransforms(const std::string& inRenderItemName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms);
+	//*
+	void UpdateInstanceAnimationData(const std::string& inRenderItemName, UINT inAnimClipIdx, float inTimePose);
 
 	//* Set visibility status for the render item.
 	void SetVisible(const std::string& inRenderItemName, bool inState);
@@ -148,7 +151,9 @@ public:
 	void AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	//*
-
+	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
+	//*
+	void UpdateAnimationsMap();
 
 	virtual ID3D12Device* GetDevice() const override;
 	virtual ID3D12GraphicsCommandList* GetCommandList() const override;
