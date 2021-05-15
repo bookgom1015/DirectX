@@ -15,37 +15,6 @@ Bone::Bone(const std::string inName, int inParentIndex,
 	mGlobalInvBindPose = inGlobalInvBindPose;
 }
 
-void SkinnedData::GetFinalTransforms(const std::string& inClipName, float inTimePos,
-										std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const {
-	// This function won't be used, if using instancing
-#if false
-	auto animtIter = mAnimations.find(inClipName);
-	if (animtIter != mAnimations.cend()) {
-		const auto& anim = animtIter->second;
-		float animTime = inTimePos;
-		while (animTime >= anim.mDuration)
-			animTime -= anim.mDuration;
-
-		float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
-		size_t frame = (size_t)frameTime;
-		size_t nextFrame = frame + 1;
-		if (nextFrame >= anim.mNumFrames)
-			nextFrame = 0;
-		float pct = frameTime - (float)frame;
-
-		for (const auto& curve : anim.mCurves) {
-			int index = curve.first;
-
-			XMMATRIX currentTransform = XMLoadFloat4x4(&curve.second[frame]);
-			XMMATRIX nextTransform = XMLoadFloat4x4(&curve.second[nextFrame]);
-
-			XMMATRIX interpolatedTransform = currentTransform * (1.0f - pct) + nextTransform * pct;
-			XMStoreFloat4x4(&outFinalTransforms[index], interpolatedTransform);
-		}
-	}
-#endif
-}
-
 float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
 	auto animtIter = mAnimations.find(inClipName);
 	if (animtIter == mAnimations.cend())
@@ -58,10 +27,7 @@ float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) 
 
 	float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
 	size_t frame = (size_t)frameTime;
-	size_t nextFrame = frame + 1;
-	if (nextFrame >= anim.mNumFrames)
-		nextFrame = 0;
 	float pct = frameTime - (float)frame;
 
-	return static_cast<float>(nextFrame + pct);
+	return static_cast<float>(frame + pct);
 }

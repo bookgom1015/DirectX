@@ -19,19 +19,21 @@
 #include "Common.hlsl"
 
 struct VertexIn {
-	float3	PosL		: POSITION;
-	float2	TexC		: TEXCOORD;
+	float3	PosL				: POSITION;
+	float2	TexC				: TEXCOORD;
 };
 
 struct VertexOut {
-    float3		PosW	: POSITION;
-	float2		TexC	: TEXCOORD;
-	float4x4	World	: WORLDMAT;
+    float3		PosW			: POSITION;
+	float2		TexC			: TEXCOORD;
+	float		TimePose		: TIMEPOSE;
+	uint		AnimClipIndex	: CLIPIDX;
+	float4x4	World			: WORLDMAT;
 };
 
 struct GeoOut {
-	float4	PosH		: SV_POSITION;
-	uint	PrimID		: SV_PrimitiveID;
+	float4	PosH				: SV_POSITION;
+	uint	PrimID				: SV_PrimitiveID;
 };
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
@@ -42,6 +44,8 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 
 	vout.PosW = vin.PosL;
 	vout.TexC = vin.TexC;
+	vout.TimePose = instData.TimePose;
+	vout.AnimClipIndex = instData.AnimClipIndex;
 	vout.World = world;
 
     return vout;
@@ -55,11 +59,32 @@ void GS(line VertexOut gin[2],
 	for (int i = 0; i < 2; ++i) {
 		GeoOut gout = (GeoOut)0.0f;
 		
-		float3 posL = gin[i].PosW;
-		
+		float3 posL = gin[i].PosW;		
 		int boneIndex = (int)gin[i].TexC.x;
+
+		int rowIndex = boneIndex * 4;
+		int colIndex = gin[i].AnimClipIndex + (int)gin[i].TimePose;
+		float pct = gin[i].TimePose - (int)gin[i].TimePose;
+
+		float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex, colIndex, 0));
+		float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));
+		float4 r3_f0 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex, 0));
+		float4 r4_f0 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex, 0));
+		
+		float4 r1_f1 = gAnimationsDataMap.Load(int3(rowIndex, colIndex + 1, 0));
+		float4 r2_f1 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex + 1, 0));
+		float4 r3_f1 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex + 1, 0));
+		float4 r4_f1 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex + 1, 0));
+		
+		float4 r1 = r1_f0 + pct * (r1_f1 - r1_f0);
+		float4 r2 = r2_f0 + pct * (r2_f1 - r2_f0);
+		float4 r3 = r3_f0 + pct * (r3_f1 - r3_f0);
+		float4 r4 = r4_f0 + pct * (r4_f1 - r4_f0);
+		
+		float4x4 trans = { r1, r2, r3, r4 };
+
 		if (boneIndex != -1)
-			posL = mul(float4(posL, 1.0f), gBoneTransforms[boneIndex]).xyz;
+			posL = mul(float4(posL, 1.0f), trans).xyz;
 		
 		// Transform to world space.
 		float4 posW = mul(float4(posL, 1.0f), gin[i].World);

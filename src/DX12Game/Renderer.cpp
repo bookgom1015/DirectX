@@ -86,9 +86,7 @@ void Renderer::Update(const GameTimer& gt) {
 	}
 
 	AnimateMaterials(gt);
-	//UpdateObjectCBs(gt);
 	UpdateObjectCBsAndInstanceBuffer(gt);
-	UpdateSkinnedCBs(gt);
 	UpdateMaterialBuffer(gt);
 	UpdateShadowTransform(gt);
 	UpdateMainPassCB(gt);
@@ -275,29 +273,32 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 	}
 }
 
-void Renderer::UpdateSkinnedTransforms(const std::string& inRenderItemName, 
-										const std::vector<DirectX::XMFLOAT4X4>& inTransforms) {
-	auto idxIter = mSkinnedIndices.find(inRenderItemName);
-	if (idxIter != mSkinnedIndices.end()) {
-		int index = idxIter->second;
-		auto instIter = mSkinnedInstances.find(index);
-		if (instIter != mSkinnedInstances.end()) {
-			auto& transforms = instIter->second;
-			std::copy(std::begin(inTransforms), std::end(inTransforms), std::begin(transforms));
-		}			
+void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName, 
+		UINT inAnimClipIdx, float inTimePose, bool inIsSkeletal) {
+	{
+		auto iter = mRefRitems.find(inRenderItemName);
+		if (iter != mRefRitems.end()) {
+			auto& ritems = iter->second;
+			for (auto ritem : ritems) {
+				UINT index = mInstancesIndex[inRenderItemName];
+
+				ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+				ritem->Instances[index].TimePose = inTimePose;
+			}
+		}
 	}
-}
 
-void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName, UINT inAnimClipIdx, float inTimePose) {
-	auto iter = mRefRitems.find(inRenderItemName);
-	if (iter != mRefRitems.end()) {
-		auto& ritems = iter->second;
-		for (auto ritem : ritems) {
-			UINT index = mInstancesIndex[inRenderItemName];
+	{
+		std::string name = inRenderItemName + "_skeleton";
+		auto iter = mRefRitems.find(name);
+		if (iter != mRefRitems.end()) {
+			auto& ritems = iter->second;
+			for (auto ritem : ritems) {
+				UINT index = mInstancesIndex[inRenderItemName];
 
-			ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
-			//StringUtil::Logln({ "AnimClipIndex: ", std::to_string(ritem->Instances[index].AnimClipIndex) });
-			ritem->Instances[index].TimePose = inTimePose;
+				ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+				ritem->Instances[index].TimePose = inTimePose;
+			}
 		}
 	}
 }
@@ -409,18 +410,11 @@ void Renderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) 
 			isNested = true;
 	}
 	mNestedMeshes.push_back(inMesh);
+	
+	AddRenderItem(ioRenderItemName, inMesh, isNested);
 
-	if (isNested)
-		BuildInstanceData(ioRenderItemName, inMesh);
-	else
-		GenerateRenderItem(ioRenderItemName, inMesh);
-
-	if (inMesh->GetIsSkeletal()) {
-		mSkinnedIndices[ioRenderItemName] = mNumSkinnedCB;
-		mSkinnedInstances[mNumSkinnedCB].resize(gNumBones);
-
-		AddSkeletonRenderItem(ioRenderItemName, inMesh);
-	}
+	if (inMesh->GetIsSkeletal())
+		AddSkeletonRenderItem(ioRenderItemName, inMesh, isNested);
 }
 
 void Renderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
@@ -522,58 +516,56 @@ void Renderer::CreateRtvAndDsvDescriptorHeaps() {
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 }
 
-void Renderer::GenerateRenderItem(const std::string& inRenderItemName, const Mesh* inMesh) {
-	const auto& drawArgs = inMesh->GetDrawArgs();
-	const auto& materials = inMesh->GetMaterials();
-
-	for (size_t i = 0, end = drawArgs.size(); i < end; ++i) {
-		auto ritem = std::make_unique<RenderItem>();
-		ritem->ObjCBIndex = mNumObjCB++;
-
-		ritem->Mat = mMaterials["default"].get();
-		if (!materials.empty()) {
-			auto iter = materials.find(drawArgs[i]);
-			if (iter != materials.cend()) {
-				auto matIter = mMaterials.find(iter->second.MaterialName);
-				if (matIter != mMaterials.cend())
-					ritem->Mat = matIter->second.get();
+void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
+	if (inIsNested) {
+		auto iter = mMeshToRitem.find(inMesh);
+		if (iter != mMeshToRitem.end()) {
+			auto& ritems = iter->second;
+			for (auto ritem : ritems) {
+				ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(),
+					0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
+				mRefRitems[inRenderItemName].push_back(ritem);
+				mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->Instances.size() - 1);
 			}
 		}
-
-		ritem->Instances.push_back({ 
-			MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
-			0.0f, (UINT)ritem->Mat->MatCBIndex, 0});
-		ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
-		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
-		ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
-		ritem->BaseVertexLocation = ritem->Geo->DrawArgs[drawArgs[i]].BaseVertexLocation;
-		ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
-
-		if (inMesh->GetIsSkeletal()) {
-			ritem->SkinnedCBIndex = mNumSkinnedCB;
-			mRitemLayer[(int)RenderLayer::SkinnedOpaque].push_back(ritem.get());
-		}
-		else {
-			mRitemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
-		}
-
-		mMeshToRitem[inMesh].push_back(ritem.get());
-		mRefRitems[inRenderItemName].push_back(ritem.get());
-		mInstancesIndex[inRenderItemName] = 0;
-		mAllRitems.push_back(std::move(ritem));
 	}
-}
+	else {
+		const auto& drawArgs = inMesh->GetDrawArgs();
+		const auto& materials = inMesh->GetMaterials();
 
-void Renderer::BuildInstanceData(const std::string& inRenderItemName, const Mesh* inMesh) {
-	auto iter = mMeshToRitem.find(inMesh);
-	if (iter != mMeshToRitem.end()) {
-		auto& ritems = iter->second;
-		for (auto ritem : ritems) {
-			ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
+		for (size_t i = 0, end = drawArgs.size(); i < end; ++i) {
+			auto ritem = std::make_unique<RenderItem>();
+			ritem->ObjCBIndex = mNumObjCB++;
+
+			ritem->Mat = mMaterials["default"].get();
+			if (!materials.empty()) {
+				auto iter = materials.find(drawArgs[i]);
+				if (iter != materials.cend()) {
+					auto matIter = mMaterials.find(iter->second.MaterialName);
+					if (matIter != mMaterials.cend())
+						ritem->Mat = matIter->second.get();
+				}
+			}
+
+			ritem->Instances.push_back({
+				MathHelper::Identity4x4(), MathHelper::Identity4x4(),
 				0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
-			mRefRitems[inRenderItemName].push_back(ritem);
-			mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->Instances.size() - 1);
+			ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
+			ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+			ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
+			ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
+			ritem->BaseVertexLocation = ritem->Geo->DrawArgs[drawArgs[i]].BaseVertexLocation;
+			ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
+
+			if (inMesh->GetIsSkeletal())
+				mRitemLayer[(int)RenderLayer::SkinnedOpaque].push_back(ritem.get());
+			else
+				mRitemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
+
+			mMeshToRitem[inMesh].push_back(ritem.get());
+			mRefRitems[inRenderItemName].push_back(ritem.get());
+			mInstancesIndex[inRenderItemName] = 0;
+			mAllRitems.push_back(std::move(ritem));
 		}
 	}
 }
@@ -719,24 +711,40 @@ void Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh) {
-	auto ritem = std::make_unique<RenderItem>();
-	ritem->ObjCBIndex = mNumObjCB++;
-	ritem->SkinnedCBIndex = mNumSkinnedCB++;
-	ritem->Mat = mMaterials["default"].get();
-	ritem->Geo = mGeometries[inMesh->GetGeometryName() + "_skeleton"].get();
-	ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-	ritem->IndexCount = ritem->Geo->DrawArgs["skeleton"].IndexCount;
-	ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
-		0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
-	ritem->StartIndexLocation = ritem->Geo->DrawArgs["skeleton"].StartIndexLocation;
-	ritem->BaseVertexLocation = ritem->Geo->DrawArgs["skeleton"].BaseVertexLocation;
+void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
+	if (inIsNested) {
+		auto iter = mMeshToSkeletonRitem.find(inMesh);
+		if (iter != mMeshToSkeletonRitem.end()) {
+			std::string name = inRenderItemName + "_skeleton";
+			auto& ritems = iter->second;			
+			for (auto ritem : ritems) {
+				ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(),
+					0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
+				mRefRitems[name].push_back(ritem);
+				mInstancesIndex[name] = static_cast<UINT>(ritem->Instances.size() - 1);
+			}
+		}
+	}
+	else {
+		auto ritem = std::make_unique<RenderItem>();
+		ritem->ObjCBIndex = mNumObjCB++;
+		ritem->Mat = mMaterials["default"].get();
+		ritem->Geo = mGeometries[inMesh->GetGeometryName() + "_skeleton"].get();
+		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+		ritem->IndexCount = ritem->Geo->DrawArgs["skeleton"].IndexCount;
+		ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(),
+			0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
+		ritem->StartIndexLocation = ritem->Geo->DrawArgs["skeleton"].StartIndexLocation;
+		ritem->BaseVertexLocation = ritem->Geo->DrawArgs["skeleton"].BaseVertexLocation;
 
-	std::string name = inRenderItemName + "_skeleton";
-	mRitemLayer[(int)RenderLayer::Skeleton].push_back(ritem.get());
-	mRefRitems[name].push_back(ritem.get());
-	mInstancesIndex[name] = 0;
-	mAllRitems.push_back(std::move(ritem));
+		mRitemLayer[(int)RenderLayer::Skeleton].push_back(ritem.get());
+
+		std::string name = inRenderItemName + "_skeleton";
+		mMeshToSkeletonRitem[inMesh].push_back(ritem.get());
+		mRefRitems[name].push_back(ritem.get());
+		mInstancesIndex[name] = 0;
+		mAllRitems.push_back(std::move(ritem));
+	}
 }
 
 void Renderer::AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
@@ -960,55 +968,6 @@ void Renderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>&
 
 void Renderer::AnimateMaterials(const GameTimer& gt) {}
 
-/*
-void Renderer::UpdateObjectCBs(const GameTimer& gt) {
-	XMMATRIX view = mMainCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-
-	UINT visibleObjectCount = 0;
-
-	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
-	for (auto& e : mAllRitems) {
-		XMMATRIX world = XMLoadFloat4x4(&e->World);
-		XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
-
-		XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
-
-		// View space to the object's local space.
-		XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
-
-		// Transform the camera frustum from view space to the object's local space.
-		BoundingFrustum localSpaceFrustum;
-		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
-
-		if (e->DrawAlways || (localSpaceFrustum.Contains(e->AABB) != DirectX::DISJOINT)) {
-			// Only update the cbuffer data if the constants have changed.
-			// This needs to be tracked per frame resource.
-			if (e->NumFramesDirty > 0) {
-				ObjectConstants objConstants;
-				XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
-				XMStoreFloat4x4(&objConstants.TexTransform, XMMatrixTranspose(texTransform));
-				objConstants.MaterialIndex = e->Mat->MatCBIndex;
-
-				currObjectCB->CopyData(e->ObjCBIndex, objConstants);
-
-				// Next FrameResource need to be updated too.
-				--e->NumFramesDirty;
-
-				++visibleObjectCount;
-			}
-
-			e->IsCulled = false;
-		}
-		else {
-			e->IsCulled = true;
-		}
-	}
-
-	GameWorld::GetWorld()->SetVCount(visibleObjectCount);
-}
-*/
-
 void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -1076,23 +1035,6 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 	}
 
 	GameWorld::GetWorld()->SetVCount(visibleObjectCount);
-}
-
-void Renderer::UpdateSkinnedCBs(const GameTimer& gt) {
-	auto currSkinnedCB = mCurrFrameResource->SkinnedCB.get();
-	
-	for (const auto& instIter : mSkinnedInstances) {
-		SkinnedConstants skinnedConstants;
-
-		const auto& transforms = instIter.second;
-		for (auto transIter = transforms.cbegin(), transEnd = transforms.cend(); transIter != transEnd; ++transIter) {
-			size_t index = transIter - transforms.cbegin();
-		
-			XMStoreFloat4x4(&skinnedConstants.BoneTransforms[index], XMMatrixTranspose(XMLoadFloat4x4(&(*transIter))));
-		}
-
-		currSkinnedCB->CopyData(instIter.first, skinnedConstants);
-	}
 }
 
 void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
@@ -1380,20 +1322,19 @@ void Renderer::BuildRootSignature() {
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[numParameters];
 
-	mRootParams.ObjectCBIndex = 0;
-	mRootParams.PassCBIndex = 1;
-	mRootParams.SkinedCBIndex = 2;
-	mRootParams.InstBufferIndex = 3;
-	mRootParams.MatBufferIndex = 4;
-	mRootParams.MiscTextureMapIndex = 5;
-	mRootParams.TextureMapIndex = 6;
-	mRootParams.AnimationsMapIndex = 7;
+	UINT cnt = 0;
+	mRootParams.ObjectCBIndex = cnt++;
+	mRootParams.PassCBIndex = cnt++;
+	mRootParams.InstBufferIndex = cnt++;
+	mRootParams.MatBufferIndex = cnt++;
+	mRootParams.MiscTextureMapIndex = cnt++;
+	mRootParams.TextureMapIndex = cnt++;
+	mRootParams.AnimationsMapIndex = cnt++;
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[mRootParams.ObjectCBIndex].InitAsConstantBufferView(
 		0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
 	slotRootParameter[mRootParams.PassCBIndex].InitAsConstantBufferView(1);
-	slotRootParameter[mRootParams.SkinedCBIndex].InitAsConstantBufferView(2);
 	slotRootParameter[mRootParams.InstBufferIndex].InitAsShaderResourceView(
 		0, 1, D3D12_SHADER_VISIBILITY_VERTEX);
 	slotRootParameter[mRootParams.MatBufferIndex].InitAsShaderResourceView(1, 1);
@@ -1402,7 +1343,7 @@ void Renderer::BuildRootSignature() {
 	slotRootParameter[mRootParams.TextureMapIndex].InitAsDescriptorTable(
 		1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[mRootParams.AnimationsMapIndex].InitAsDescriptorTable(
-		1, &texTable2, D3D12_SHADER_VISIBILITY_VERTEX);
+		1, &texTable2);
 
 	auto staticSamplers = GetStaticSamplers();
 
@@ -2170,17 +2111,15 @@ void Renderer::BuildPSOs() {
 
 void Renderer::BuildFrameResources() {
 	for (UINT i = 0; i < gNumFrameResources; ++i) {
-		mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
-			2, 128, gMaxInstanceCount, 128, 128));
+		mFrameResources.push_back(std::make_unique<FrameResource>(
+			md3dDevice.Get(), 2, 128, gMaxInstanceCount, 128));
 	}
 }
 
 void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std::vector<RenderItem*>& inRitems) {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-	UINT skinnedCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(SkinnedConstants));
 
 	auto objectCB = mCurrFrameResource->ObjectCB->Resource();
-	auto skinnedCB = mCurrFrameResource->SkinnedCB->Resource();
 
 	// For each render item...
 	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
@@ -2192,15 +2131,6 @@ void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std:
 
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex * objCBByteSize;
 		outCmdList->SetGraphicsRootConstantBufferView(mRootParams.ObjectCBIndex, objCBAddress);
-
-		if (ri->SkinnedCBIndex != -1) {
-			D3D12_GPU_VIRTUAL_ADDRESS skinnedCBAddress = 
-				skinnedCB->GetGPUVirtualAddress() + ri->SkinnedCBIndex * skinnedCBByteSize;
-			outCmdList->SetGraphicsRootConstantBufferView(mRootParams.SkinedCBIndex, skinnedCBAddress);
-		}
-		else {
-			outCmdList->SetGraphicsRootConstantBufferView(mRootParams.SkinedCBIndex, 0);
-		}
 		
 		outCmdList->DrawIndexedInstanced(ri->IndexCount, ri->NumInstancesToDraw, 
 			ri->StartIndexLocation, ri->BaseVertexLocation, 0);

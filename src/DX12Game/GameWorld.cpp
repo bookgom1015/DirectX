@@ -77,7 +77,8 @@ bool GameWorld::Initialize() {
 	if (!mInputSystem->Initialize(mhMainWnd))
 		return false;
 
-	mTimer.SetLimitFrameRate(GameTimer::LimitFrameRate::ELimitFrameRateNone);
+	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
+	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
 #if defined(MT_World)
 	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
@@ -258,6 +259,7 @@ int GameWorld::MTGameLoop() {
 	float beginTime = 0.0f;
 	float endTime;
 	float elapsedTime;
+	bool can = false;
 
 	mTimer.Reset();
 
@@ -265,17 +267,17 @@ int GameWorld::MTGameLoop() {
 	CVBarrier barrier(numProcessors);
 
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
-		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, const float& inElapsedTime, ThreadBarrier& inBarrier) -> void {
+		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, 
+				ThreadBarrier& inBarrier, const bool& inCan) -> void {
 			while (inMsg.message != WM_QUIT) {
 				inBarrier.Wait();
 
-				if (inElapsedTime > mTimer.GetLimitFrameRate()) {
-					if (!mAppPaused)
-						MTProcessInput(tid, std::ref(inBarrier));
-					MTUpdateGame(mTimer, tid, std::ref(inBarrier));
-				}
+				if (!mAppPaused)
+					MTProcessInput(tid, std::ref(inBarrier));
+
+				MTUpdateGame(mTimer, tid, std::ref(inBarrier));
 			}
-		}, std::ref(msg), i + 1, std::ref(elapsedTime), std::ref(barrier));
+		}, std::ref(msg), i + 1, std::ref(barrier), std::ref(can));
 	}
 
 	while (msg.message != WM_QUIT) {
@@ -291,15 +293,17 @@ int GameWorld::MTGameLoop() {
 			endTime = mTimer.TotalTime();
 			elapsedTime = endTime - beginTime;
 
-			barrier.Wait();
-
 			if (elapsedTime > mTimer.GetLimitFrameRate()) {
+				barrier.Wait();
 				beginTime = endTime;
+
 				if (!mAppPaused) {
 					CalculateFrameStats();
 					MTProcessInput(0, std::ref(barrier));
-				}
+				}	
+
 				MTUpdateGame(mTimer, 0, std::ref(barrier));
+
 				if (!mAppPaused)
 					Draw(mTimer);
 			}
@@ -571,14 +575,14 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	case WM_ACTIVATE:
 		if (LOWORD(wParam) == WA_INACTIVE) {
 			mAppPaused = true;
-			//mTimer.Stop();
+			mTimer.SetLimitFrameRate(GameTimer::ELimitFrameRate30f);
 			mPrevBusVolume = mAudioSystem->GetBusVolume("bus:/");
 			mAudioSystem->SetBusVolume("bus:/", 0.0f);
 			mInputSystem->IgnoreMouseInput();
 		}
 		else {
 			mAppPaused = false;
-			//mTimer.Start();
+			mTimer.SetLimitFrameRate(mLimitFrameRate);
 			mAudioSystem->SetBusVolume("bus:/", mPrevBusVolume);
 			mInputSystem->IgnoreMouseInput();
 		}

@@ -102,10 +102,6 @@ cbuffer cbPass : register(b1) {
 	Light gLights[MaxLights];
 };
 
-cbuffer cbSkinned : register(b2) {
-	float4x4 gBoneTransforms[512];
-};
-
 //---------------------------------------------------------------------------------------
 // Transforms a normal map sample to world space.
 //---------------------------------------------------------------------------------------

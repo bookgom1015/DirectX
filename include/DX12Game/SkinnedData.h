@@ -50,8 +50,6 @@ public:
 	virtual ~SkinnedData() = default;
 
 public:
-	void GetFinalTransforms(const std::string& inClipName, float inTimePos, 
-							std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const;
 	float GetTimePosition(const std::string& inClipName, float inTime) const;
 
 public:

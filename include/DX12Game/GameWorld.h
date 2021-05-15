@@ -148,6 +148,7 @@ private:
 	GameWorld::GameState mGameState = GameWorld::GameState::EPlay;
 
 	GameTimer mTimer;
+	GameTimer::LimitFrameRate mLimitFrameRate;
 
 #if defined(MT_World)
 	std::vector<std::thread> mThreads;

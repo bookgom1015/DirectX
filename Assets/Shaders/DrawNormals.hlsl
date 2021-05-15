@@ -80,9 +80,31 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 		// that we do not have to use the inverse-transpose.
 		if (indices[i] == -1)
 			continue;
-		posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[indices[i]]).xyz;
-		normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[indices[i]]);
-		tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)gBoneTransforms[indices[i]]);
+
+		int rowIndex = indices[i] * 4;
+		int colIndex = instData.AnimClipIndex + (int)instData.TimePose;
+		float pct = instData.TimePose - (int)instData.TimePose;
+
+		float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex, colIndex, 0));
+		float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));
+		float4 r3_f0 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex, 0));
+		float4 r4_f0 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex, 0));
+
+		float4 r1_f1 = gAnimationsDataMap.Load(int3(rowIndex, colIndex + 1, 0));
+		float4 r2_f1 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex + 1, 0));
+		float4 r3_f1 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex + 1, 0));
+		float4 r4_f1 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex + 1, 0));
+
+		float4 r1 = r1_f0 + pct * (r1_f1 - r1_f0);
+		float4 r2 = r2_f0 + pct * (r2_f1 - r2_f0);
+		float4 r3 = r3_f0 + pct * (r3_f1 - r3_f0);
+		float4 r4 = r4_f0 + pct * (r4_f1 - r4_f0);
+
+		float4x4 trans = { r1, r2, r3, r4 };
+
+		posL += weights[i] * mul(float4(vin.PosL, 1.0f), trans).xyz;
+		normalL += weights[i] * mul(vin.NormalL, (float3x3)trans);
+		tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)trans);
 	}
 
 	vin.PosL = posL;

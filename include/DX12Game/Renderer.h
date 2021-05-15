@@ -33,9 +33,6 @@ struct RenderItem {
 	UINT StartIndexLocation = 0;
 	UINT BaseVertexLocation = 0;
 
-	// Only applicable to skinned render-items.
-	int SkinnedCBIndex = -1;
-
 	UINT NumInstancesToDraw = 0;
 };
 
@@ -55,7 +52,6 @@ class Renderer : public LowRenderer {
 private:
 	struct RootParameters {
 		UINT ObjectCBIndex;
-		UINT SkinedCBIndex;
 		UINT PassCBIndex;
 		UINT InstBufferIndex;
 		UINT MatBufferIndex;
@@ -129,10 +125,9 @@ public:
 	//* Updates world transform for the actor.
 	void UpdateWorldTransform(const std::string& inRenderItemName, 
 								const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
-	//* Updates pose matrix data at the time for the actor.
-	void UpdateSkinnedTransforms(const std::string& inRenderItemName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms);
 	//*
-	void UpdateInstanceAnimationData(const std::string& inRenderItemName, UINT inAnimClipIdx, float inTimePose);
+	void UpdateInstanceAnimationData(const std::string& inRenderItemName, 
+		UINT inAnimClipIdx, float inTimePose, bool inIsSkeletal = false);
 
 	//* Set visibility status for the render item.
 	void SetVisible(const std::string& inRenderItemName, bool inState);
@@ -169,10 +164,7 @@ protected:
 
 private:
 	//*
-	void GenerateRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
-	//*
-	void BuildInstanceData(const std::string& inRenderItemName, const Mesh* inMesh);
-
+	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 	//* Extracts vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 	//* Extracts skinned vertices and indices data from the mesh and builds geometry.
@@ -181,7 +173,7 @@ private:
 	//* Builds the skeleton geometry(for debugging) that is composed lines(2-vertices).
 	void AddSkeletonGeometry(const Mesh* inMesh);
 	//* Builds the skeleton(for debugging) render item.
-	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
+	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
 	//* Loads textures(diffuse, normal, specular...) and creates DDXTexture.
 	void AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
@@ -189,9 +181,7 @@ private:
 	void AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
-	//void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
-	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
@@ -255,7 +245,6 @@ private:
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
-	UINT mNumSkinnedCB = 0;
 	UINT mNumDescriptor = 0;
 
 	DescriptorHeapIndices mDescHeapIdx;
@@ -271,9 +260,6 @@ private:
 
 	DirectX::BoundingSphere mSceneBounds;
 
-	std::unordered_map<int /* Skinned constant buffer index */, std::vector<DirectX::XMFLOAT4X4>> mSkinnedInstances;
-	std::unordered_map<std::string /* Render item name */, int> mSkinnedIndices;
-
 	LightUtil mLightUtil;
 
 	GameCamera* mMainCamera = nullptr;
@@ -286,6 +272,7 @@ private:
 	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
 	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
 
 	std::unique_ptr<AnimationsMap> mAnimsMap;
 };

@@ -28,10 +28,6 @@ struct InstanceData {
 	UINT State = EInstanceDataState::EID_Visible;
 };
 
-struct SkinnedConstants {
-	DirectX::XMFLOAT4X4 BoneTransforms[gNumBones];
-};
-
 struct PassConstants {
 	DirectX::XMFLOAT4X4 View = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 InvView = MathHelper::Identity4x4();
@@ -123,8 +119,7 @@ struct SkinnedVertex {
 // for a frame.  
 struct FrameResource {
 public:    
-    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT maxInstanceCount, 
-		UINT skinnedObjectCount, UINT materialCount);
+    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT maxInstanceCount, UINT materialCount);
     virtual ~FrameResource() = default;
 
 private:
@@ -142,7 +137,6 @@ public:
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
-	std::unique_ptr<UploadBuffer<SkinnedConstants>> SkinnedCB = nullptr;
 	std::unique_ptr<UploadBuffer<SsaoConstants>> SsaoCB = nullptr;
 	std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
 
