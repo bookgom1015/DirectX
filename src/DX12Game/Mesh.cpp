@@ -93,8 +93,8 @@ namespace {
 	void LoadSkeletons(const DxFbxImporter& inImporter, Skeleton& outSkeleton) {
 		const auto& skeleton = inImporter.GetSkeleton();
 		for (const auto& bone : skeleton.GetBones()) {
-			outSkeleton.mBones.emplace_back(bone.mName, bone.mParentIndex,
-				bone.mLocalBindPose, bone.mGlobalBindPose, bone.mGlobalInvBindPose);
+			outSkeleton.mBones.emplace_back(bone.Name, bone.ParentIndex,
+				bone.LocalBindPose, bone.GlobalBindPose, bone.GlobalInvBindPose);
 		}
 	}
 
@@ -206,6 +206,16 @@ bool Mesh::Load(const std::string& inFileName) {
 
 	mRenderer->AddGeometry(this);
 
+	const auto& anims = mSkinnedData.mAnimations;
+	if (!anims.empty()) {
+		for (const auto& anim : anims) {
+			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
+
+			mClipsIndex[anim.first] = idx;
+		}
+		mRenderer->UpdateAnimationsMap();
+	}
+
 	return true;
 }
 
@@ -261,14 +271,14 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 	mRenderer->AddGeometry(this);
 
 	const auto& anims = mSkinnedData.mAnimations;
-	for (const auto& anim : anims) {
-		UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
-		StringUtil::Logln({ " ", anim.first, " Index: ", std::to_string(idx) });
+	if (!anims.empty()) {
+		for (const auto& anim : anims) {
+			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
 
-		mClipsIndex[anim.first] = idx;
-	}
-	if (!anims.empty())
+			mClipsIndex[anim.first] = idx;
+		}
 		mRenderer->UpdateAnimationsMap();
+	}
 
 	return true;
 }
@@ -326,15 +336,15 @@ void Mesh::GenerateSkeletonData() {
 	const auto& bones = mSkinnedData.mSkeleton.mBones;
 	for (auto boneIter = bones.cbegin(), boneEnd = bones.cend(); boneIter != boneEnd; ++boneIter) {
 		int index = static_cast<int>(boneIter - bones.cbegin());
-		int parentIndex = boneIter->mParentIndex;
+		int parentIndex = boneIter->ParentIndex;
 
 		XMMATRIX globalTransform;
 		if (mNeedToBeAligned) {
-			globalTransform = XMMatrixMultiply(XMLoadFloat4x4(&boneIter->mGlobalBindPose),
+			globalTransform = XMMatrixMultiply(XMLoadFloat4x4(&boneIter->GlobalBindPose),
 				XMMatrixRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XM_PIDIV2));
 		}
 		else {
-			globalTransform = XMLoadFloat4x4(&boneIter->mGlobalBindPose);
+			globalTransform = XMLoadFloat4x4(&boneIter->GlobalBindPose);
 		}
 		XMVECTOR scale;
 		XMVECTOR quat;

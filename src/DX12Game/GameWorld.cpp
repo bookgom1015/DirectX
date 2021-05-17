@@ -259,7 +259,6 @@ int GameWorld::MTGameLoop() {
 	float beginTime = 0.0f;
 	float endTime;
 	float elapsedTime;
-	bool can = false;
 
 	mTimer.Reset();
 
@@ -267,8 +266,7 @@ int GameWorld::MTGameLoop() {
 	CVBarrier barrier(numProcessors);
 
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
-		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, 
-				ThreadBarrier& inBarrier, const bool& inCan) -> void {
+		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, ThreadBarrier& inBarrier) -> void {
 			while (inMsg.message != WM_QUIT) {
 				inBarrier.Wait();
 
@@ -277,7 +275,7 @@ int GameWorld::MTGameLoop() {
 
 				MTUpdateGame(mTimer, tid, std::ref(inBarrier));
 			}
-		}, std::ref(msg), i + 1, std::ref(barrier), std::ref(can));
+		}, std::ref(msg), i + 1, std::ref(barrier));
 	}
 
 	while (msg.message != WM_QUIT) {

@@ -7,12 +7,11 @@ struct Bone {
 		const DirectX::XMFLOAT4X4& inGlobalBindPose,
 		const DirectX::XMFLOAT4X4& inGlobalInvBindPose);
 
-	std::string mName;
-	int mParentIndex = -1;
-
-	DirectX::XMFLOAT4X4 mLocalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalInvBindPose = MathHelper::Identity4x4();
+	std::string Name;
+	int ParentIndex = -1;
+	DirectX::XMFLOAT4X4 LocalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalInvBindPose = MathHelper::Identity4x4();
 };
 
 class Skeleton {

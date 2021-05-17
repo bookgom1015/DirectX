@@ -141,7 +141,6 @@ private:
 	
 	int mClientWidth = 800;
 	int mClientHeight = 600;
-
 	int mPrimaryMonitorWidth = 0;
 	int mPrimaryMonitorHeight = 0;
 
@@ -168,7 +167,6 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 	SoundEvent mMusicEvent;
-
 	float mPrevBusVolume = 0.0f;
 
 	UINT mVCount = 0;

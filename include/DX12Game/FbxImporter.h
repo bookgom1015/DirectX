@@ -6,6 +6,7 @@
 #pragma comment(lib, "libfbxsdk.lib")
 
 struct DxFbxVertex {
+public:
 	DirectX::XMFLOAT3 Pos = { 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 Normal = { 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT2 TexC = { 0.0f, 0.0f };
@@ -13,6 +14,7 @@ struct DxFbxVertex {
 	float BoneWeights[8] = { 0.0f };
 	int BoneIndices[8] = { -1 };
 
+public:
 	DxFbxVertex() = default;
 	DxFbxVertex(DirectX::XMFLOAT3 inPos, DirectX::XMFLOAT3 inNormal,
 		DirectX::XMFLOAT2 inTexC, DirectX::XMFLOAT3 inTangentU);
@@ -21,6 +23,7 @@ struct DxFbxVertex {
 };
 
 struct DxFbxMaterial {
+public:
 	std::string MaterialName = "";
 
 	std::string DiffuseMapFileName = "";
@@ -31,21 +34,26 @@ struct DxFbxMaterial {
 	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	DirectX::XMFLOAT3 FresnelR0 = { 0.5f, 0.5f, 0.5f };
 	float Roughness = 0.5f;
+
+public:
+	DxFbxMaterial() = default;
 };
 
 struct DxFbxBone {
+public:
+	std::string Name = "";
+	int ParentIndex = -1;
+
+	DirectX::XMFLOAT4X4 LocalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalInvBindPose = MathHelper::Identity4x4();
+
+	fbxsdk::FbxAMatrix FbxLocalBindPose;
+	fbxsdk::FbxAMatrix FbxGlobalBindPose;
+	fbxsdk::FbxAMatrix FbxGlobalInvBindPose;
+
+public:
 	DxFbxBone() = default;
-
-	std::string mName = "";
-	int mParentIndex = -1;
-
-	DirectX::XMFLOAT4X4 mLocalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalInvBindPose = MathHelper::Identity4x4();
-
-	fbxsdk::FbxAMatrix mFbxLocalBindPose;
-	fbxsdk::FbxAMatrix mFbxGlobalBindPose;
-	fbxsdk::FbxAMatrix mFbxGlobalInvBindPose;
 };
 
 class DxFbxSkeleton {

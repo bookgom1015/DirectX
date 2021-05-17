@@ -247,26 +247,21 @@ private:
 	UINT mNumMatCB = 0;
 	UINT mNumDescriptor = 0;
 
-	DescriptorHeapIndices mDescHeapIdx;
-
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
 	PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
 	std::unique_ptr<ShadowMap> mShadowMap;
-
 	std::unique_ptr<Ssao> mSsao;
 
-	DirectX::BoundingSphere mSceneBounds;
-
+	DescriptorHeapIndices mDescHeapIdx;
 	LightUtil mLightUtil;
-
-	GameCamera* mMainCamera = nullptr;
-
 	RootParameters mRootParams;
 
+	GameCamera* mMainCamera = nullptr;
 	DirectX::BoundingFrustum mCamFrustum;
+	DirectX::BoundingSphere mSceneBounds;
 
 	std::vector<const Mesh*> mNestedMeshes;
 	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;

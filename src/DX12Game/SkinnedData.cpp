@@ -8,11 +8,11 @@ Bone::Bone(const std::string inName, int inParentIndex,
 			const DirectX::XMFLOAT4X4& inLocalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalInvBindPose) {
-	mName = inName;
-	mParentIndex = inParentIndex;
-	mLocalBindPose = inLocalBindPose;
-	mGlobalBindPose = inGlobalBindPose;
-	mGlobalInvBindPose = inGlobalInvBindPose;
+	Name = inName;
+	ParentIndex = inParentIndex;
+	LocalBindPose = inLocalBindPose;
+	GlobalBindPose = inGlobalBindPose;
+	GlobalInvBindPose = inGlobalInvBindPose;
 }
 
 float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
