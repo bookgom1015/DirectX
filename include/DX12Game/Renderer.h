@@ -174,6 +174,8 @@ protected:
 
 private:
 	//*
+	void DrawTexts();
+	//*
 	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 	//* Extracts vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);

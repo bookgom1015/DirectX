@@ -718,17 +718,12 @@ void GameWorld::CalculateFrameStats() {
 	frameCnt++;
 
 	// Compute averages over one second period
-	if (mTimer.TotalTime() - timeElapsed >= 1.0f) {
+	if (mTimer.TotalTime() - timeElapsed >= 0.25f) {
 		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
-		std::wstring fpsStr = std::to_wstring(fps);
-		std::wstring mspfStr = std::to_wstring(mspf);
-
-		std::wstring windowText = mMainWndCaption +
-			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr;
-		SetWindowText(mhMainWnd, windowText.c_str());
+		mRenderer->AddOutputText(L"fps: " + std::to_wstring(fps), 0);
+		mRenderer->AddOutputText(L"mspf: " + std::to_wstring(mspf), 1);
 
 		// Reset for next average
 		frameCnt = 0;

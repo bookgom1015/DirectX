@@ -98,8 +98,8 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	mSpriteBatch->SetViewport(mScreenViewport);
 	
 	auto world = GameWorld::GetWorld();
-	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.05f);
-	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.05f);
+	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.01f);
+	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.01f);
 
 	return true;
 }
@@ -236,24 +236,8 @@ void Renderer::Draw(const GameTimer& gt) {
 	//
 	// Draw texts.
 	//
-
-	mSpriteBatch->Begin(mCommandList.Get());
+	DrawTexts();
 	
-	std::wstringstream textsStream;
-	for (const auto& text : mOutputTexts)
-		textsStream << text << std::endl;
-
-	const wchar_t* outputTexts = textsStream.str().c_str();
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos,
-		Colors::White,
-		0.0f,
-		XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
-		XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f));
-
-	mSpriteBatch->End();
 
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -441,6 +425,66 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 
 	if (!inMesh->GetMaterials().empty())
 		AddMaterials(inMesh->GetMaterials());
+}
+
+void Renderer::DrawTexts() {
+	mSpriteBatch->Begin(mCommandList.Get());
+
+	std::wstringstream textsStream;
+	for (const auto& text : mOutputTexts)
+		textsStream << text << std::endl;
+
+	const wchar_t* outputTexts = textsStream.str().c_str();
+	auto origin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	auto scale = XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f);
+
+	// Left outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos - SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Right outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos + SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Top outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos - SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Bottom outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos + SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Draw texts.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos,
+		Colors::White,
+		0.0f,
+		origin,
+		scale);
+
+	mSpriteBatch->End();
 }
 
 void Renderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) {
@@ -1103,7 +1147,7 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		}
 	}
 
-	AddOutputText(L"Visible Object Count: " + std::to_wstring(visibleObjectCount), 0);
+	AddOutputText(L"visible object count: " + std::to_wstring(visibleObjectCount), 2);
 }
 
 void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
