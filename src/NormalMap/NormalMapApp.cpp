@@ -20,7 +20,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 	catch (DxException& e) {
@@ -28,7 +30,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 		wsstream << L"Error Code: 0x" << std::hex << e.ErrorCode << L'\n' << e.ToString();
 		std::wstring wstr = wsstream.str();
 		MessageBox(nullptr, wstr.c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -517,34 +521,34 @@ void NormalMapApp::LoadTextures() {
 
 	std::vector<std::wstring> texFilenames = {
 #if defined(Ex2)
-		L"./../../../Textures/bricks99.dds",
-		L"./../../../Textures/bricks99_normal.dds",
-		L"./../../../Textures/bricks99_disp.dds",
-		L"./../../../Textures/tile99.dds",
-		L"./../../../Textures/tile99_normal.dds",
-		L"./../../../Textures/tile99_disp.dds",
-		L"./../../../Textures/white1x1.dds",
-		L"./../../../Textures/default_nmap.dds",
-		L"./../../../Textures/snowcube1024.dds"
+		L"./../../../../Assets/Textures/bricks99.dds",
+		L"./../../../../Assets/Textures/bricks99_normal.dds",
+		L"./../../../../Assets/Textures/bricks99_disp.dds",
+		L"./../../../../Assets/Textures/tile99.dds",
+		L"./../../../../Assets/Textures/tile99_normal.dds",
+		L"./../../../../Assets/Textures/tile99_disp.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/default_nmap.dds",
+		L"./../../../../Assets/Textures/snowcube1024.dds"
 #elif defined(Ex5)
-		L"./../../../Textures/bricks99.dds",
-		L"./../../../Textures/bricks99_normal.dds",
-		L"./../../../Exercise Media/waves0.dds",
-		L"./../../../Exercise Media/waves1.dds",
-		L"./../../../Textures/waves0_disp.dds",
-		L"./../../../Textures/waves1_disp.dds",
-		L"./../../../Textures/white1x1.dds",
-		L"./../../../Textures/default_nmap.dds",
-		L"./../../../Textures/bricks99_disp.dds",
-		L"./../../../Textures/snowcube1024.dds"
+		L"./../../../../Assets/Textures/bricks99.dds",
+		L"./../../../../Assets/Textures/bricks99_normal.dds",
+		L"./../../../../Assets/Exercise Media/waves0.dds",
+		L"./../../../../Assets/Exercise Media/waves1.dds",
+		L"./../../../../Assets/Textures/waves0_disp.dds",
+		L"./../../../../Assets/Textures/waves1_disp.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/default_nmap.dds",
+		L"./../../../../Assets/Textures/bricks99_disp.dds",
+		L"./../../../../Assets/Textures/snowcube1024.dds"
 #else
-		L"./../../../Textures/bricks2.dds",
-		L"./../../../Textures/bricks2_nmap.dds",
-		L"./../../../Textures/tile.dds",
-		L"./../../../Textures/tile_nmap.dds",
-		L"./../../../Textures/white1x1.dds",
-		L"./../../../Textures/default_nmap.dds",
-		L"./../../../Textures/snowcube1024.dds"
+		L"./../../../../Assets/Textures/bricks2.dds",
+		L"./../../../../Assets/Textures/bricks2_nmap.dds",
+		L"./../../../../Assets/Textures/tile.dds",
+		L"./../../../../Assets/Textures/tile_nmap.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/default_nmap.dds",
+		L"./../../../../Assets/Textures/snowcube1024.dds"
 #endif
 	};
 

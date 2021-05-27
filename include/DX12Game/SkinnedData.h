@@ -7,12 +7,11 @@ struct Bone {
 		const DirectX::XMFLOAT4X4& inGlobalBindPose,
 		const DirectX::XMFLOAT4X4& inGlobalInvBindPose);
 
-	std::string mName;
-	int mParentIndex = -1;
-
-	DirectX::XMFLOAT4X4 mLocalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mGlobalInvBindPose = MathHelper::Identity4x4();
+	std::string Name;
+	int ParentIndex = -1;
+	DirectX::XMFLOAT4X4 LocalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 GlobalInvBindPose = MathHelper::Identity4x4();
 };
 
 class Skeleton {
@@ -40,7 +39,8 @@ public:
 	// Duration of each frame in the animation.
 	float mFrameDuration;
 
-	std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	//std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	std::vector<std::vector<DirectX::XMFLOAT4X4>> mCurves;
 };
 
 class SkinnedData {
@@ -49,8 +49,7 @@ public:
 	virtual ~SkinnedData() = default;
 
 public:
-	void GetFinalTransforms(const std::string& inClipName, float inTimePos, 
-							std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const;
+	float GetTimePosition(const std::string& inClipName, float inTime) const;
 
 public:
 	Skeleton mSkeleton;

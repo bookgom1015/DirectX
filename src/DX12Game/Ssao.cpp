@@ -351,8 +351,8 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
         IID_PPV_ARGS(&mRandomVectorMap)));
 
     //
-    // In order to copy CPU memory data into our default buffer, we need to create
-    // an intermediate upload heap. 
+    // In order to copy CPU memory data into our default buffer,
+    //  we need to create an intermediate upload heap. 
     //
 
     const UINT num2DSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;

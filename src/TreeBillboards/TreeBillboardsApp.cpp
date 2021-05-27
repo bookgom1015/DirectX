@@ -23,12 +23,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return result;
 	}
 	catch (DxException& e) {
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -383,14 +387,14 @@ void TreeBillboardsApp::UpdateWaves(const GameTimer& gt) {
 void TreeBillboardsApp::LoadTextures() {
 	auto grassTex = std::make_unique<Texture>();
 	grassTex->Name = "grassTex";
-	grassTex->Filename = L"./../../../Textures/grass.dds";
+	grassTex->Filename = L"./../../../../Assets/Textures/grass.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), grassTex->Filename.c_str(),
 		grassTex->Resource, grassTex->UploadHeap));
 
 	auto waterTex = std::make_unique<Texture>();
 	waterTex->Name = "waterTex";
-	waterTex->Filename = L"./../../../Textures/water1.dds";
+	waterTex->Filename = L"./../../../../Assets/Textures/water1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), waterTex->Filename.c_str(),
 		waterTex->Resource, waterTex->UploadHeap));
@@ -398,14 +402,14 @@ void TreeBillboardsApp::LoadTextures() {
 #if defined(Ex1) || defined(Ex2) || defined(Ex3) || defined(Ex4) || defined(Ex5)
 	auto whiteTex = std::make_unique<Texture>();
 	whiteTex->Name = "whiteTex";
-	whiteTex->Filename = L"./../../../Textures/white1x1.dds";
+	whiteTex->Filename = L"./../../../../Assets/Textures/white1x1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), whiteTex->Filename.c_str(),
 		whiteTex->Resource, whiteTex->UploadHeap));
 #else
 	auto fenceTex = std::make_unique<Texture>();
 	fenceTex->Name = "fenceTex";
-	fenceTex->Filename = L"./../../../Textures/WireFence.dds";
+	fenceTex->Filename = L"./../../../../Assets/Textures/WireFence.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), fenceTex->Filename.c_str(),
 		fenceTex->Resource, fenceTex->UploadHeap));
@@ -413,7 +417,7 @@ void TreeBillboardsApp::LoadTextures() {
 
 	auto treeArrayTex = std::make_unique<Texture>();
 	treeArrayTex->Name = "treeArrayTex";
-	treeArrayTex->Filename = L"./../../../Textures/treeArray2.dds";
+	treeArrayTex->Filename = L"./../../../../Assets/Textures/treeArray2.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), treeArrayTex->Filename.c_str(),
 		treeArrayTex->Resource, treeArrayTex->UploadHeap));

@@ -6,14 +6,6 @@ const size_t gNumBones = 512;
 #include "common/UploadBuffer.h"
 
 struct ObjectConstants {
-	/*
-    DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	UINT     MaterialIndex;
-	UINT     ObjPad0;
-	UINT     ObjPad1;
-	UINT     ObjPad2;
-	*/
 	UINT InstanceIndex = 0;
 	UINT ObjectPad0;
 	UINT ObjectPad1;
@@ -30,14 +22,10 @@ enum EInstanceDataState : UINT {
 struct InstanceData {
 	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+	float TimePos = 0.0f;
 	UINT MaterialIndex = 0;
-	UINT InstanceIndex = 0;
-	UINT NumFramesDirty = gNumFrameResources;
+	UINT AnimClipIndex = 0;
 	UINT State = EInstanceDataState::EID_Visible;
-};
-
-struct SkinnedConstants {
-	DirectX::XMFLOAT4X4 BoneTransforms[gNumBones];
 };
 
 struct PassConstants {
@@ -106,20 +94,9 @@ struct Vertex {
 	DirectX::XMFLOAT3 TangentU = { 0.0f, 0.0f, 0.0f };
 
 	Vertex() = default;
+	Vertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
 
-	Vertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent) {
-		Pos = pos;
-		Normal = normal;
-		TexC = texC;
-		TangentU = tangent;
-	}
-
-	friend bool operator==(const Vertex& lhs, const Vertex& rhs) {
-		return MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-			MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-			MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-			MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
-	}
+	friend bool operator==(const Vertex& lhs, const Vertex& rhs);
 };
 
 struct SkinnedVertex {
@@ -133,39 +110,16 @@ struct SkinnedVertex {
 	int BoneIndices1[4] = { -1 };
 
 	SkinnedVertex() = default;
+	SkinnedVertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
 
-	SkinnedVertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent) {
-		Pos = pos;
-		Normal = normal;
-		TexC = texC;
-		TangentU = tangent;
-	}
-
-	friend bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
-		bool bResult = MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-			MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-			MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-			MathHelper::IsEqual(lhs.TangentU, rhs.TangentU) &&
-			MathHelper::IsEqual(lhs.BoneWeights0, rhs.BoneWeights0) &&
-			MathHelper::IsEqual(lhs.BoneWeights1, rhs.BoneWeights1);
-		if (bResult != true)
-			return false;
-
-		for (size_t i = 0; i < 4; ++i) {
-			if (lhs.BoneIndices0[i] != rhs.BoneIndices0[i] || lhs.BoneIndices1[i] != rhs.BoneIndices1[i])
-				return false;
-		}
-
-		return true;
-	}
+	friend bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs);
 };
 
 // Stores the resources needed for the CPU to build the command lists
 // for a frame.  
 struct FrameResource {
 public:    
-    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT maxInstanceCount, 
-		UINT skinnedObjectCount, UINT materialCount);
+    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT maxInstanceCount, UINT materialCount);
     virtual ~FrameResource() = default;
 
 private:
@@ -183,7 +137,6 @@ public:
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
     std::unique_ptr<UploadBuffer<ObjectConstants>> ObjectCB = nullptr;
-	std::unique_ptr<UploadBuffer<SkinnedConstants>> SkinnedCB = nullptr;
 	std::unique_ptr<UploadBuffer<SsaoConstants>> SsaoCB = nullptr;
 	std::unique_ptr<UploadBuffer<MaterialData>> MaterialBuffer = nullptr;
 

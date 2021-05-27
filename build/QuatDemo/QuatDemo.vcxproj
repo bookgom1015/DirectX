@@ -70,10 +70,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)bin\x64\$(ProjectName)\debug\</OutDir>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)bin\x64\$(ProjectName)\release\</OutDir>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -132,10 +132,11 @@
     <ClCompile Include="..\..\src\common\d3dApp.cpp" />
     <ClCompile Include="..\..\src\common\d3dUtil.cpp" />
     <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp" />
-    <ClCompile Include="..\..\src\common\FbxImporter.cpp" />
     <ClCompile Include="..\..\src\common\GameTimer.cpp" />
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\AnimationHelper.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\FrameResource.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\QuatApp.cpp" />
@@ -148,7 +149,6 @@
     <ClInclude Include="..\..\include\common\d3dUtil.h" />
     <ClInclude Include="..\..\include\common\d3dx12.h" />
     <ClInclude Include="..\..\include\common\DDSTextureLoader.h" />
-    <ClInclude Include="..\..\include\common\FbxImporter.h" />
     <ClInclude Include="..\..\include\common\GameTimer.h" />
     <ClInclude Include="..\..\include\common\GeometryGenerator.h" />
     <ClInclude Include="..\..\include\common\MathHelper.h" />

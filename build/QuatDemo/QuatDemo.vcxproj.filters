@@ -60,7 +60,10 @@
     <ClCompile Include="..\..\src\QuatDemo\Ssao.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common\FbxImporter.cpp">
+    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
   </ItemGroup>
@@ -109,9 +112,6 @@
     </ClInclude>
     <ClInclude Include="..\..\include\QuatDemo\Ssao.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\FbxImporter.h">
-      <Filter>Common Files\Public</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

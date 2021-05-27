@@ -93,8 +93,8 @@ namespace {
 	void LoadSkeletons(const DxFbxImporter& inImporter, Skeleton& outSkeleton) {
 		const auto& skeleton = inImporter.GetSkeleton();
 		for (const auto& bone : skeleton.GetBones()) {
-			outSkeleton.mBones.emplace_back(bone.mName, bone.mParentIndex,
-				bone.mLocalBindPose, bone.mGlobalBindPose, bone.mGlobalInvBindPose);
+			outSkeleton.mBones.emplace_back(bone.Name, bone.ParentIndex,
+				bone.LocalBindPose, bone.GlobalBindPose, bone.GlobalInvBindPose);
 		}
 	}
 
@@ -107,6 +107,7 @@ namespace {
 			anim.mFrameDuration = animIter->second.GetFrameDuration();
 
 			const auto& curves = animIter->second.GetCurves();
+			anim.mCurves.resize(curves.size());
 			for (auto curveIter = curves.cbegin(), end = curves.cend(); curveIter != end; ++curveIter) {
 				for (const auto& curve : curveIter->second)
 					anim.mCurves[curveIter->first].push_back(curve);
@@ -205,6 +206,16 @@ bool Mesh::Load(const std::string& inFileName) {
 
 	mRenderer->AddGeometry(this);
 
+	const auto& anims = mSkinnedData.mAnimations;
+	if (!anims.empty()) {
+		for (const auto& anim : anims) {
+			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
+
+			mClipsIndex[anim.first] = idx;
+		}
+		mRenderer->UpdateAnimationsMap();
+	}
+
 	return true;
 }
 
@@ -259,6 +270,16 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 
 	mRenderer->AddGeometry(this);
 
+	const auto& anims = mSkinnedData.mAnimations;
+	if (!anims.empty()) {
+		for (const auto& anim : anims) {
+			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
+
+			mClipsIndex[anim.first] = idx;
+		}
+		mRenderer->UpdateAnimationsMap();
+	}
+
 	return true;
 }
 
@@ -306,19 +327,24 @@ const std::vector<std::uint32_t> Mesh::GetSkeletonIndices() const {
 	return mSkeletonIndices;
 }
 
+UINT Mesh::GetClipIndex(const std::string& inClipName) const {
+	auto iter = mClipsIndex.find(inClipName);
+	return iter != mClipsIndex.end() ? iter->second : std::numeric_limits<UINT>::infinity();
+}
+
 void Mesh::GenerateSkeletonData() {
 	const auto& bones = mSkinnedData.mSkeleton.mBones;
 	for (auto boneIter = bones.cbegin(), boneEnd = bones.cend(); boneIter != boneEnd; ++boneIter) {
 		int index = static_cast<int>(boneIter - bones.cbegin());
-		int parentIndex = boneIter->mParentIndex;
+		int parentIndex = boneIter->ParentIndex;
 
 		XMMATRIX globalTransform;
 		if (mNeedToBeAligned) {
-			globalTransform = XMMatrixMultiply(XMLoadFloat4x4(&boneIter->mGlobalBindPose),
+			globalTransform = XMMatrixMultiply(XMLoadFloat4x4(&boneIter->GlobalBindPose),
 				XMMatrixRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XM_PIDIV2));
 		}
 		else {
-			globalTransform = XMLoadFloat4x4(&boneIter->mGlobalBindPose);
+			globalTransform = XMLoadFloat4x4(&boneIter->GlobalBindPose);
 		}
 		XMVECTOR scale;
 		XMVECTOR quat;

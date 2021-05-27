@@ -8,37 +8,26 @@ Bone::Bone(const std::string inName, int inParentIndex,
 			const DirectX::XMFLOAT4X4& inLocalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalInvBindPose) {
-	mName = inName;
-	mParentIndex = inParentIndex;
-	mLocalBindPose = inLocalBindPose;
-	mGlobalBindPose = inGlobalBindPose;
-	mGlobalInvBindPose = inGlobalInvBindPose;
+	Name = inName;
+	ParentIndex = inParentIndex;
+	LocalBindPose = inLocalBindPose;
+	GlobalBindPose = inGlobalBindPose;
+	GlobalInvBindPose = inGlobalInvBindPose;
 }
 
-void SkinnedData::GetFinalTransforms(const std::string& inClipName, float inTimePos,
-										std::vector<DirectX::XMFLOAT4X4>& outFinalTransforms) const {
+float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
 	auto animtIter = mAnimations.find(inClipName);
-	if (animtIter != mAnimations.cend()) {
-		const auto& anim = animtIter->second;
-		float animTime = inTimePos;
-		while (animTime >= anim.mDuration)
-			animTime -= anim.mDuration;
+	if (animtIter == mAnimations.cend())
+		return 0.0f;
 
-		float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
-		size_t frame = (size_t)frameTime;
-		size_t nextFrame = frame + 1;
-		if (nextFrame >= anim.mNumFrames)
-			nextFrame = 0;
-		float pct = frameTime - (float)frame;
+	const auto& anim = animtIter->second;
+	float animTime = inTime;
+	while (animTime >= anim.mDuration)
+		animTime -= anim.mDuration;
 
-		for (const auto& curve : anim.mCurves) {
-			int index = curve.first;
+	float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
+	size_t frame = (size_t)frameTime;
+	float pct = frameTime - (float)frame;
 
-			XMMATRIX currentTransform = XMLoadFloat4x4(&curve.second[frame]);
-			XMMATRIX nextTransform = XMLoadFloat4x4(&curve.second[nextFrame]);
-
-			XMMATRIX interpolatedTransform = currentTransform * (1.0f - pct) + nextTransform * pct;
-			XMStoreFloat4x4(&outFinalTransforms[index], interpolatedTransform);
-		}
-	}
+	return static_cast<float>(frame + pct);
 }

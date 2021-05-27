@@ -13,7 +13,7 @@
 //#define Ex2
 //#define Ex3
 //#define Ex4
-#define Ex5
+//#define Ex5
 
 const int gNumFrameResources = 3;
 

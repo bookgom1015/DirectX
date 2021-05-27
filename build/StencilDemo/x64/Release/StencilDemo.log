@@ -1,0 +1,12 @@
+﻿  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  StencilApp.cpp
+  Generating code
+  All 2489 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  StencilDemo.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\StencilDemo\Release\StencilDemo.exe

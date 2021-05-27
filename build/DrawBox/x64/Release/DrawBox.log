@@ -1,0 +1,14 @@
+﻿  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\clip_color.cso
+  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\easing_color.cso
+  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\moving_vert.cso
+  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\pulse_color.cso
+  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\unmatched.cso
+  d3dApp.cpp
+  d3dUtil.cpp
+  GameTimer.cpp
+  MathHelper.cpp
+  BoxApp.cpp
+  Generating code
+  All 901 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  DrawBox.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\DrawBox.exe

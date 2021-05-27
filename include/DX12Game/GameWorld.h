@@ -73,17 +73,17 @@ public:
 	InputSystem* GetInputSystem() const;
 
 	//* Returns horizontal resolution of the primary monitor.
-	int GetPrimaryMonitorWidth() const;
+	UINT GetPrimaryMonitorWidth() const;
 	//* Returns vertical resolution of the primary monitor.
-	int GetPrimaryMonitorHeight() const;
+	UINT GetPrimaryMonitorHeight() const;
+
+	UINT GetClientWidth() const;
+	UINT GetClientHeight() const;
 
 	HWND GetMainWindowsHandle() const;
 
 	//* Processes window messages.
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-	//* Temporary function that show visible object count as text.
-	void SetVCount(UINT inCount);
 
 private:
 #if !defined(MT_World)
@@ -139,15 +139,15 @@ private:
 
 	std::wstring mMainWndCaption = L"D3D12 Game";
 	
-	int mClientWidth = 800;
-	int mClientHeight = 600;
-
-	int mPrimaryMonitorWidth = 0;
-	int mPrimaryMonitorHeight = 0;
+	UINT mClientWidth = 800;
+	UINT mClientHeight = 600;
+	UINT mPrimaryMonitorWidth = 0;
+	UINT mPrimaryMonitorHeight = 0;
 
 	GameWorld::GameState mGameState = GameWorld::GameState::EPlay;
 
 	GameTimer mTimer;
+	GameTimer::LimitFrameRate mLimitFrameRate;
 
 #if defined(MT_World)
 	std::vector<std::thread> mThreads;
@@ -167,8 +167,5 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 	SoundEvent mMusicEvent;
-
 	float mPrevBusVolume = 0.0f;
-
-	UINT mVCount = 0;
 };

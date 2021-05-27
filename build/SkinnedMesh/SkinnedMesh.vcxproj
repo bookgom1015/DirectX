@@ -70,10 +70,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)bin\x64\$(ProjectName)\</OutDir>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)bin\x64\$(ProjectName)\</OutDir>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -122,6 +122,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.1.1\lib\vs2017\x64\release;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -129,10 +130,11 @@
     <ClCompile Include="..\..\src\common\d3dApp.cpp" />
     <ClCompile Include="..\..\src\common\d3dUtil.cpp" />
     <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp" />
-    <ClCompile Include="..\..\src\common\FBXImporter.cpp" />
     <ClCompile Include="..\..\src\common\GameTimer.cpp" />
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
     <ClCompile Include="..\..\src\SkinnedMesh\FrameResource.cpp" />
     <ClCompile Include="..\..\src\SkinnedMesh\LoadM3d.cpp" />
     <ClCompile Include="..\..\src\SkinnedMesh\ShadowMap.cpp" />
@@ -146,7 +148,6 @@
     <ClInclude Include="..\..\include\common\d3dUtil.h" />
     <ClInclude Include="..\..\include\common\d3dx12.h" />
     <ClInclude Include="..\..\include\common\DDSTextureLoader.h" />
-    <ClInclude Include="..\..\include\common\FBXImporter.h" />
     <ClInclude Include="..\..\include\common\GameTimer.h" />
     <ClInclude Include="..\..\include\common\GeometryGenerator.h" />
     <ClInclude Include="..\..\include\common\MathHelper.h" />

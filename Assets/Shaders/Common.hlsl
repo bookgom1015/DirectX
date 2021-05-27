@@ -2,17 +2,20 @@
 // Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
 //***************************************************************************************
 
+#ifndef __COMMON_HLSL__
+#define __COMMOM_HLSL__
+
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-    #define NUM_DIR_LIGHTS 3
+#define NUM_DIR_LIGHTS 3
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
+#define NUM_POINT_LIGHTS 0
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 0
+#define NUM_SPOT_LIGHTS 0
 #endif
 
 #define MAX_INSTANCE_DATA 32
@@ -23,10 +26,10 @@
 struct InstanceData {
 	float4x4 World;
 	float4x4 TexTransform;
+	float TimePos;
 	uint MaterialIndex;
+	uint AnimClipIndex;
 	uint InstPad0;
-	uint InstPad1;
-	uint InstPad2;
 };
 
 struct MaterialData {
@@ -40,50 +43,40 @@ struct MaterialData {
 	uint		MatPad0;
 };
 
-TextureCube gCubeMap		: register(t0);
-TextureCube gBlurCubeMap	: register(t1);
-Texture2D gShadowMap		: register(t2);
-Texture2D gSsaoMap			: register(t3);
+TextureCube gCubeMap							: register(t0);
+TextureCube gBlurCubeMap						: register(t1);
+Texture2D gShadowMap							: register(t2);
+Texture2D gSsaoMap								: register(t3);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D gTextureMaps[64] : register(t4);
+Texture2D gTextureMaps[64]						: register(t4);
+
+Texture2D gAnimationsDataMap					: register(t68);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
-StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
-StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
+StructuredBuffer<InstanceData> gInstanceData	: register(t0, space1);
+StructuredBuffer<MaterialData> gMaterialData	: register(t1, space1);
 
-SamplerState gsamPointWrap        : register(s0);
-SamplerState gsamPointClamp       : register(s1);
-SamplerState gsamLinearWrap       : register(s2);
-SamplerState gsamLinearClamp      : register(s3);
-SamplerState gsamAnisotropicWrap  : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-SamplerComparisonState gsamShadow : register(s6);
+SamplerState gsamPointWrap						: register(s0);
+SamplerState gsamPointClamp						: register(s1);
+SamplerState gsamLinearWrap						: register(s2);
+SamplerState gsamLinearClamp					: register(s3);
+SamplerState gsamAnisotropicWrap				: register(s4);
+SamplerState gsamAnisotropicClamp				: register(s5);
+SamplerComparisonState gsamShadow				: register(s6);
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0) {
-	/*
-    float4x4 gWorld;
-	float4x4 gTexTransform;
-	uint gMaterialIndex;
-	uint gObjPad0;
-	uint gObjPad1;
-	uint gObjPad2;
-	*/
 	uint gInstanceIndex;
 	uint gObjectPad0;
 	uint gObjectPad1;
 	uint gObjectPad2;
 };
 
-cbuffer cbSkinned : register(b1) {
-	float4x4 gBoneTransforms[512];
-};
-
 // Constant data that varies per material.
-cbuffer cbPass : register(b2) {
+cbuffer cbPass : register(b1) {
 	float4x4 gView;
 	float4x4 gInvView;
 	float4x4 gProj;
@@ -102,11 +95,11 @@ cbuffer cbPass : register(b2) {
 	float gDeltaTime;
 	float4 gAmbientLight;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
-    Light gLights[MaxLights];
+	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
+	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
+	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
+	// are spot lights for a maximum of MaxLights per object.
+	Light gLights[MaxLights];
 };
 
 //---------------------------------------------------------------------------------------
@@ -207,3 +200,5 @@ float3 BoxCubeMapLookup(float3 rayOrigin, float3 unitRayDir, float3 boxCenter, f
 	// create coordinate relative to center of box.
 	return p + t * unitRayDir;
 }
+
+#endif

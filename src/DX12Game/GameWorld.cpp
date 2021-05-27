@@ -77,7 +77,8 @@ bool GameWorld::Initialize() {
 	if (!mInputSystem->Initialize(mhMainWnd))
 		return false;
 
-	mTimer.SetLimitFrameRate(GameTimer::LimitFrameRate::ELimitFrameRateNone);
+	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
+	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
 #if defined(MT_World)
 	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
@@ -265,17 +266,16 @@ int GameWorld::MTGameLoop() {
 	CVBarrier barrier(numProcessors);
 
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
-		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, const float& inElapsedTime, ThreadBarrier& inBarrier) -> void {
+		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, ThreadBarrier& inBarrier) -> void {
 			while (inMsg.message != WM_QUIT) {
 				inBarrier.Wait();
 
-				if (inElapsedTime > mTimer.GetLimitFrameRate()) {
-					if (!mAppPaused)
-						MTProcessInput(tid, std::ref(inBarrier));
-					MTUpdateGame(mTimer, tid, std::ref(inBarrier));
-				}
+				if (!mAppPaused)
+					MTProcessInput(tid, std::ref(inBarrier));
+
+				MTUpdateGame(mTimer, tid, std::ref(inBarrier));
 			}
-		}, std::ref(msg), i + 1, std::ref(elapsedTime), std::ref(barrier));
+		}, std::ref(msg), i + 1, std::ref(barrier));
 	}
 
 	while (msg.message != WM_QUIT) {
@@ -291,15 +291,17 @@ int GameWorld::MTGameLoop() {
 			endTime = mTimer.TotalTime();
 			elapsedTime = endTime - beginTime;
 
-			barrier.Wait();
-
 			if (elapsedTime > mTimer.GetLimitFrameRate()) {
+				barrier.Wait();
 				beginTime = endTime;
+
 				if (!mAppPaused) {
 					CalculateFrameStats();
 					MTProcessInput(0, std::ref(barrier));
-				}
+				}	
+
 				MTUpdateGame(mTimer, 0, std::ref(barrier));
+
 				if (!mAppPaused)
 					Draw(mTimer);
 			}
@@ -399,12 +401,20 @@ InputSystem* GameWorld::GetInputSystem() const {
 	return mInputSystem.get();
 }
 
-int GameWorld::GetPrimaryMonitorWidth() const {
+UINT GameWorld::GetPrimaryMonitorWidth() const {
 	return mPrimaryMonitorWidth;
 }
 
-int GameWorld::GetPrimaryMonitorHeight() const {
+UINT GameWorld::GetPrimaryMonitorHeight() const {
 	return mPrimaryMonitorHeight;
+}
+
+UINT GameWorld::GetClientWidth() const {
+	return mClientWidth;
+}
+
+UINT GameWorld::GetClientHeight() const {
+	return mClientHeight;
 }
 
 HWND GameWorld::GetMainWindowsHandle() const {
@@ -539,7 +549,7 @@ bool GameWorld::InitMainWindow() {
 	}
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
-	RECT R = { 0, 0, mClientWidth, mClientHeight };
+	RECT R = { 0, 0, (LONG)mClientWidth, (LONG)mClientHeight };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
@@ -571,14 +581,14 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	case WM_ACTIVATE:
 		if (LOWORD(wParam) == WA_INACTIVE) {
 			mAppPaused = true;
-			//mTimer.Stop();
+			mTimer.SetLimitFrameRate(GameTimer::ELimitFrameRate30f);
 			mPrevBusVolume = mAudioSystem->GetBusVolume("bus:/");
 			mAudioSystem->SetBusVolume("bus:/", 0.0f);
 			mInputSystem->IgnoreMouseInput();
 		}
 		else {
 			mAppPaused = false;
-			//mTimer.Start();
+			mTimer.SetLimitFrameRate(mLimitFrameRate);
 			mAudioSystem->SetBusVolume("bus:/", mPrevBusVolume);
 			mInputSystem->IgnoreMouseInput();
 		}
@@ -694,10 +704,6 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void GameWorld::SetVCount(UINT inCount) {
-	mVCount = inCount;
-}
-
 void GameWorld::OnResize() {
 	mRenderer->OnResize(mClientWidth, mClientHeight);
 }
@@ -721,8 +727,7 @@ void GameWorld::CalculateFrameStats() {
 
 		std::wstring windowText = mMainWndCaption +
 			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr +
-			L"     vo: " + std::to_wstring(mVCount);
+			L"   mspf: " + mspfStr;
 		SetWindowText(mhMainWnd, windowText.c_str());
 
 		// Reset for next average

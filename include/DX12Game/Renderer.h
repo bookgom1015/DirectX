@@ -1,29 +1,22 @@
 #pragma once
 
-#include "DX12Game/LowRenderer.h"
+#include <DescriptorHeap.h>
+#include <GraphicsMemory.h>
+#include <SimpleMath.h>
+#include <SpriteBatch.h>
+#include <SpriteFont.h>
+#include "DX12Game/AnimationsMap.h"
 #include "DX12Game/FrameResource.h"
+#include "DX12Game/GameCamera.h"
+#include "DX12Game/LowRenderer.h"
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
-#include "DX12Game/GameCamera.h"
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
 struct RenderItem {
 	RenderItem() = default;
 	RenderItem(const RenderItem& rhs) = delete;
-
-	// World matrix of the shape that describes the object's local space
-	// relative to the world space, which defines the position, orientation,
-	// and scale of the object in the world.
-	//DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-
-	//DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-
-	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
-	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify obect data we should set 
-	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
-	//int NumFramesDirty = gNumFrameResources;
 
 	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 	int ObjCBIndex = -1;
@@ -45,9 +38,6 @@ struct RenderItem {
 	UINT StartIndexLocation = 0;
 	UINT BaseVertexLocation = 0;
 
-	// Only applicable to skinned render-items.
-	int SkinnedCBIndex = -1;
-
 	UINT NumInstancesToDraw = 0;
 };
 
@@ -61,8 +51,58 @@ enum class RenderLayer : int {
 };
 
 class Mesh;
+class Animation;
 
 class Renderer : public LowRenderer {
+private:
+	struct RootParameters {
+		UINT ObjectCBIndex;
+		UINT PassCBIndex;
+		UINT InstBufferIndex;
+		UINT MatBufferIndex;
+		UINT MiscTextureMapIndex;
+		UINT TextureMapIndex;
+		UINT AnimationsMapIndex;
+	};
+
+	struct DescriptorHeapIndices {
+		UINT SkyTexHeapIndex;
+		UINT BlurSkyTexHeapIndex;
+		UINT ShadowMapHeapIndex;
+		UINT SsaoHeapIndexStart;
+		UINT SsaoAmbientMapIndex;
+		UINT AnimationsMapIndex;
+		UINT NullCubeSrvIndex;
+		UINT NullBlurCubeSrvIndex;
+		UINT NullTexSrvIndex1;
+		UINT NullTexSrvIndex2;
+		UINT DefaultFontIndex;
+		UINT CurrSrvHeapIndex;
+	};
+
+	struct LightUtil {
+		float LightNearZ = 0.0f;
+		float LightFarZ = 0.0f;
+
+		DirectX::XMFLOAT3 LightPosW;
+		DirectX::XMFLOAT4X4 LightView = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 LightProj = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
+
+		float LightRotationAngle = 0.0f;
+		DirectX::XMFLOAT3 BaseLightStrengths[3] = {
+			DirectX::XMFLOAT3(0.7f, 0.6670f, 0.6423f),
+			DirectX::XMFLOAT3(0.4f, 0.3811f, 0.367f),
+			DirectX::XMFLOAT3(0.1f, 0.0952f, 0.0917f)
+		};
+
+		DirectX::XMFLOAT3 BaseLightDirections[3] = {
+			DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
+			DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
+			DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
+		};
+	};
+
 public:
 	Renderer();
 	virtual ~Renderer();
@@ -91,8 +131,9 @@ public:
 	//* Updates world transform for the actor.
 	void UpdateWorldTransform(const std::string& inRenderItemName, 
 								const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
-	//* Updates pose matrix data at the time for the actor.
-	void UpdateSkinnedTransforms(const std::string& inRenderItemName, const std::vector<DirectX::XMFLOAT4X4>& inTransforms);
+	//*
+	void UpdateInstanceAnimationData(const std::string& inRenderItemName, 
+		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false);
 
 	//* Set visibility status for the render item.
 	void SetVisible(const std::string& inRenderItemName, bool inState);
@@ -110,6 +151,15 @@ public:
 	//* Finally, builds materials.
 	void AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
+	//*
+	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
+	//*
+	void UpdateAnimationsMap();
+
+	//*
+	void AddOutputText(const std::wstring& inText, size_t inIdx);
+	void RemoveOutputText(size_t inIdx);
+
 	virtual ID3D12Device* GetDevice() const override;
 	virtual ID3D12GraphicsCommandList* GetCommandList() const override;
 
@@ -124,10 +174,7 @@ protected:
 
 private:
 	//*
-	void GenerateRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
-	//*
-	void BuildInstanceData(const std::string& inRenderItemName, const Mesh* inMesh);
-
+	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 	//* Extracts vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 	//* Extracts skinned vertices and indices data from the mesh and builds geometry.
@@ -136,7 +183,7 @@ private:
 	//* Builds the skeleton geometry(for debugging) that is composed lines(2-vertices).
 	void AddSkeletonGeometry(const Mesh* inMesh);
 	//* Builds the skeleton(for debugging) render item.
-	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh);
+	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
 	//* Loads textures(diffuse, normal, specular...) and creates DDXTexture.
 	void AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
@@ -144,9 +191,7 @@ private:
 	void AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
-	//void UpdateObjectCBs(const GameTimer& gt);
 	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
-	void UpdateSkinnedCBs(const GameTimer& gt);
 	void UpdateMaterialBuffer(const GameTimer& gt);
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
@@ -184,7 +229,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
@@ -210,22 +255,7 @@ private:
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
-	UINT mNumSkinnedCB = 0;
-
-	UINT mSkyTexHeapIndex = 0;
-	UINT mBlurSkyTexHeapIndex = 0;
-	UINT mShadowMapHeapIndex = 0;
-	UINT mSsaoHeapIndexStart = 0;
-	UINT mSsaoAmbientMapIndex = 0;
-
 	UINT mNumDescriptor = 0;
-
-	UINT mCurrSrvHeapIndex = 0;
-
-	UINT mNullCubeSrvIndex = 0;
-	UINT mNullBlurCubeSrvIndex = 0;
-	UINT mNullTexSrvIndex1 = 0;
-	UINT mNullTexSrvIndex2 = 0;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
@@ -233,48 +263,28 @@ private:
 	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
 	std::unique_ptr<ShadowMap> mShadowMap;
-
 	std::unique_ptr<Ssao> mSsao;
 
-	DirectX::BoundingSphere mSceneBounds;
-
-	std::unordered_map<int /* Skinned constant buffer index */, std::vector<DirectX::XMFLOAT4X4>> mSkinnedInstances;
-	std::unordered_map<std::string /* Render item name */, int> mSkinnedIndices;
-
-	float mLightNearZ = 0.0f;
-	float mLightFarZ = 0.0f;
-	DirectX::XMFLOAT3 mLightPosW;
-	DirectX::XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
-
-	float mLightRotationAngle = 0.0f;
-	DirectX::XMFLOAT3 mBaseLightStrengths[3] = {
-		DirectX::XMFLOAT3(0.7f, 0.6670f, 0.6423f),
-		DirectX::XMFLOAT3(0.4f, 0.3811f, 0.367f),
-		DirectX::XMFLOAT3(0.1f, 0.0952f, 0.0917f)
-	};
-
-	DirectX::XMFLOAT3 mBaseLightDirections[3] = {
-		DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
-		DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
-		DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
-	};
+	DescriptorHeapIndices mDescHeapIdx;
+	LightUtil mLightUtil;
+	RootParameters mRootParams;
 
 	GameCamera* mMainCamera = nullptr;
-
-	UINT mObjectCBIndex = 0;
-	UINT mSkinedCBIndex = 0;
-	UINT mPassCBIndex = 0;
-	UINT mInstBufferIndex = 0;
-	UINT mMatBufferIndex = 0;
-	UINT mMiscTextureMapIndex = 0;
-	UINT mTextureMapIndex = 0;
-
 	DirectX::BoundingFrustum mCamFrustum;
+	DirectX::BoundingSphere mSceneBounds;
 
 	std::vector<const Mesh*> mNestedMeshes;
 	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
 	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
+
+	std::unique_ptr<AnimationsMap> mAnimsMap;
+
+	// Variables for drawing text on the screen.
+	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
+	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
+	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
+	DirectX::SimpleMath::Vector2 mTextPos;
+	std::vector<std::wstring> mOutputTexts;
 };

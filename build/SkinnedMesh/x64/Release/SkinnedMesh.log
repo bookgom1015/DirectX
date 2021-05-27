@@ -1,15 +1,4 @@
-﻿  Camera.cpp
-  d3dApp.cpp
-  d3dUtil.cpp
-  DDSTextureLoader.cpp
-  FBXImporter.cpp
-  GameTimer.cpp
-  GeometryGenerator.cpp
-  MathHelper.cpp
-  FrameResource.cpp
-  LoadM3d.cpp
-  ShadowMap.cpp
-  SkinnedData.cpp
-  SkinnedMeshApp.cpp
-  Ssao.cpp
-LINK : fatal error LNK1104: cannot open file 'libfbxsdk.lib'
+﻿  Generating code
+  All 6931 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  SkinnedMesh.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\SkinnedMesh\Release\SkinnedMesh.exe

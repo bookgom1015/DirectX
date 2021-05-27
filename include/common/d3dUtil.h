@@ -234,6 +234,9 @@ struct Material {
 	// Index into SRV heap for specular texture.
 	int SpecularSrvHeapIndex = -1;
 
+	// Index into SRV heap for displacment texture.
+	int DispSrvHeapIndex = -1;
+
 	// Dirty flag indicating the material has changed and we need to update the constant buffer.
 	// Because we have a material constant buffer for each FrameResource, we have to apply the
 	// update to each FrameResource.  Thus, when we modify a material we should set 

@@ -1,0 +1,15 @@
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  ShadowMap.cpp
+  Ssao.cpp
+  SsaoApp.cpp
+  Generating code
+  All 3330 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Ssao.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Ssao\Release\Ssao.exe

@@ -20,12 +20,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return result;
 	}
 	catch (DxException& e) {
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -322,35 +326,35 @@ void CameraAndDynamicIndexingApp::LoadTextures() {
 #if defined(Ex3)
 	auto bricksTex = std::make_unique<Texture>();
 	bricksTex->Name = "bricksTex";
-	bricksTex->Filename = L"./../../../Textures/bricks.dds";
+	bricksTex->Filename = L"./../../../../Assets/Textures/bricks.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), bricksTex->Filename.c_str(),
 		bricksTex->Resource, bricksTex->UploadHeap));
 
 	auto checkBoardTex = std::make_unique<Texture>();
 	checkBoardTex->Name = "checkBoardTex";
-	checkBoardTex->Filename = L"./../../../Textures/checkboard.dds";
+	checkBoardTex->Filename = L"./../../../../Assets/Textures/checkboard.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), checkBoardTex->Filename.c_str(),
 		checkBoardTex->Resource, checkBoardTex->UploadHeap));
 
 	auto tileTex = std::make_unique<Texture>();
 	tileTex->Name = "tileTex";
-	tileTex->Filename = L"./../../../Textures/tile.dds";
+	tileTex->Filename = L"./../../../../Assets/Textures/tile.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), tileTex->Filename.c_str(),
 		tileTex->Resource, tileTex->UploadHeap));
 
 	auto stoneTex = std::make_unique<Texture>();
 	stoneTex->Name = "stoneTex";
-	stoneTex->Filename = L"./../../../Textures/stone.dds";
+	stoneTex->Filename = L"./../../../../Assets/Textures/stone.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), stoneTex->Filename.c_str(),
 		stoneTex->Resource, stoneTex->UploadHeap));
 
 	auto crateTex = std::make_unique<Texture>();
 	crateTex->Name = "crateTex";
-	crateTex->Filename = L"./../../../Textures/WoodCrate01.dds";
+	crateTex->Filename = L"./../../../../Assets/Textures/WoodCrate01.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), crateTex->Filename.c_str(),
 		crateTex->Resource, crateTex->UploadHeap));
@@ -363,28 +367,28 @@ void CameraAndDynamicIndexingApp::LoadTextures() {
 #else
 	auto bricksTex = std::make_unique<Texture>();
 	bricksTex->Name = "bricksTex";
-	bricksTex->Filename = L"./../../../Textures/bricks.dds";
+	bricksTex->Filename = L"./../../../../Assets/Textures/bricks.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), bricksTex->Filename.c_str(),
 		bricksTex->Resource, bricksTex->UploadHeap));
 
 	auto stoneTex = std::make_unique<Texture>();
 	stoneTex->Name = "stoneTex";
-	stoneTex->Filename = L"./../../../Textures/stone.dds";
+	stoneTex->Filename = L"./../../../../Assets/Textures/stone.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), stoneTex->Filename.c_str(),
 		stoneTex->Resource, stoneTex->UploadHeap));
 
 	auto tileTex = std::make_unique<Texture>();
 	tileTex->Name = "tileTex";
-	tileTex->Filename = L"./../../../Textures/tile.dds";
+	tileTex->Filename = L"./../../../../Assets/Textures/tile.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), tileTex->Filename.c_str(),
 		tileTex->Resource, tileTex->UploadHeap));
 
 	auto crateTex = std::make_unique<Texture>();
 	crateTex->Name = "crateTex";
-	crateTex->Filename = L"./../../../Textures/WoodCrate01.dds";
+	crateTex->Filename = L"./../../../../Assets/Textures/WoodCrate01.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
 		mCommandList.Get(), crateTex->Filename.c_str(),
 		crateTex->Resource, crateTex->UploadHeap));

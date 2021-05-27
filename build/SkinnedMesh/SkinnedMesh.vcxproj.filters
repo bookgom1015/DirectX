@@ -54,9 +54,6 @@
     <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common\FBXImporter.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\common\GameTimer.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
@@ -64,6 +61,12 @@
       <Filter>Common Files\Private</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
   </ItemGroup>
@@ -99,9 +102,6 @@
       <Filter>Common Files\Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\FBXImporter.h">
       <Filter>Common Files\Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\GameTimer.h">

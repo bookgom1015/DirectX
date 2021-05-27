@@ -20,7 +20,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		int result = theApp.Run();
 
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 	catch (DxException& e) {
@@ -28,7 +30,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 		wsstream << L"Error Code: 0x" << std::hex << e.ErrorCode << L'\n' << e.ToString();
 		std::wstring wstr = wsstream.str();
 		MessageBox(nullptr, wstr.c_str(), L"HR Failed", MB_OK);
+#if defined(_DEBUG)
 		CloseHandle(hLogFile);
+#endif
 		return 0;
 	}
 }
@@ -496,16 +500,16 @@ void ShadowMapApp::LoadTextures() {
 	};
 
 	std::vector<std::wstring> texFilenames = {
-		L"./../../../Assets/Textures/bricks2.dds",
-		L"./../../../Assets/Textures/bricks2_nmap.dds",
-		L"./../../../Assets/Textures/tile.dds",
-		L"./../../../Assets/Textures/tile_nmap.dds",
-		L"./../../../Assets/Textures/white1x1.dds",
-		L"./../../../Assets/Textures/default_nmap.dds",
+		L"./../../../../Assets/Textures/bricks2.dds",
+		L"./../../../../Assets/Textures/bricks2_nmap.dds",
+		L"./../../../../Assets/Textures/tile.dds",
+		L"./../../../../Assets/Textures/tile_nmap.dds",
+		L"./../../../../Assets/Textures/white1x1.dds",
+		L"./../../../../Assets/Textures/default_nmap.dds",
 #if defined(Ex1) || defined(Ex2) || defined(Ex3)
-		L"./../../../Assets/Textures/aza.dds",
+		L"./../../../../Assets/Textures/aza.dds",
 #endif
-		L"./../../../Assets/Textures/desertcube1024.dds"
+		L"./../../../../Assets/Textures/desertcube1024.dds"
 	};
 
 	for (int i = 0; i < (int)texNames.size(); ++i) {
