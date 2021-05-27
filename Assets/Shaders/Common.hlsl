@@ -26,7 +26,7 @@
 struct InstanceData {
 	float4x4 World;
 	float4x4 TexTransform;
-	float TimePose;
+	float TimePos;
 	uint MaterialIndex;
 	uint AnimClipIndex;
 	uint InstPad0;

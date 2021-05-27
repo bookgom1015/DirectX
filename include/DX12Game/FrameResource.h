@@ -22,7 +22,7 @@ enum EInstanceDataState : UINT {
 struct InstanceData {
 	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	float TimePose = 0.0f;
+	float TimePos = 0.0f;
 	UINT MaterialIndex = 0;
 	UINT AnimClipIndex = 0;
 	UINT State = EInstanceDataState::EID_Visible;

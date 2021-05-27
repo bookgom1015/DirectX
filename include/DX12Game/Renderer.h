@@ -1,11 +1,16 @@
 #pragma once
 
-#include "DX12Game/LowRenderer.h"
+#include <DescriptorHeap.h>
+#include <GraphicsMemory.h>
+#include <SimpleMath.h>
+#include <SpriteBatch.h>
+#include <SpriteFont.h>
+#include "DX12Game/AnimationsMap.h"
 #include "DX12Game/FrameResource.h"
+#include "DX12Game/GameCamera.h"
+#include "DX12Game/LowRenderer.h"
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
-#include "DX12Game/GameCamera.h"
-#include "DX12Game/AnimationsMap.h"
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
@@ -71,6 +76,7 @@ private:
 		UINT NullBlurCubeSrvIndex;
 		UINT NullTexSrvIndex1;
 		UINT NullTexSrvIndex2;
+		UINT DefaultFontIndex;
 		UINT CurrSrvHeapIndex;
 	};
 
@@ -127,7 +133,7 @@ public:
 								const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
 	//*
 	void UpdateInstanceAnimationData(const std::string& inRenderItemName, 
-		UINT inAnimClipIdx, float inTimePose, bool inIsSkeletal = false);
+		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false);
 
 	//* Set visibility status for the render item.
 	void SetVisible(const std::string& inRenderItemName, bool inState);
@@ -149,6 +155,10 @@ public:
 	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
 	//*
 	void UpdateAnimationsMap();
+
+	//*
+	void AddOutputText(const std::wstring& inText, size_t inIdx);
+	void RemoveOutputText(size_t inIdx);
 
 	virtual ID3D12Device* GetDevice() const override;
 	virtual ID3D12GraphicsCommandList* GetCommandList() const override;
@@ -270,4 +280,11 @@ private:
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
 
 	std::unique_ptr<AnimationsMap> mAnimsMap;
+
+	// Variables for drawing text on the screen.
+	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
+	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
+	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
+	DirectX::SimpleMath::Vector2 mTextPos;
+	std::vector<std::wstring> mOutputTexts;
 };

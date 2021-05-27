@@ -401,12 +401,20 @@ InputSystem* GameWorld::GetInputSystem() const {
 	return mInputSystem.get();
 }
 
-int GameWorld::GetPrimaryMonitorWidth() const {
+UINT GameWorld::GetPrimaryMonitorWidth() const {
 	return mPrimaryMonitorWidth;
 }
 
-int GameWorld::GetPrimaryMonitorHeight() const {
+UINT GameWorld::GetPrimaryMonitorHeight() const {
 	return mPrimaryMonitorHeight;
+}
+
+UINT GameWorld::GetClientWidth() const {
+	return mClientWidth;
+}
+
+UINT GameWorld::GetClientHeight() const {
+	return mClientHeight;
 }
 
 HWND GameWorld::GetMainWindowsHandle() const {
@@ -541,7 +549,7 @@ bool GameWorld::InitMainWindow() {
 	}
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
-	RECT R = { 0, 0, mClientWidth, mClientHeight };
+	RECT R = { 0, 0, (LONG)mClientWidth, (LONG)mClientHeight };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
@@ -696,10 +704,6 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void GameWorld::SetVCount(UINT inCount) {
-	mVCount = inCount;
-}
-
 void GameWorld::OnResize() {
 	mRenderer->OnResize(mClientWidth, mClientHeight);
 }
@@ -723,8 +727,7 @@ void GameWorld::CalculateFrameStats() {
 
 		std::wstring windowText = mMainWndCaption +
 			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr +
-			L"     vo: " + std::to_wstring(mVCount);
+			L"   mspf: " + mspfStr;
 		SetWindowText(mhMainWnd, windowText.c_str());
 
 		// Reset for next average

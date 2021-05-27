@@ -93,8 +93,8 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 			break;
 
 		int rowIndex = indices[i] * 4;
-		int colIndex = instData.AnimClipIndex + (int)instData.TimePose;
-		float pct = instData.TimePose - (int)instData.TimePose;
+		int colIndex = instData.AnimClipIndex + (int)instData.TimePos;
+		float pct = instData.TimePos - (int)instData.TimePos;
 
 		float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex,     colIndex, 0));
 		float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));

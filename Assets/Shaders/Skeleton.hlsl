@@ -26,7 +26,7 @@ struct VertexIn {
 struct VertexOut {
     float3		PosW			: POSITION;
 	float2		TexC			: TEXCOORD;
-	float		TimePose		: TIMEPOSE;
+	float		TimePos			: TIMEPOS;
 	uint		AnimClipIndex	: CLIPIDX;
 	float4x4	World			: WORLDMAT;
 };
@@ -44,7 +44,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 
 	vout.PosW = vin.PosL;
 	vout.TexC = vin.TexC;
-	vout.TimePose = instData.TimePose;
+	vout.TimePos = instData.TimePos;
 	vout.AnimClipIndex = instData.AnimClipIndex;
 	vout.World = world;
 
@@ -63,8 +63,8 @@ void GS(line VertexOut gin[2],
 		int boneIndex = (int)gin[i].TexC.x;
 
 		int rowIndex = boneIndex * 4;
-		int colIndex = gin[i].AnimClipIndex + (int)gin[i].TimePose;
-		float pct = gin[i].TimePose - (int)gin[i].TimePose;
+		int colIndex = gin[i].AnimClipIndex + (int)gin[i].TimePos;
+		float pct = gin[i].TimePos - (int)gin[i].TimePos;
 
 		float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex, colIndex, 0));
 		float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));

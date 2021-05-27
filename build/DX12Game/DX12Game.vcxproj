@@ -81,10 +81,10 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB);</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -125,12 +125,12 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB);</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

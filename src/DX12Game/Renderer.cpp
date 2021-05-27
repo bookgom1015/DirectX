@@ -4,6 +4,8 @@
 #include "DX12Game/Mesh.h"
 #include "common/GeometryGenerator.h"
 
+#include <ResourceUploadBatch.h>
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -11,6 +13,7 @@ using namespace DirectX::PackedVector;
 namespace {
 	const std::wstring textureFileNamePrefix = L"./../../../../Assets/Textures/";
 	const std::wstring shaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
+	const std::wstring fontFileNamePrefix = L"./../../../../Assets/Fonts/";
 
 	const UINT gMaxInstanceCount = 32;
 }
@@ -67,6 +70,36 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 
 	// Wait until initialization is complete.
 	FlushCommandQueue();
+
+	//
+	// Initializes the things for drawing text.
+	//
+
+	mGraphicsMemory = std::make_unique<GraphicsMemory>(md3dDevice.Get());
+
+	ResourceUploadBatch resourceUpload(md3dDevice.Get());
+	resourceUpload.Begin();
+
+	mDefaultFont = std::make_unique<SpriteFont>(
+		md3dDevice.Get(),
+		resourceUpload,
+		(fontFileNamePrefix + L"D2Coding.spritefont").c_str(),
+		GetCpuSrv(mDescHeapIdx.DefaultFontIndex),
+		GetGpuSrv(mDescHeapIdx.DefaultFontIndex));
+
+	RenderTargetState rtState(mBackBufferFormat, mDepthStencilFormat);
+	SpriteBatchPipelineStateDescription pd(rtState);
+	mSpriteBatch = std::make_unique<SpriteBatch>(md3dDevice.Get(), resourceUpload, pd);
+
+	auto uploadResourcesFinished = resourceUpload.End(mCommandQueue.Get());
+	uploadResourcesFinished.wait();
+
+	// After uploadResourcesFinished.wait() returned.
+	mSpriteBatch->SetViewport(mScreenViewport);
+	
+	auto world = GameWorld::GetWorld();
+	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.05f);
+	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.05f);
 
 	return true;
 }
@@ -193,13 +226,35 @@ void Renderer::Draw(const GameTimer& gt) {
 	
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
-	
+
 	mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::SkinnedOpaque]);
 	
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
+
+	//
+	// Draw texts.
+	//
+
+	mSpriteBatch->Begin(mCommandList.Get());
 	
+	std::wstringstream textsStream;
+	for (const auto& text : mOutputTexts)
+		textsStream << text << std::endl;
+
+	const wchar_t* outputTexts = textsStream.str().c_str();
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos,
+		Colors::White,
+		0.0f,
+		XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
+		XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f));
+
+	mSpriteBatch->End();
+
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		CurrentBackBuffer(),
@@ -216,6 +271,8 @@ void Renderer::Draw(const GameTimer& gt) {
 	// Swap the back and front buffers
 	ThrowIfFailed(mSwapChain->Present(0, 0));
 	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	mGraphicsMemory->Commit(mCommandQueue.Get());
 
 	// Advance the fence value to mark commands up to this fence point.
 	mCurrFrameResource->Fence = ++mCurrentFence;
@@ -274,7 +331,7 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 }
 
 void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName, 
-		UINT inAnimClipIdx, float inTimePose, bool inIsSkeletal) {
+		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal) {
 	{
 		auto iter = mRefRitems.find(inRenderItemName);
 		if (iter != mRefRitems.end()) {
@@ -283,7 +340,7 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 				UINT index = mInstancesIndex[inRenderItemName];
 
 				ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
-				ritem->Instances[index].TimePose = inTimePose;
+				ritem->Instances[index].TimePos = inTimePos;
 			}
 		}
 	}
@@ -297,7 +354,7 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 				UINT index = mInstancesIndex[inRenderItemName];
 
 				ritem->Instances[index].AnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
-				ritem->Instances[index].TimePose = inTimePose;
+				ritem->Instances[index].TimePos = inTimePos;
 			}
 		}
 	}
@@ -476,6 +533,18 @@ void Renderer::UpdateAnimationsMap() {
 
 	// Wait until initialization is complete.
 	FlushCommandQueue();
+}
+
+void Renderer::AddOutputText(const std::wstring& inText, size_t inIdx) {
+	size_t preperSize = inIdx + 1;
+	if (mOutputTexts.size() < preperSize)
+		mOutputTexts.resize(preperSize);
+
+	mOutputTexts[inIdx] = inText;
+}
+
+void Renderer::RemoveOutputText(size_t inIdx) {
+
 }
 
 ID3D12Device* Renderer::GetDevice() const {
@@ -1004,7 +1073,7 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 					InstanceData instData;
 					XMStoreFloat4x4(&instData.World, XMMatrixTranspose(world));
 					XMStoreFloat4x4(&instData.TexTransform, XMMatrixTranspose(texTransform));
-					instData.TimePose = i.TimePose;
+					instData.TimePos = i.TimePos;
 					instData.AnimClipIndex = i.AnimClipIndex;
 					instData.MaterialIndex = i.MaterialIndex;					
 
@@ -1034,7 +1103,7 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		}
 	}
 
-	GameWorld::GetWorld()->SetVCount(visibleObjectCount);
+	AddOutputText(L"Visible Object Count: " + std::to_wstring(visibleObjectCount), 0);
 }
 
 void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
@@ -1505,7 +1574,8 @@ void Renderer::BuildDescriptorHeaps() {
 	mDescHeapIdx.NullBlurCubeSrvIndex = mDescHeapIdx.NullCubeSrvIndex + 1;
 	mDescHeapIdx.NullTexSrvIndex1 = mDescHeapIdx.NullBlurCubeSrvIndex + 1;
 	mDescHeapIdx.NullTexSrvIndex2 = mDescHeapIdx.NullTexSrvIndex1 + 1;
-	mDescHeapIdx.CurrSrvHeapIndex = mDescHeapIdx.NullTexSrvIndex2 + 1;
+	mDescHeapIdx.DefaultFontIndex = mDescHeapIdx.NullTexSrvIndex2 + 1;
+	mDescHeapIdx.CurrSrvHeapIndex = mDescHeapIdx.DefaultFontIndex + 1;
 
 	mNumDescriptor = mDescHeapIdx.CurrSrvHeapIndex;
 
