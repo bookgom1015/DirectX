@@ -74,12 +74,12 @@ namespace {
 		outIndices.swap(indices);
 	}
 
-	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inGeoName, 
+	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName,
 						std::vector<std::string>& outDrawArgs) {
 		const auto& subsetNames = inImporter.GetSubsetNames();
 		for (const auto& subsetName : subsetNames) {
 			std::stringstream sstream;
-			sstream << inGeoName << '_' << subsetName.c_str();
+			sstream << inMeshName << '_' << subsetName.c_str();
 			outDrawArgs.push_back(sstream.str());
 		}
 	}
@@ -115,16 +115,16 @@ namespace {
 		}
 	}
 
-	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inGeoName, 
+	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inMeshName,
 						std::unordered_map<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
 		const auto& fbxMaterials = inImporter.GetMaterials();
 		if (!fbxMaterials.empty()) {
 			for (auto material : fbxMaterials) {
 				std::stringstream matNameSstream;
-				matNameSstream << inGeoName << '_' << material.second.MaterialName;
+				matNameSstream << inMeshName << '_' << material.second.MaterialName;
 
 				std::stringstream geoNameSstream;
-				geoNameSstream << inGeoName << '_' << material.first.c_str();
+				geoNameSstream << inMeshName << '_' << material.first.c_str();
 
 				size_t texFileNameExtIndex;
 				const std::string& diffuseMapFileName = material.second.DiffuseMapFileName;
@@ -163,15 +163,14 @@ namespace {
 }
 
 Mesh::Mesh(bool inIsSkeletal, bool inNeedToBeAligned)
-	: mIsSkeletal(inIsSkeletal), mNeedToBeAligned(inNeedToBeAligned) {
+	: mIsSkeletal(inIsSkeletal), 
+	  mNeedToBeAligned(inNeedToBeAligned) {
 	mRenderer = GameWorld::GetWorld()->GetRenderer();
 }
 
-Mesh::~Mesh() {}
-
-bool Mesh::Load(const std::string& inFileName) {
+bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 	size_t extIndex = inFileName.find_last_of('.', inFileName.length());
-	mGeoName = inFileName.substr(0, extIndex);
+	mMeshName = inFileName.substr(0, extIndex);
 
 	TaskTimer timer;
 	timer.SetBeginTime();
@@ -180,61 +179,11 @@ bool Mesh::Load(const std::string& inFileName) {
 		std::stringstream fileNameSstream;
 		fileNameSstream << fileNamePrefix << inFileName;
 
-		if (!importer.LoadFile(fileNameSstream.str()))
+		if (!importer.LoadDataFromFile(fileNameSstream.str(), bMultiThreading))
 			return false;
 	}
 	timer.SetEndTime();
 	StringUtil::Log({ inFileName, " Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
-	
-	if (mIsSkeletal)
-		LoadSkinnedVertices(std::ref(importer), std::ref(mSkinnedVertices));
-	else
-		LoadVertices(std::ref(importer), std::ref(mVertices));
-
-	LoadIndices(std::ref(importer), std::ref(mIndices));	
-	LoadDrawArgs(std::ref(importer), mGeoName, std::ref(mDrawArgs));
-	LoadSubsets(std::ref(importer), std::ref(mSubsets));
-	LoadSkeletons(std::ref(importer), std::ref(mSkinnedData.mSkeleton));
-	LoadAnimations(std::ref(importer), std::ref(mSkinnedData.mAnimations));
-	LoadMaterials(std::ref(importer), mGeoName, std::ref(mMaterials), mRenderer);
-
-	if (mIsSkeletal) {
-		GenerateSkeletonData();
-
-		OutputSkinnedDataInfo();
-	}
-
-	mRenderer->AddGeometry(this);
-
-	const auto& anims = mSkinnedData.mAnimations;
-	if (!anims.empty()) {
-		for (const auto& anim : anims) {
-			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
-
-			mClipsIndex[anim.first] = idx;
-		}
-		mRenderer->UpdateAnimationsMap();
-	}
-
-	return true;
-}
-
-bool Mesh::MTLoad(const std::string& inFileName) {
-	size_t extIndex = inFileName.find_last_of('.', inFileName.length());
-	mGeoName = inFileName.substr(0, extIndex);
-
-	TaskTimer timer;
-	timer.SetBeginTime();
-	DxFbxImporter importer;
-	{
-		std::stringstream fileNameSstream;
-		fileNameSstream << fileNamePrefix << inFileName;
-
-		if (!importer.MTLoadFile(fileNameSstream.str()))
-			return false;
-	}
-	timer.SetEndTime();
-	StringUtil::Log({ inFileName, " MT Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
 
 	std::thread vertThread;
 	if (mIsSkeletal)
@@ -244,11 +193,11 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 
 	std::thread skeletonThread = std::thread(LoadSkeletons, std::ref(importer), std::ref(mSkinnedData.mSkeleton));
 	std::thread idxThread = std::thread(LoadIndices, std::ref(importer), std::ref(mIndices));
-	std::thread drawArgThread = std::thread(LoadDrawArgs, std::ref(importer), mGeoName, std::ref(mDrawArgs));
+	std::thread drawArgThread = std::thread(LoadDrawArgs, std::ref(importer), mMeshName, std::ref(mDrawArgs));
 	std::thread subsetThread = std::thread(LoadSubsets, std::ref(importer), std::ref(mSubsets));
 	std::thread animationThread = std::thread(LoadAnimations, std::ref(importer), std::ref(mSkinnedData.mAnimations));
 	std::thread materialThread = std::thread(LoadMaterials, std::ref(importer), 
-												mGeoName, std::ref(mMaterials), std::ref(mRenderer));
+		mMeshName, std::ref(mMaterials), std::ref(mRenderer));
 
 	skeletonThread.join();
 
@@ -283,8 +232,8 @@ bool Mesh::MTLoad(const std::string& inFileName) {
 	return true;
 }
 
-const std::string& Mesh::GetGeometryName() const {
-	return mGeoName;
+const std::string& Mesh::GetMeshName() const {
+	return mMeshName;
 }
 
 const std::vector<std::string>& Mesh::GetDrawArgs() const {
@@ -388,7 +337,7 @@ void Mesh::AddSkeletonVertex(const Vertex& inVertex) {
 }
 
 void Mesh::OutputSkinnedDataInfo() {
-	StringUtil::Logln({ "Mesh Name: ", mGeoName });
+	StringUtil::Logln({ "Mesh Name: ", mMeshName });
 	StringUtil::Logln({ L" Num Bones: ", std::to_wstring(mSkinnedData.mSkeleton.mBones.size()), L"\n" });
 	for (auto animIter = mSkinnedData.mAnimations.cbegin(), end = mSkinnedData.mAnimations.cend(); animIter != end; ++animIter) {
 		const auto& anim = animIter->second;

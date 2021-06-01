@@ -12,50 +12,50 @@
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
 
-// Lightweight structure stores parameters to draw a shape.  This will
-// vary from app-to-app.
-struct RenderItem {
-	RenderItem() = default;
-	RenderItem(const RenderItem& rhs) = delete;
-
-	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
-	int ObjCBIndex = -1;
-
-	Material* Mat = nullptr;
-	MeshGeometry* Geo = nullptr;
-
-	// Primitive topology.
-	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-	DirectX::BoundingBox AABB;
-	DirectX::BoundingOrientedBox OBB;
-	DirectX::BoundingSphere Sphere;
-
-	std::vector<InstanceData> Instances;
-
-	// DrawIndexedInstanced parameters.
-	UINT IndexCount = 0;
-	UINT StartIndexLocation = 0;
-	UINT BaseVertexLocation = 0;
-
-	UINT NumInstancesToDraw = 0;
-};
-
-enum class RenderLayer : int {
-	Opaque = 0,
-	SkinnedOpaque,
-	Skeleton,
-	Debug,
-	Sky,
-	Count
-};
-
 class Mesh;
 class Animation;
 
 class Renderer : public LowRenderer {
 private:
-	struct RootParameters {
+	enum RenderLayer : int {
+		Opaque = 0,
+		SkinnedOpaque,
+		Skeleton,
+		Debug,
+		Sky,
+		Count
+	};
+
+	// Lightweight structure stores parameters to draw a shape.  This will
+	//  vary from app-to-app.
+	struct RenderItem {
+		RenderItem() = default;
+		RenderItem(const RenderItem& rhs) = delete;
+
+		// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
+		int ObjCBIndex = -1;
+
+		Material* Mat = nullptr;
+		MeshGeometry* Geo = nullptr;
+
+		// Primitive topology.
+		D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+		DirectX::BoundingBox AABB;
+		DirectX::BoundingOrientedBox OBB;
+		DirectX::BoundingSphere Sphere;
+
+		std::vector<InstanceData> Instances;
+
+		// DrawIndexedInstanced parameters.
+		UINT IndexCount = 0;
+		UINT StartIndexLocation = 0;
+		UINT BaseVertexLocation = 0;
+
+		UINT NumInstancesToDraw = 0;
+	};
+
+	struct RootParameterIndices {
 		UINT ObjectCBIndex;
 		UINT PassCBIndex;
 		UINT InstBufferIndex;
@@ -80,7 +80,7 @@ private:
 		UINT CurrSrvHeapIndex;
 	};
 
-	struct LightUtil {
+	struct LightingVariables {
 		float LightNearZ = 0.0f;
 		float LightFarZ = 0.0f;
 
@@ -108,55 +108,35 @@ public:
 	virtual ~Renderer();
 
 private:
-	//
-	//* Renderer doesn't allow substitution and replication.
-	//
-
+	///
+	// Renderer doesn't allow substitution and replication.
+	///
 	Renderer(const Renderer& src) = delete;
 	Renderer(Renderer&& src) = delete;
 	Renderer& operator=(const Renderer& rhs) = delete;
 	Renderer& operator=(Renderer&& rhs) = delete;
 
 public:
-	//* Intializes LowRenderer(parent class) and builds miscellaneous.
 	virtual bool Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) override;
-	//* Updates frame resources, constant buffers and others is need to be updated.
 	virtual void Update(const GameTimer& gt) override;
-	//* Builds and executes draw commands list.
 	virtual void Draw(const GameTimer& gt) override;
-
-	//* Called When window is resized.
 	virtual void OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
-	//* Updates world transform for the actor.
 	void UpdateWorldTransform(const std::string& inRenderItemName, 
-								const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
-	//*
+		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
 	void UpdateInstanceAnimationData(const std::string& inRenderItemName, 
 		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false);
 
-	//* Set visibility status for the render item.
 	void SetVisible(const std::string& inRenderItemName, bool inState);
-	//* Set visibility status for the render item's skeleton.
 	void SetSkeletonVisible(const std::string& inRenderItemName, bool inState);
 
-	//* Builds the geometry in the mesh.
-	//* After that, Call the function AddMaterials.
 	void AddGeometry(const Mesh* inMesh);
-	//* Builds render item.
-	//* Also, registers the instance name. if it was overlapped, append a suffix.
 	void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh);
-	//* First, loads diffuse, normal and specular textures.
-	//* Second, builds descriptor heaps.
-	//* Finally, builds materials.
 	void AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
-
-	//*
 	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
-	//*
+
 	void UpdateAnimationsMap();
 
-	//*
 	void AddOutputText(const std::wstring& inText, size_t inIdx);
 	void RemoveOutputText(size_t inIdx);
 
@@ -169,25 +149,18 @@ public:
 	virtual bool IsValid() const override;
 
 protected:
-	//* Create render target view and depth stencil view heaps.
 	virtual void CreateRtvAndDsvDescriptorHeaps() override;
 
 private:
-	//*
+	void DrawTexts();
 	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
-	//* Extracts vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
-	//* Extracts skinned vertices and indices data from the mesh and builds geometry.
 	void LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 
-	//* Builds the skeleton geometry(for debugging) that is composed lines(2-vertices).
 	void AddSkeletonGeometry(const Mesh* inMesh);
-	//* Builds the skeleton(for debugging) render item.
 	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
-	//* Loads textures(diffuse, normal, specular...) and creates DDXTexture.
 	void AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
-	//* Builds descriptors for textures(diffuse, normal, specular...).
 	void AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
@@ -198,14 +171,14 @@ private:
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateSsaoCB(const GameTimer& gt);
 
-	void LoadStandardTextures();
+	void LoadBasicTextures();
 	void BuildRootSignature();
 	void BuildSsaoRootSignature();
 	void BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildStandardGeometry();
-	void BuildStandardRenderItems();
-	void BuildStandardMaterials();
+	void BuildBasicGeometry();
+	void BuildBasicRenderItems();
+	void BuildBasicMaterials();
 	void BuildPSOs();
 	void BuildFrameResources();
 
@@ -266,8 +239,8 @@ private:
 	std::unique_ptr<Ssao> mSsao;
 
 	DescriptorHeapIndices mDescHeapIdx;
-	LightUtil mLightUtil;
-	RootParameters mRootParams;
+	LightingVariables mLightingVars;
+	RootParameterIndices mRootParams;
 
 	GameCamera* mMainCamera = nullptr;
 	DirectX::BoundingFrustum mCamFrustum;

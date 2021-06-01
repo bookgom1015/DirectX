@@ -50,14 +50,14 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 
 	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get(), mCommandList.Get());
 
-	LoadStandardTextures();
+	LoadBasicTextures();
 	BuildRootSignature();
 	BuildSsaoRootSignature();
 	BuildDescriptorHeaps();
 	BuildShadersAndInputLayout();
-	BuildStandardGeometry();
-	BuildStandardMaterials();
-	BuildStandardRenderItems();
+	BuildBasicGeometry();
+	BuildBasicMaterials();
+	BuildBasicRenderItems();
 	BuildFrameResources();
 	BuildPSOs();
 
@@ -74,7 +74,6 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	//
 	// Initializes the things for drawing text.
 	//
-
 	mGraphicsMemory = std::make_unique<GraphicsMemory>(md3dDevice.Get());
 
 	ResourceUploadBatch resourceUpload(md3dDevice.Get());
@@ -98,8 +97,8 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	mSpriteBatch->SetViewport(mScreenViewport);
 	
 	auto world = GameWorld::GetWorld();
-	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.05f);
-	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.05f);
+	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.01f);
+	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.01f);
 
 	return true;
 }
@@ -219,41 +218,25 @@ void Renderer::Draw(const GameTimer& gt) {
 	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.MiscTextureMapIndex, skyTexDescriptor);
 
 	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
 
 	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Skeleton]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Skeleton]);
 	
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
 
 	mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::SkinnedOpaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 	
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Sky]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Sky]);
 
 	//
 	// Draw texts.
 	//
-
-	mSpriteBatch->Begin(mCommandList.Get());
+	DrawTexts();
 	
-	std::wstringstream textsStream;
-	for (const auto& text : mOutputTexts)
-		textsStream << text << std::endl;
-
-	const wchar_t* outputTexts = textsStream.str().c_str();
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos,
-		Colors::White,
-		0.0f,
-		XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f),
-		XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f));
-
-	mSpriteBatch->End();
 
 	// Indicate a state transition on the resource usage.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -392,9 +375,9 @@ void Renderer::SetSkeletonVisible(const std::string& inRenderItemName, bool inSt
 }
 
 void Renderer::AddGeometry(const Mesh* inMesh) {
-	const auto& geoName = inMesh->GetGeometryName();
+	const auto& meshName = inMesh->GetMeshName();
 
-	auto iter = mGeometries.find(geoName);
+	auto iter = mGeometries.find(meshName);
 	if (iter != mGeometries.cend())
 		return;
 
@@ -404,7 +387,7 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = geoName;
+	geo->Name = meshName;
 
 	BoundingBox bound;
 
@@ -441,6 +424,66 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 
 	if (!inMesh->GetMaterials().empty())
 		AddMaterials(inMesh->GetMaterials());
+}
+
+void Renderer::DrawTexts() {
+	mSpriteBatch->Begin(mCommandList.Get());
+
+	std::wstringstream textsStream;
+	for (const auto& text : mOutputTexts)
+		textsStream << text << std::endl;
+
+	const wchar_t* outputTexts = textsStream.str().c_str();
+	auto origin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	auto scale = XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f);
+
+	// Left outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos - SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Right outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos + SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Top outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos - SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Bottom outline.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos + SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
+		Colors::Black,
+		0.0f,
+		origin,
+		scale);
+	// Draw texts.
+	mDefaultFont->DrawString(
+		mSpriteBatch.get(),
+		outputTexts,
+		mTextPos,
+		Colors::White,
+		0.0f,
+		origin,
+		scale);
+
+	mSpriteBatch->End();
 }
 
 void Renderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) {
@@ -544,7 +587,15 @@ void Renderer::AddOutputText(const std::wstring& inText, size_t inIdx) {
 }
 
 void Renderer::RemoveOutputText(size_t inIdx) {
+	auto size = mOutputTexts.size();
+	if (size < inIdx + 1)
+		return;
 
+	size_t lastIdx = size - 1;
+	auto temp = mOutputTexts[inIdx];
+	mOutputTexts[inIdx] = mOutputTexts[lastIdx];
+	mOutputTexts[lastIdx] = temp;
+	mOutputTexts.pop_back();
 }
 
 ID3D12Device* Renderer::GetDevice() const {
@@ -619,7 +670,7 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 			ritem->Instances.push_back({
 				MathHelper::Identity4x4(), MathHelper::Identity4x4(),
 				0.0f, (UINT)ritem->Mat->MatCBIndex, 0 });
-			ritem->Geo = mGeometries[inMesh->GetGeometryName()].get();
+			ritem->Geo = mGeometries[inMesh->GetMeshName()].get();
 			ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			ritem->IndexCount = ritem->Geo->DrawArgs[drawArgs[i]].IndexCount;
 			ritem->StartIndexLocation = ritem->Geo->DrawArgs[drawArgs[i]].StartIndexLocation;
@@ -627,9 +678,9 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 			ritem->AABB = ritem->Geo->DrawArgs[drawArgs[i]].AABB;
 
 			if (inMesh->GetIsSkeletal())
-				mRitemLayer[(int)RenderLayer::SkinnedOpaque].push_back(ritem.get());
+				mRitemLayer[RenderLayer::SkinnedOpaque].push_back(ritem.get());
 			else
-				mRitemLayer[(int)RenderLayer::Opaque].push_back(ritem.get());
+				mRitemLayer[RenderLayer::Opaque].push_back(ritem.get());
 
 			mMeshToRitem[inMesh].push_back(ritem.get());
 			mRefRitems[inRenderItemName].push_back(ritem.get());
@@ -725,7 +776,7 @@ void Renderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo, Bou
 
 void Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = inMesh->GetGeometryName() + "_skeleton";
+	geo->Name = inMesh->GetMeshName() + "_skeleton";
 
 	const auto& vertices = inMesh->GetSkeletonVertices();
 	const auto& indices = inMesh->GetSkeletonIndices();
@@ -798,7 +849,7 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 		auto ritem = std::make_unique<RenderItem>();
 		ritem->ObjCBIndex = mNumObjCB++;
 		ritem->Mat = mMaterials["default"].get();
-		ritem->Geo = mGeometries[inMesh->GetGeometryName() + "_skeleton"].get();
+		ritem->Geo = mGeometries[inMesh->GetMeshName() + "_skeleton"].get();
 		ritem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 		ritem->IndexCount = ritem->Geo->DrawArgs["skeleton"].IndexCount;
 		ritem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(),
@@ -806,7 +857,7 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 		ritem->StartIndexLocation = ritem->Geo->DrawArgs["skeleton"].StartIndexLocation;
 		ritem->BaseVertexLocation = ritem->Geo->DrawArgs["skeleton"].BaseVertexLocation;
 
-		mRitemLayer[(int)RenderLayer::Skeleton].push_back(ritem.get());
+		mRitemLayer[RenderLayer::Skeleton].push_back(ritem.get());
 
 		std::string name = inRenderItemName + "_skeleton";
 		mMeshToSkeletonRitem[inMesh].push_back(ritem.get());
@@ -1103,7 +1154,7 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		}
 	}
 
-	AddOutputText(L"Visible Object Count: " + std::to_wstring(visibleObjectCount), 0);
+	AddOutputText(L"voc: " + std::to_wstring(visibleObjectCount), 2);
 }
 
 void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
@@ -1134,13 +1185,13 @@ void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
 
 void Renderer::UpdateShadowTransform(const GameTimer& gt) {
 	// Only the first "main" light casts a shadow.
-	XMVECTOR lightDir = XMLoadFloat3(&mLightUtil.BaseLightDirections[0]);
+	XMVECTOR lightDir = XMLoadFloat3(&mLightingVars.BaseLightDirections[0]);
 	XMVECTOR lightPos = -2.0f*mSceneBounds.Radius*lightDir;
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
 
-	XMStoreFloat3(&mLightUtil.LightPosW, lightPos);
+	XMStoreFloat3(&mLightingVars.LightPosW, lightPos);
 
 	// Transform bounding sphere to light space.
 	XMFLOAT3 sphereCenterLS;
@@ -1154,8 +1205,8 @@ void Renderer::UpdateShadowTransform(const GameTimer& gt) {
 	float t = sphereCenterLS.y + mSceneBounds.Radius;
 	float f = sphereCenterLS.z + mSceneBounds.Radius;
 
-	mLightUtil.LightNearZ = n;
-	mLightUtil.LightFarZ = f;
+	mLightingVars.LightNearZ = n;
+	mLightingVars.LightFarZ = f;
 	XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
 
 	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
@@ -1166,9 +1217,9 @@ void Renderer::UpdateShadowTransform(const GameTimer& gt) {
 		0.5f, 0.5f, 0.0f, 1.0f);
 	
 	XMMATRIX S = lightView * lightProj*T;
-	XMStoreFloat4x4(&mLightUtil.LightView, lightView);
-	XMStoreFloat4x4(&mLightUtil.LightProj, lightProj);
-	XMStoreFloat4x4(&mLightUtil.ShadowTransform, S);
+	XMStoreFloat4x4(&mLightingVars.LightView, lightView);
+	XMStoreFloat4x4(&mLightingVars.LightProj, lightProj);
+	XMStoreFloat4x4(&mLightingVars.ShadowTransform, S);
 }
 
 void Renderer::UpdateMainPassCB(const GameTimer& gt) {
@@ -1188,7 +1239,7 @@ void Renderer::UpdateMainPassCB(const GameTimer& gt) {
 		0.5f, 0.5f, 0.0f, 1.0f);
 
 	XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, T);
-	XMMATRIX shadowTransform = XMLoadFloat4x4(&mLightUtil.ShadowTransform);
+	XMMATRIX shadowTransform = XMLoadFloat4x4(&mLightingVars.ShadowTransform);
 
 	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
@@ -1206,20 +1257,20 @@ void Renderer::UpdateMainPassCB(const GameTimer& gt) {
 	mMainPassCB.TotalTime = gt.TotalTime();
 	mMainPassCB.DeltaTime = gt.DeltaTime();
 	mMainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
-	mMainPassCB.Lights[0].Direction = mLightUtil.BaseLightDirections[0];
-	mMainPassCB.Lights[0].Strength = mLightUtil.BaseLightStrengths[0];
-	mMainPassCB.Lights[1].Direction = mLightUtil.BaseLightDirections[1];
-	mMainPassCB.Lights[1].Strength = mLightUtil.BaseLightStrengths[1];
-	mMainPassCB.Lights[2].Direction = mLightUtil.BaseLightDirections[2];
-	mMainPassCB.Lights[2].Strength = mLightUtil.BaseLightStrengths[2];
+	mMainPassCB.Lights[0].Direction = mLightingVars.BaseLightDirections[0];
+	mMainPassCB.Lights[0].Strength = mLightingVars.BaseLightStrengths[0];
+	mMainPassCB.Lights[1].Direction = mLightingVars.BaseLightDirections[1];
+	mMainPassCB.Lights[1].Strength = mLightingVars.BaseLightStrengths[1];
+	mMainPassCB.Lights[2].Direction = mLightingVars.BaseLightDirections[2];
+	mMainPassCB.Lights[2].Strength = mLightingVars.BaseLightStrengths[2];
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
 void Renderer::UpdateShadowPassCB(const GameTimer& gt) {
-	XMMATRIX view = XMLoadFloat4x4(&mLightUtil.LightView);
-	XMMATRIX proj = XMLoadFloat4x4(&mLightUtil.LightProj);
+	XMMATRIX view = XMLoadFloat4x4(&mLightingVars.LightView);
+	XMMATRIX proj = XMLoadFloat4x4(&mLightingVars.LightProj);
 
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -1235,11 +1286,11 @@ void Renderer::UpdateShadowPassCB(const GameTimer& gt) {
 	XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mShadowPassCB.EyePosW = mLightUtil.LightPosW;
+	mShadowPassCB.EyePosW = mLightingVars.LightPosW;
 	mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
 	mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
-	mShadowPassCB.NearZ = mLightUtil.LightNearZ;
-	mShadowPassCB.FarZ = mLightUtil.LightFarZ;
+	mShadowPassCB.NearZ = mLightingVars.LightNearZ;
+	mShadowPassCB.FarZ = mLightingVars.LightFarZ;
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(1, mShadowPassCB);
@@ -1280,7 +1331,7 @@ void Renderer::UpdateSsaoCB(const GameTimer& gt) {
 	currSsaoCB->CopyData(0, ssaoCB);
 }
 
-void Renderer::LoadStandardTextures() {
+void Renderer::LoadBasicTextures() {
 	std::vector<std::string> texNames = {
 		"defaultDiffuseMap",
 		"defaultNormalMap",
@@ -1700,7 +1751,7 @@ void Renderer::BuildShadersAndInputLayout() {
 	};
 }
 
-void Renderer::BuildStandardGeometry() {
+void Renderer::BuildBasicGeometry() {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.0f, 1.0f, 1.0f, 3);
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(80.0f, 80.0f, 60, 40);
@@ -1897,7 +1948,7 @@ void Renderer::BuildStandardGeometry() {
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void Renderer::BuildStandardMaterials() {
+void Renderer::BuildBasicMaterials() {
 	auto defaultMat = std::make_unique<Material>();
 	defaultMat->Name = "default";
 	defaultMat->MatCBIndex = mNumMatCB++;
@@ -1920,7 +1971,7 @@ void Renderer::BuildStandardMaterials() {
 	mMaterials[skyMat->Name] = std::move(skyMat);
 }
 
-void Renderer::BuildStandardRenderItems() {
+void Renderer::BuildBasicRenderItems() {
 	XMFLOAT4X4 world;
 	XMFLOAT4X4 tex;
 
@@ -1936,7 +1987,7 @@ void Renderer::BuildStandardRenderItems() {
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
 	skyRitem->Instances.push_back({ world, MathHelper::Identity4x4(),
 		0.0f, (UINT)skyRitem->Mat->MatCBIndex, 0 });
-	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
+	mRitemLayer[RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
@@ -1951,7 +2002,7 @@ void Renderer::BuildStandardRenderItems() {
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 	boxRitem->Instances.push_back({ world, MathHelper::Identity4x4(), 
 		0.0f, (UINT)boxRitem->Mat->MatCBIndex, 0 });
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(boxRitem.get());
+	mRitemLayer[RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto quadRitem = std::make_unique<RenderItem>();
@@ -1966,7 +2017,7 @@ void Renderer::BuildStandardRenderItems() {
 	quadRitem->Instances.push_back({ MathHelper::Identity4x4(), MathHelper::Identity4x4(), 
 		0.0f, (UINT)quadRitem->Mat->MatCBIndex, 0 });
 	quadRitem->Instances[0].State = EInstanceDataState::EID_DrawAlways;
-	mRitemLayer[(int)RenderLayer::Debug].push_back(quadRitem.get());
+	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -1981,7 +2032,7 @@ void Renderer::BuildStandardRenderItems() {
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->Instances.push_back({ MathHelper::Identity4x4(), tex, 
 		0.0f, (UINT)gridRitem->Mat->MatCBIndex, 0 });
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }
 
@@ -2229,10 +2280,10 @@ void Renderer::DrawSceneToShadowMap() {
 	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.PassCBIndex, passCBAddress);
 
 	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
 
 	mCommandList->SetPipelineState(mPSOs["skinnedShadow_opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::SkinnedOpaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
@@ -2263,10 +2314,10 @@ void Renderer::DrawNormalsAndDepth() {
 	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.PassCBIndex, passCB->GetGPUVirtualAddress());
 
 	mCommandList->SetPipelineState(mPSOs["drawNormals"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
 
 	mCommandList->SetPipelineState(mPSOs["skinnedDrawNormals"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::SkinnedOpaque]);
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,

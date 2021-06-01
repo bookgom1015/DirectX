@@ -11,15 +11,12 @@ struct MaterialIn;
 class Mesh {
 public:
 	Mesh(bool inIsSkeletal = false, bool inNeedToBeAligned = false);
-	virtual ~Mesh();
+	virtual ~Mesh() = default;
 
 public:
-	//* Loads mesh data(vertices, indices, uv coordinates...).
-	virtual bool Load(const std::string& inFileName);
-	//* Multi-threaded version of the fuction Load.
-	virtual bool MTLoad(const std::string& inFileName);
+	virtual bool Load(const std::string& inFileName, bool bMultiThreading = false);
 
-	const std::string& GetGeometryName() const;
+	const std::string& GetMeshName() const;
 	const std::vector<std::string>& GetDrawArgs() const;
 
 	const std::vector<Vertex>& GetVertices() const;
@@ -51,7 +48,7 @@ private:
 protected:
 	Renderer* mRenderer;
 
-	std::string mGeoName;
+	std::string mMeshName;
 	std::vector<std::string> mDrawArgs;
 
 	std::vector<Vertex> mVertices;

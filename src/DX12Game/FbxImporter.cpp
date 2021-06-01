@@ -9,28 +9,61 @@ namespace {
 	const int InvalidBoneIndex = std::numeric_limits<UINT>::infinity();
 }
 
-DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos, DirectX::XMFLOAT3 inNormal,
-	DirectX::XMFLOAT2 inTexC, DirectX::XMFLOAT3 inTangentU) {
+DxFbxVertex::DxFbxVertex() {
+	Pos = { 0.0f, 0.0f, 0.0f };
+	Normal = { 0.0f, 0.0f, 0.0f };
+	TexC = { 0.0f, 0.0f };
+	TangentU = { 0.0f, 0.0f, 0.0f };
+	for (auto& weight : BoneWeights)
+		weight = 0.0f;
+	for (auto& index : BoneIndices)
+		index = -1;
+}
+
+DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos, 
+						 DirectX::XMFLOAT3 inNormal,
+						 DirectX::XMFLOAT2 inTexC, 
+						 DirectX::XMFLOAT3 inTangentU) {
 	Pos = inPos;
 	Normal = inNormal;
 	TexC = inTexC;
 	TangentU = inTangentU;
+	for (auto& weight : BoneWeights)
+		weight = 0.0f;
+	for (auto& index : BoneIndices)
+		index = -1;
 }
 
 bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
 	bool bResult = MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-		MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-		MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-		MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
-	if (bResult != true)
-		return false;
+				   MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
+				   MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
+				   MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
 
-	for (size_t i = 0; i < 8; ++i) {
-		if (!MathHelper::IsEqual(lhs.BoneWeights[i], rhs.BoneWeights[i]) || lhs.BoneIndices[i] != rhs.BoneIndices[i])
+	if (!bResult) 
+		return false;
+	
+	for (UINT i = 0; i < 8; ++i) {
+		if (MathHelper::IsNotEqual(lhs.BoneWeights[i], rhs.BoneWeights[i]) || lhs.BoneIndices[i] != rhs.BoneIndices[i])
 			return false;
 	}
 
 	return true;
+}
+
+DxFbxMaterial::DxFbxMaterial() {
+	MatTransform = MathHelper::Identity4x4();
+	DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+	FresnelR0 = { 0.5f, 0.5f, 0.5f };
+	Roughness = 0.5f;
+}
+
+DxFbxBone::DxFbxBone() {
+	ParentIndex = -1;
+
+	LocalBindPose = MathHelper::Identity4x4();
+	GlobalBindPose = MathHelper::Identity4x4();
+	GlobalInvBindPose = MathHelper::Identity4x4();
 }
 
 const std::vector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
@@ -57,7 +90,11 @@ const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& DxFbxAnimation
 	return mCurves;
 }
 
-DxFbxImporter::DxFbxImporter() {}
+DxFbxImporter::DxFbxImporter() {
+	mFbxManager = nullptr;
+	mFbxIos = nullptr;
+	mFbxScene = nullptr;
+}
 
 DxFbxImporter::~DxFbxImporter() {
 	if (mFbxScene != nullptr)
@@ -70,46 +107,12 @@ DxFbxImporter::~DxFbxImporter() {
 		mFbxManager->Destroy();
 }
 
-bool DxFbxImporter::LoadFile(const std::string& inFileName) {
-	if (!LoadScene(inFileName))
+bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiThreading) {
+	if (!LoadFbxScene(inFileName))
 		return false;
 
 	auto fbxRootNode = mFbxScene->GetRootNode();
 	LoadSkeletonHierarchy(fbxRootNode);
-
-	for (size_t i = 0; i < fbxRootNode->GetChildCount(); ++i) {
-		FbxNode* childNode = fbxRootNode->GetChild((int)i);
-		if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
-			LoadBones(childNode);
-	}
-
-	MoveDataFbxAMatrixToDirectXMath();
-	NormalizeWeigths();
-
-	UINT prevVertexCounter = 0;
-	for (size_t i = 0; i < fbxRootNode->GetChildCount(); ++i) {
-		FbxNode* childNode = fbxRootNode->GetChild((int)i);
-		if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
-			mSubsetNames.push_back(childNode->GetName());
-
-			LoadMaterials(childNode);
-
-			prevVertexCounter = LoadMesh(childNode, prevVertexCounter);
-			if (prevVertexCounter < 0)
-				return false;
-		}
-	}
-
-	return true;
-}
-
-bool DxFbxImporter::MTLoadFile(const std::string& inFileName) {
-	if (!LoadScene(inFileName))
-		return false;
-
-	auto rootNode = mFbxScene->GetRootNode();
-
-	LoadSkeletonHierarchy(rootNode);
 
 	std::thread loadingBonesThread = std::thread([this](fbxsdk::FbxNode* inFbxRootNode) -> void {
 		for (size_t i = 0; i < inFbxRootNode->GetChildCount(); ++i) {
@@ -117,7 +120,7 @@ bool DxFbxImporter::MTLoadFile(const std::string& inFileName) {
 			if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
 				LoadBones(childNode);
 		}
-	}, rootNode);
+	}, fbxRootNode);
 
 	std::thread loadingMatsThread = std::thread([this](fbxsdk::FbxNode* inFbxRootNode) -> void {
 		for (size_t i = 0; i < inFbxRootNode->GetChildCount(); ++i) {
@@ -125,22 +128,24 @@ bool DxFbxImporter::MTLoadFile(const std::string& inFileName) {
 			if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
 				LoadMaterials(childNode);
 		}
-	}, rootNode);
+	}, fbxRootNode);
 
 	loadingBonesThread.join();
 	loadingMatsThread.join();
 
-	MoveDataFbxAMatrixToDirectXMath();
+	MoveDataFromFbxAMatrixToDirectXMath();
 	NormalizeWeigths();
 
-	UINT prevVertexCounter = 0;
-	for (size_t i = 0; i < rootNode->GetChildCount(); ++i) {
-		FbxNode* childNode = rootNode->GetChild((int)i);
+	UINT prevNumVertices = 0;
+	for (size_t i = 0; i < fbxRootNode->GetChildCount(); ++i) {
+		FbxNode* childNode = fbxRootNode->GetChild((int)i);
 		if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
 			mSubsetNames.push_back(childNode->GetName());
 
-			prevVertexCounter = MTLoadMeshAlt(childNode, prevVertexCounter);
-			if (prevVertexCounter < 0)
+			prevNumVertices = bMultiThreading ? 
+				MTLoadDataFromMesh(childNode, prevNumVertices) : LoadDataFromMesh(childNode, prevNumVertices);
+
+			if (prevNumVertices < 0)
 				return false;
 		}
 	}
@@ -176,7 +181,7 @@ const std::unordered_map<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimati
 	return mAnimations;
 }
 
-bool DxFbxImporter::LoadScene(const std::string& inFileName) {
+bool DxFbxImporter::LoadFbxScene(const std::string& inFileName) {
 	mFbxManager = FbxManager::Create();
 	mFbxIos = FbxIOSettings::Create(mFbxManager, IOSROOT);
 
@@ -204,8 +209,10 @@ bool DxFbxImporter::LoadScene(const std::string& inFileName) {
 		MessageBox(nullptr, wsstream.str().c_str(), L"DxFbxImporter", MB_OK);
 		return false;
 	}
+
 	//FbxGeometryConverter geometryConverter(fbxManager);
 	//geometryConverter.Triangulate(fbxScene, true);
+
 	fbxImporter->Destroy();
 
 	return true;
@@ -353,7 +360,7 @@ namespace {
 	}
 }
 
-int DxFbxImporter::LoadMesh(FbxNode* inNode, UINT inPrevVertexCounter) {
+int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	auto fbxMesh = inNode->GetMesh();
 	std::string meshName = fbxMesh->GetName();
 
@@ -369,16 +376,16 @@ int DxFbxImporter::LoadMesh(FbxNode* inNode, UINT inPrevVertexCounter) {
 	const UINT polygonCount = fbxMesh->GetPolygonCount();
 	UINT vertexCounter = 0;
 
-	for (UINT i = 0; i < polygonCount; ++i) {
-		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(i);
+	for (UINT polygonIdx = 0; polygonIdx < polygonCount; ++polygonIdx) {
+		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
 
 		if (numPolygonVertices != 3) {
 			MessageBox(nullptr, L"Polygon vertex size for Fbx mesh is not matched 3", L"FbxImporter", MB_OK);
 			return -1;
 		}
 
-		for (int j = 0; j < 3; ++j) {
-			UINT controlPointIndex = fbxMesh->GetPolygonVertex(i, j);
+		for (int vertIdx = 0; vertIdx < 3; ++vertIdx) {
+			UINT controlPointIndex = fbxMesh->GetPolygonVertex(polygonIdx, vertIdx);
 
 			const XMFLOAT3 pos = controlPoints[controlPointIndex];
 			const XMFLOAT3 normal = ReadNormal(fbxMesh, controlPointIndex, vertexCounter);
@@ -388,8 +395,8 @@ int DxFbxImporter::LoadMesh(FbxNode* inNode, UINT inPrevVertexCounter) {
 			DxFbxVertex vertex = { pos, normal, texC, tangent };
 			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
 			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.BoneIndices[i] = boneIdxWeights[i].mBoneIndex;
-				vertex.BoneWeights[i] = boneIdxWeights[i].mWeight;
+				vertex.BoneIndices[i] = boneIdxWeights[i].BoneIndex;
+				vertex.BoneWeights[i] = boneIdxWeights[i].Weight;
 			}
 
 			auto iter = std::find(mVertices.cbegin(), mVertices.cend(), vertex);
@@ -407,161 +414,13 @@ int DxFbxImporter::LoadMesh(FbxNode* inNode, UINT inPrevVertexCounter) {
 		}
 	}
 
-	mSubsets.emplace_back((UINT)vertexCounter, inPrevVertexCounter);
+	mSubsets.emplace_back((UINT)vertexCounter, inPrevNumVertices);
 
-	return vertexCounter + inPrevVertexCounter;
+	return vertexCounter + inPrevNumVertices;
 }
 
 namespace {
-	void Distribute(size_t inPid, UINT inLineSize, UINT inRemaining, UINT inEachPolygonCount, 
-					const std::vector<DxFbxVertex>& inPolygonVertices,
-					std::vector<DxFbxVertex>& outVertexSet, std::vector<std::uint32_t>& outIndexSet) {
-		UINT modifiedIndex = static_cast<UINT>(inPid * inLineSize);
-		if (inPid < inRemaining)
-			modifiedIndex += static_cast<UINT>(inPid);
-		else
-			modifiedIndex += inRemaining;
-
-		for (UINT i = 0; i < inEachPolygonCount; ++i) {
-			const auto& pVert = inPolygonVertices[modifiedIndex + i];
-
-			auto iter = std::find(outVertexSet.cbegin(), outVertexSet.cend(), pVert);
-			if (iter != outVertexSet.cend()) {
-				UINT diff = static_cast<UINT>(iter - outVertexSet.cbegin());
-
-				outIndexSet.push_back(diff);
-			}
-			else {
-				UINT index = static_cast<UINT>(outVertexSet.size());
-
-				outVertexSet.push_back(pVert);
-				outIndexSet.push_back(index);
-			}
-		}
-	}
-
-	void Composite(std::vector<DxFbxVertex>& outPriVertexSet, const std::vector<DxFbxVertex>& inAuxVertexSet,
-					std::vector<std::uint32_t>& outPriIndexSet, const std::vector<std::uint32_t>& inAuxIndexSet) {
-		for (const auto& index : inAuxIndexSet) {
-			const auto& vertex = inAuxVertexSet[index];
-
-			auto iter = std::find(outPriVertexSet.cbegin(), outPriVertexSet.cend(), vertex);
-			if (iter != outPriVertexSet.cend()) {
-				std::uint32_t index = static_cast<std::uint32_t>(iter - outPriVertexSet.cbegin());
-
-				outPriIndexSet.push_back(index);
-			}
-			else {
-				std::uint32_t index = (std::uint32_t)outPriVertexSet.size();
-
-				outPriVertexSet.push_back(vertex);
-				outPriIndexSet.push_back(index);
-			}
-		}
-	}
-}
-
-int DxFbxImporter::MTLoadMesh(FbxNode* inNode, UINT inPrevVertexCounter) {
-	auto fbxMesh = inNode->GetMesh();
-	std::string meshName = fbxMesh->GetName();
-
-	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	std::vector<XMFLOAT3> controlPoints(controlPointCount);
-	for (int i = 0; i < controlPointCount; ++i) {
-		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
-		controlPoints[i].y = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[1]);
-		controlPoints[i].z = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[2]);
-	}
-
-	const UINT polygonCount = fbxMesh->GetPolygonCount();
-	UINT vertexCounter = 0;
-	std::vector<DxFbxVertex> polygonVertices;
-
-	for (UINT i = 0; i < polygonCount; ++i) {
-		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(i);
-
-		if (numPolygonVertices != 3) {
-			MessageBox(nullptr, L"Polygon vertex size for Fbx mesh is not matched 3", L"FbxImporter", MB_OK);
-			return -1;
-		}
-
-		for (int j = 0; j < 3; ++j) {
-			UINT controlPointIndex = fbxMesh->GetPolygonVertex(i, j);
-
-			const XMFLOAT3 pos = controlPoints[controlPointIndex];
-			const XMFLOAT3 normal = ReadNormal(fbxMesh, controlPointIndex, vertexCounter);
-			const XMFLOAT2 texC = ReadUV(fbxMesh, controlPointIndex, vertexCounter);
-			const XMFLOAT3 tangent = ReadTangent(fbxMesh, controlPointIndex, vertexCounter);
-
-			DxFbxVertex vertex = { pos, normal, texC, tangent };
-			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
-			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.BoneIndices[i] = boneIdxWeights[i].mBoneIndex;
-				vertex.BoneWeights[i] = boneIdxWeights[i].mWeight;
-			}
-
-			polygonVertices.push_back(vertex);
-
-			++vertexCounter;
-		}
-	}
-
-	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
-
-	std::vector<std::thread> threads(numProcessors);
-	std::vector<std::vector<DxFbxVertex>> vertexSets(numProcessors);
-	std::vector<std::vector<std::uint32_t>> indexSets(numProcessors);
-	std::vector<UINT> eachPolygonCounts(numProcessors);
-
-	const UINT lineSize = static_cast<UINT>(vertexCounter / numProcessors);
-	const UINT remaining = static_cast<UINT>(vertexCounter % numProcessors);
-	for (size_t i = 0; i < numProcessors; ++i) {
-		if (i < remaining)
-			eachPolygonCounts[i] = lineSize + 1;
-		else
-			eachPolygonCounts[i] = lineSize;
-	}
-
-	for (size_t i = 0; i < numProcessors; ++i) {
-		threads[i] = std::thread(Distribute, i, lineSize, remaining, eachPolygonCounts[i],
-			polygonVertices, std::ref(vertexSets[i]), std::ref(indexSets[i]));
-	}
-	
-	for (auto& thread : threads)
-		thread.join();
-
-	const size_t log = static_cast<size_t>(log2(numProcessors));
-	size_t increase = 2;
-	size_t neighbor = 1;
-	for (size_t count = 0; count < log; ++count) {
-		for (size_t pid = 0; pid < numProcessors; pid += increase) {
-			threads[pid] = std::thread(Composite, 
-				std::ref(vertexSets[pid]), vertexSets[pid + neighbor],
-				std::ref(indexSets[pid]), indexSets[pid + neighbor]);
-		}
-
-		for (size_t i = 0; i < numProcessors; i += increase)
-			threads[i].join();
-	
-		increase = increase << 1;
-		neighbor = neighbor << 1;
-	}
-
-	std::uint32_t vertSize = (std::uint32_t)mVertices.size();
-
-	for (const auto& vertex : vertexSets[0])
-		mVertices.push_back(vertex);
-
-	for (const auto& index : indexSets[0])
-		mIndices.push_back(vertSize + index);
-
-	mSubsets.emplace_back((UINT)vertexCounter, inPrevVertexCounter);
-
-	return vertexCounter + inPrevVertexCounter;
-}
-
-namespace {
-	void DistributeAlt(size_t inEachVertexCount, size_t inOffset, const std::vector<DxFbxVertex>& inPolygonVertices,
+	void Distribute(size_t inEachVertexCount, size_t inOffset, const std::vector<DxFbxVertex>& inPolygonVertices,
 			const std::vector<DxFbxVertex>& inOverlappedVertexSet, std::vector<DxFbxVertex>& outUniqueVertexSet) {
 		std::uint32_t counter = 0;
 		for (auto vertIter = inOverlappedVertexSet.cbegin(), iterEnd = inOverlappedVertexSet.cend(); 
@@ -589,7 +448,7 @@ namespace {
 		ThreadUtil::Logln({ L"Distribution Loop-Count: ", std::to_wstring(counter) });
 	}
 
-	void CompositeAlt(const std::vector<DxFbxVertex>& inOverlappedVertexSet, const std::vector<DxFbxVertex>& inUniqueVertexSet,
+	void Composite(const std::vector<DxFbxVertex>& inOverlappedVertexSet, const std::vector<DxFbxVertex>& inUniqueVertexSet,
 						std::vector<std::uint32_t>& outIndexSet,
 						const std::vector<std::vector<DxFbxVertex>>& inFrontUniqueVertexSets) {
 		std::uint32_t counter = 0;
@@ -622,7 +481,7 @@ namespace {
 	}
 }
 
-int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
+int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	auto fbxMesh = inNode->GetMesh();
 	std::string meshName = fbxMesh->GetName();
 
@@ -638,16 +497,16 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 	UINT vertexCounter = 0;
 	std::vector<DxFbxVertex> polygonVertices;
 
-	for (UINT i = 0; i < polygonCount; ++i) {
-		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(i);
+	for (UINT polygonIdx = 0; polygonIdx < polygonCount; ++polygonIdx) {
+		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
 
 		if (numPolygonVertices != 3) {
 			MessageBox(nullptr, L"Polygon vertex size for Fbx mesh is not matched 3", L"FbxImporter", MB_OK);
 			return -1;
 		}
 
-		for (int j = 0; j < 3; ++j) {
-			UINT controlPointIndex = fbxMesh->GetPolygonVertex(i, j);
+		for (int vertIdx = 0; vertIdx < 3; ++vertIdx) {
+			UINT controlPointIndex = fbxMesh->GetPolygonVertex(polygonIdx, vertIdx);
 
 			const XMFLOAT3 pos = controlPoints[controlPointIndex];
 			const XMFLOAT3 normal = ReadNormal(fbxMesh, controlPointIndex, vertexCounter);
@@ -657,8 +516,8 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 			DxFbxVertex vertex = { pos, normal, texC, tangent };
 			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
 			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.BoneIndices[i] = boneIdxWeights[i].mBoneIndex;
-				vertex.BoneWeights[i] = boneIdxWeights[i].mWeight;
+				vertex.BoneIndices[i] = boneIdxWeights[i].BoneIndex;
+				vertex.BoneWeights[i] = boneIdxWeights[i].Weight;
 			}
 
 			polygonVertices.push_back(vertex);
@@ -667,11 +526,11 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 		}
 	}
 
-	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
+	UINT numProcessors = (UINT)ThreadUtil::GetNumberOfProcessors();
 
 	std::vector<UINT> eachPolygonCounts(numProcessors);	
-	const UINT lineSize = static_cast<UINT>(vertexCounter / numProcessors);
-	const UINT remaining = static_cast<UINT>(vertexCounter % numProcessors);
+	const UINT lineSize = vertexCounter / numProcessors;
+	const UINT remaining = vertexCounter % numProcessors;
 	{
 		std::wstringstream wsstream;
 		for (size_t i = 0; i < numProcessors; ++i) {
@@ -683,40 +542,6 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 		}
 		ThreadUtil::Lognid(wsstream.str());
 	}
-	/*
-	{
-		UINT accumulator = 0;
-		UINT lineSize = vertexCounter;
-		for (size_t i = 0; i < numProcessors; ++i) {
-			lineSize /= 2;
-			eachPolygonCounts[i] = lineSize > 0 ? lineSize : 1;
-			accumulator += eachPolygonCounts[i];
-		}
-	
-		int diff = vertexCounter - accumulator;
-		if (diff > 0) {
-			UINT diffLineSize = static_cast<UINT>(diff / numProcessors);
-			UINT remaining = static_cast<UINT>(diff % numProcessors);
-	
-			for (size_t i = 0; i < numProcessors; ++i) {
-				eachPolygonCounts[i] += diffLineSize;
-				if (i < remaining)
-					++eachPolygonCounts[i];
-			}
-		}
-		else if (diff < 0) {
-			diff = -diff;
-			UINT diffLineSize = static_cast<UINT>(diff / numProcessors);
-			UINT remaining = static_cast<UINT>(diff % numProcessors);
-	
-			for (size_t i = 0; i < numProcessors; ++i) {
-				eachPolygonCounts[i] -= diffLineSize;
-				if (i < remaining)
-					--eachPolygonCounts[i];
-			}
-		}
-	}
-	*/
 	
 	std::vector<std::vector<DxFbxVertex>> overlappedVertexSets(numProcessors);
 	{
@@ -741,7 +566,7 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 	{
 		size_t offset = 0;
 		for (size_t i = 0; i < numProcessors; ++i) {
-			threads[i] = std::thread(DistributeAlt,
+			threads[i] = std::thread(Distribute,
 				eachPolygonCounts[i], offset, polygonVertices,
 				overlappedVertexSets[i], std::ref(uniqueVertexSets[i]));
 
@@ -761,7 +586,7 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 
 	std::vector<std::vector<DxFbxVertex>> frontUniqueVertexSets;
 	for (size_t i = 0; i < numProcessors; ++i) {
-		threads[i] = std::thread(CompositeAlt, 
+		threads[i] = std::thread(Composite, 
 			overlappedVertexSets[i], uniqueVertexSets[i], 
 			std::ref(indexSets[i]), frontUniqueVertexSets);
 		
@@ -783,9 +608,9 @@ int DxFbxImporter::MTLoadMeshAlt(FbxNode* inNode, UINT inPrevVertexCounter) {
 			mIndices.push_back(vertSize + index);
 	}
 
-	mSubsets.emplace_back((UINT)vertexCounter, inPrevVertexCounter);
+	mSubsets.emplace_back((UINT)vertexCounter, inPrevNumVertices);
 
-	return vertexCounter + inPrevVertexCounter;
+	return vertexCounter + inPrevNumVertices;
 }
 
 void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
@@ -837,11 +662,6 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 
 			mMaterials[meshName].SpecularMapFileName = str.substr(strIndex);
 		}
-
-		auto alphaProp = material->FindProperty(FbxSurfaceMaterial::sTransparentColor);
-
-		int alphaMapCount = alphaProp.GetSrcObjectCount<FbxTexture>();
-		//ThreadUtil::Logln(std::to_wstring(alphaMapCount));
 
 		XMStoreFloat4x4(&mMaterials[meshName].MatTransform, XMMatrixScaling(1.0f, -1.0f, 0.0f));
 		mMaterials[meshName].DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -897,7 +717,7 @@ namespace {
 		return FbxAMatrix(trans, rot, scale);
 	}
 
-	void AlignFbxAMatrix(FbxAMatrix& outFbxMat) {
+	void UnifyCoordinates(FbxAMatrix& outFbxMat) {
 		auto rot = outFbxMat.GetR();
 		auto trans = outFbxMat.GetT();
 
@@ -909,7 +729,7 @@ namespace {
 		outFbxMat.SetT(trans);
 	}
 
-	FbxAMatrix AlignFbxAMatrix(const FbxAMatrix& inFbxMat) {
+	FbxAMatrix UnifyCoordinates(const FbxAMatrix& inFbxMat) {
 		FbxAMatrix mat = inFbxMat;
 
 		auto rot = inFbxMat.GetR();
@@ -932,7 +752,7 @@ void DxFbxImporter::LoadBones(FbxNode* inNode) {
 
 	// For compability with other softwares... (usually identity matrix)
 	auto geometryTransform = GetGeometryTransformation(inNode);
-	AlignFbxAMatrix(geometryTransform);
+	UnifyCoordinates(geometryTransform);
 
 	unsigned int deformerCount = currMesh->GetDeformerCount();
 	for (UINT deformerIndex = 0; deformerIndex < deformerCount; ++deformerIndex) {
@@ -970,12 +790,12 @@ void DxFbxImporter::NormalizeWeigths() {
 			auto& boneIdxWeights = cpIdxIter->second;
 			float sum = 0.0f;
 			for (const auto& boneIdxWeight : boneIdxWeights)
-				sum += boneIdxWeight.mWeight;
+				sum += boneIdxWeight.Weight;
 
 			if (!MathHelper::IsEqual(sum, 1.0f)) {
 				float invSum = 1.0f / sum;
 				for (auto& boneIdxWeight : boneIdxWeights)
-					boneIdxWeight.mWeight *= invSum;
+					boneIdxWeight.Weight *= invSum;
 			}
 		}
 	}
@@ -1027,7 +847,7 @@ namespace {
 	}
 }
 
-void DxFbxImporter::MoveDataFbxAMatrixToDirectXMath() {
+void DxFbxImporter::MoveDataFromFbxAMatrixToDirectXMath() {
 	for (auto& bone : mSkeleton.mBones) {
 		FbxAMatrixToXMFloat4x4(bone.LocalBindPose, bone.FbxLocalBindPose);
 		FbxAMatrixToXMFloat4x4(bone.GlobalBindPose, bone.FbxGlobalBindPose);
@@ -1051,16 +871,16 @@ void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsd
 	// For compability with other softwares... (usually identity matrix)
 	FbxAMatrix transformMatrix;
 	inCluster->GetTransformMatrix(transformMatrix);
-	AlignFbxAMatrix(transformMatrix);
+	UnifyCoordinates(transformMatrix);
 
 	FbxAMatrix transformLinkMatrix;
 	inCluster->GetTransformLinkMatrix(transformLinkMatrix);
-	AlignFbxAMatrix(transformLinkMatrix);
+	UnifyCoordinates(transformLinkMatrix);
 
 	if (inClusterIndex != 0) {
 		FbxAMatrix transformParentLinkMatrix;
 		mClusters[inParentIndex]->GetTransformLinkMatrix(transformParentLinkMatrix);
-		AlignFbxAMatrix(transformParentLinkMatrix);
+		UnifyCoordinates(transformParentLinkMatrix);
 
 		outBone.FbxLocalBindPose = transformParentLinkMatrix.Inverse() * transformLinkMatrix;
 	}
@@ -1078,8 +898,8 @@ void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClus
 	auto controlPointWeights = inCluster->GetControlPointWeights();
 	for (UINT i = 0; i < indexCount; ++i) {
 		BoneIndexWeight boneIdxWeight;
-		boneIdxWeight.mBoneIndex = inClusterIndex;
-		boneIdxWeight.mWeight = (float)controlPointWeights[i];
+		boneIdxWeight.BoneIndex = inClusterIndex;
+		boneIdxWeight.Weight = (float)controlPointWeights[i];
 
 		auto& cpWeights = mControlPointsWeights[inMeshName][controlPointIndices[i]];
 		auto iter = std::find(cpWeights.begin(), cpWeights.end(), boneIdxWeight);
@@ -1185,7 +1005,7 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 			globalTransform = currentPoseTransform;
 
 		FbxAMatrix currTransformOffset =
-			AlignFbxAMatrix(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
+			UnifyCoordinates(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
 
 		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].FbxGlobalInvBindPose;
 
@@ -1216,22 +1036,22 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo* inTakeInfo, FbxCluster*
 		currTime.SetFrame(currFrame, timeMode);
 
 		FbxAMatrix currTransformOffset = 
-			AlignFbxAMatrix(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
+			UnifyCoordinates(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
 
 		FbxAMatrix globalTransform;
 		if (inClusterIndex != 0) {
 			auto parentCluster = mClusters[inParentIndex];
 
 			FbxAMatrix parentTransform = parentCluster->GetLink()->EvaluateGlobalTransform(currTime);
-			AlignFbxAMatrix(parentTransform);
+			UnifyCoordinates(parentTransform);
 			FbxAMatrix localTransform = inCluster->GetLink()->EvaluateLocalTransform(currTime);
-			AlignFbxAMatrix(localTransform);
+			UnifyCoordinates(localTransform);
 
 			globalTransform = currTransformOffset.Inverse() * parentTransform * localTransform;
 		}
 		else {
 			globalTransform = currTransformOffset.Inverse() * 
-				AlignFbxAMatrix(std::as_const(inCluster->GetLink()->EvaluateLocalTransform(currTime)));
+				UnifyCoordinates(std::as_const(inCluster->GetLink()->EvaluateLocalTransform(currTime)));
 		}
 
 		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].FbxGlobalInvBindPose;

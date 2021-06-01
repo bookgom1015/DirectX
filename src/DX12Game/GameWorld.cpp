@@ -49,12 +49,12 @@ LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	return GameWorld::GetWorld()->MsgProc(hwnd, msg, wParam, lParam);
 }
 
-GameWorld* GameWorld::mWorld = nullptr;
+GameWorld* GameWorld::sWorld = nullptr;
 
 GameWorld::GameWorld(HINSTANCE hInstance) 
 	: mhInst(hInstance) {
-	if (mWorld == nullptr)
-		mWorld = this;
+	if (sWorld == nullptr)
+		sWorld = this;
 
 	mRenderer = std::make_unique<Renderer>();
 	mAudioSystem = std::make_unique<AudioSystem>();
@@ -139,7 +139,7 @@ bool GameWorld::LoadData() {
 	leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
 	leoniActor->SetQuaternion(rotateYPi);
 	SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
-	if (!leoniMeshComp->MTLoadSkeletalMesh("leoni", "leoni.fbx"))
+	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
 		return false;
 	leoniMeshComp->SetClipName("Idle");
 	leoniMeshComp->SetSkeleletonVisible(false);
@@ -161,7 +161,7 @@ bool GameWorld::LoadData() {
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
 
 			treeMeshComp = new MeshComponent(treeActor);
-			if (!treeMeshComp->MTLoadMesh("tree", "tree_a.fbx"))
+			if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
 				return false;
 		}
 	}
@@ -353,34 +353,19 @@ void GameWorld::RemoveActor(Actor* inActor) {
 #endif
 }
 
-Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned) {
+Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned, bool bMultiThreading) {
 	auto iter = mMeshes.find(inFileName);
 	if (iter != mMeshes.end())
 		return iter->second.get();
 
 	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
-	if (!mesh->Load(inFileName))
+	if (!mesh->Load(inFileName, bMultiThreading))
 		return nullptr;
 
 	auto meshptr = mesh.get();
 	mMeshes.emplace(inFileName, std::move(mesh));
 
 	return meshptr;	
-}
-
-Mesh* GameWorld::MTAddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned) {
-	auto iter = mMeshes.find(inFileName);
-	if (iter != mMeshes.end())
-		return iter->second.get();
-
-	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
-	if (!mesh->MTLoad(inFileName))
-		return nullptr;
-
-	auto meshptr = mesh.get();
-	mMeshes.emplace(inFileName, std::move(mesh));
-
-	return meshptr;
 }
 
 void GameWorld::RemoveMesh(const std::string& fileName) {
@@ -390,7 +375,7 @@ void GameWorld::RemoveMesh(const std::string& fileName) {
 }
 
 GameWorld* GameWorld::GetWorld() {
-	return mWorld;
+	return sWorld;
 }
 
 Renderer* GameWorld::GetRenderer() const {
@@ -718,17 +703,12 @@ void GameWorld::CalculateFrameStats() {
 	frameCnt++;
 
 	// Compute averages over one second period
-	if (mTimer.TotalTime() - timeElapsed >= 1.0f) {
+	if (mTimer.TotalTime() - timeElapsed >= 0.05f) {
 		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
-		std::wstring fpsStr = std::to_wstring(fps);
-		std::wstring mspfStr = std::to_wstring(mspf);
-
-		std::wstring windowText = mMainWndCaption +
-			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr;
-		SetWindowText(mhMainWnd, windowText.c_str());
+		mRenderer->AddOutputText(L"fps: " + std::to_wstring(fps), 0);
+		mRenderer->AddOutputText(L"mspf: " + std::to_wstring(mspf), 1);
 
 		// Reset for next average
 		frameCnt = 0;

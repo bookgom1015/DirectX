@@ -86,7 +86,7 @@ public:
 		return value * value < Epsilon * Epsilon;
 	}
 
-	static bool IsNotZero(float value) {
+	inline bool IsNotZero(float value) {
 		return !IsZero(value);
 	}
 
@@ -94,16 +94,32 @@ public:
 		return Abs(a - b) < Epsilon;
 	}
 
+	static bool IsNotEqual(float a, float b) {
+		return Abs(a - b) > Epsilon;
+	}
+
 	static bool IsEqual(const DirectX::XMFLOAT2& lhs, const DirectX::XMFLOAT2& rhs) {
 		return IsEqual(lhs.x, rhs.x) && IsEqual(lhs.y, rhs.y);
+	}
+
+	static bool IsNotEqual(const DirectX::XMFLOAT2& lhs, const DirectX::XMFLOAT2& rhs) {
+		return IsNotEqual(lhs, rhs);
 	}
 
 	static bool IsEqual(const DirectX::XMFLOAT3& lhs, const DirectX::XMFLOAT3& rhs) {
 		return IsEqual(lhs.x, rhs.x) && IsEqual(lhs.y, rhs.y) && IsEqual(lhs.z, rhs.z);
 	}
 
+	static bool IsNotEqual(const DirectX::XMFLOAT3& lhs, const DirectX::XMFLOAT3& rhs) {
+		return IsNotEqual(lhs, rhs);
+	}
+
 	static bool IsEqual(const DirectX::XMFLOAT4& lhs, const DirectX::XMFLOAT4& rhs) {
 		return IsEqual(lhs.x, rhs.x) && IsEqual(lhs.y, rhs.y) && IsEqual(lhs.z, rhs.z) && IsEqual(lhs.w, rhs.w);
+	}
+
+	static bool IsNotEqual(const DirectX::XMFLOAT4& lhs, const DirectX::XMFLOAT4& rhs) {
+		return IsNotEqual(lhs, rhs);
 	}
 
 	// Returns the polar angle of the point (x,y) in [0, 2*PI).
