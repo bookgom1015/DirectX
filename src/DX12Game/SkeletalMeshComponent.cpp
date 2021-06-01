@@ -13,6 +13,9 @@ SkeletalMeshComponent::SkeletalMeshComponent(Actor* inOwnerActor)
 	mBoneTransforms.resize(gNumBones);
 	for (size_t i = 0, size = mBoneTransforms.size(); i < size; ++i)
 		mBoneTransforms[i] = MathHelper::Identity4x4();
+	
+	mLastTotalTime = 0.0f;
+	mClipIsChanged = false;
 }
 
 void SkeletalMeshComponent::OnUpdateWorldTransform() {
@@ -29,14 +32,15 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePose, true);
 }
 
-bool SkeletalMeshComponent::LoadSkeletalMesh(const std::string& inMeshName, const std::string& inFileName, 
-										bool inNeedToBeAligned) {
-	return ProcessLoadingMesh(inMeshName, inFileName, true, inNeedToBeAligned);
-}
+bool SkeletalMeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName, bool bMultiThreading) {
+	mMesh = GameWorld::GetWorld()->AddMesh(inFileName, true, false, bMultiThreading);
+	if (mMesh == nullptr)
+		return false;
 
-bool SkeletalMeshComponent::MTLoadSkeletalMesh(const std::string& inMeshName, const std::string& inFileName, 
-										bool inNeedToBeAligned) {
-	return MTProcessLoadingMesh(inMeshName, inFileName, true, inNeedToBeAligned);
+	mMeshName = inMeshName;
+	mRenderer->AddRenderItem(mMeshName, mMesh);
+
+	return true;
 }
 
 void SkeletalMeshComponent::SetClipName(const std::string& inClipName) {

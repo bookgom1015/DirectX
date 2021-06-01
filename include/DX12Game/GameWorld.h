@@ -26,44 +26,32 @@ public:
 	virtual ~GameWorld();
 
 private:
-	//
-	//* GameWorld doesn't allow substitution and replication.
-	//
-
+	///
+	// GameWorld doesn't allow substitution and replication.
+	///
 	GameWorld(const GameWorld& src) = delete;
 	GameWorld& operator=(const GameWorld& rhs) = delete;
 	GameWorld(GameWorld&& src) = delete;
 	GameWorld& operator=(GameWorld&& rhs) = delete;
 
 public:
-	//* Initializes window and other important systems(rendering, audio...).
 	bool Initialize();
-	//* Loads mesh, audio, etc. data.
 	bool LoadData();
-	//*
 	void UnloadData();
-	//* Start the game engine loop.
 	int RunLoop();
 
 #if !defined(MT_World)
-	//* Ticks timer, process input, updates game, and draws screen.
 	int GameLoop();
 #else
 	//* Multi-threaded version of the fuction GameLoop.
 	int MTGameLoop();
 #endif
 
-	//* Registers the actor in the game engine(Actor automatically registers themself).
 	void AddActor(Actor* inActor);
-	//* Unregisters the actor in the game engine.
-	//* When you call this function, the actor is no longer updated.
 	void RemoveActor(Actor* inActor);
 
-	//* Creates and registers the mesh.
-	Mesh* AddMesh(const std::string& inFileName, bool inIsSkeletal = false, bool inNeedToBeAligned = false);
-	//* Multi-threaded version of the function AddMesh.
-	Mesh* MTAddMesh(const std::string& inFileName, bool inIsSkeletal = false, bool inNeedToBeAligned = false);
-	//* Unregisters the mesh.
+	Mesh* AddMesh(const std::string& inFileName, bool inIsSkeletal = false, 
+		bool inNeedToBeAligned = false, bool bMultiThreading = false);
 	void RemoveMesh(const std::string& inFileName);
 
 	//* Returns single-tone for GameWorld.
@@ -72,9 +60,7 @@ public:
 	Renderer* GetRenderer() const;
 	InputSystem* GetInputSystem() const;
 
-	//* Returns horizontal resolution of the primary monitor.
 	UINT GetPrimaryMonitorWidth() const;
-	//* Returns vertical resolution of the primary monitor.
 	UINT GetPrimaryMonitorHeight() const;
 
 	UINT GetClientWidth() const;
@@ -87,10 +73,7 @@ public:
 
 private:
 #if !defined(MT_World)
-	//* After InputSystem handles input data, actor or widget handle it.
 	void ProcessInput();
-	//* Updates all actors, handle pending actors and dead actors.
-	//* After that, updates rendering and audio systems.
 	void UpdateGame(const GameTimer& gt);
 #else
 	//* After InputSystem handles input data, actor or widget handle it.
@@ -98,32 +81,26 @@ private:
 	//* Multi-threaded version of the function UpdateGame.
 	void MTUpdateGame(const GameTimer& gt, UINT tid, ThreadBarrier& inBarrier);
 #endif 
-	//* Rendering system wiill draw all rendering items.
 	void Draw(const GameTimer& gt);
 
-	//* Initializes main window.
 	bool InitMainWindow();
-	//* Reapply rendering system when window is resized.
 	void OnResize();
-	//* Displays the frame rate and the frame time in the caption bar.
 	void CalculateFrameStats();
 
-	//
-	//* Call-back functions for mouse state.
-	//
-
+	///
+	// Call-back functions for mouse state.
+	///
 	void OnMouseDown(WPARAM inBtnState, int inX, int inY);
 	void OnMouseUp(WPARAM inBtnState, int inX, int inY);
 	void OnMouseMove(WPARAM inBtnState, int inX, int inY);
 
-	//
-	//* Call-back functions for keyboard state.
-	//
-
+	///
+	// Call-back functions for keyboard state.
+	///
 	void OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-	static GameWorld* mWorld;
+	static GameWorld* sWorld;
 
 	std::unique_ptr<Renderer> mRenderer = nullptr;
 	std::unique_ptr<AudioSystem> mAudioSystem = nullptr;

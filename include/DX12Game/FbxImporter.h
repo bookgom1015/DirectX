@@ -1,59 +1,61 @@
 #pragma once
 
+#pragma comment(lib, "libfbxsdk.lib")
+
 #define FBXSDK_SHARED
 #include <fbxsdk.h>
 
-#pragma comment(lib, "libfbxsdk.lib")
-
 struct DxFbxVertex {
 public:
-	DirectX::XMFLOAT3 Pos = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 Normal = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT2 TexC = { 0.0f, 0.0f };
-	DirectX::XMFLOAT3 TangentU = { 0.0f, 0.0f, 0.0f };
-	float BoneWeights[8] = { 0.0f };
-	int BoneIndices[8] = { -1 };
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 TexC;
+	DirectX::XMFLOAT3 TangentU;
+	float BoneWeights[8];
+	int BoneIndices[8];
 
 public:
-	DxFbxVertex() = default;
-	DxFbxVertex(DirectX::XMFLOAT3 inPos, DirectX::XMFLOAT3 inNormal,
-		DirectX::XMFLOAT2 inTexC, DirectX::XMFLOAT3 inTangentU);
+	DxFbxVertex();
+	DxFbxVertex(DirectX::XMFLOAT3 inPos, 
+				DirectX::XMFLOAT3 inNormal, 
+				DirectX::XMFLOAT2 inTexC,
+				DirectX::XMFLOAT3 inTangentU);
 
+public:
 	friend bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs);
 };
 
 struct DxFbxMaterial {
 public:
-	std::string MaterialName = "";
+	std::string MaterialName;
+	std::string DiffuseMapFileName;
+	std::string NormalMapFileName;
+	std::string SpecularMapFileName;
 
-	std::string DiffuseMapFileName = "";
-	std::string NormalMapFileName = "";
-	std::string SpecularMapFileName = "";
-
-	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	DirectX::XMFLOAT3 FresnelR0 = { 0.5f, 0.5f, 0.5f };
-	float Roughness = 0.5f;
+	DirectX::XMFLOAT4X4 MatTransform;
+	DirectX::XMFLOAT4 DiffuseAlbedo;
+	DirectX::XMFLOAT3 FresnelR0;
+	float Roughness;
 
 public:
-	DxFbxMaterial() = default;
+	DxFbxMaterial();
 };
 
 struct DxFbxBone {
 public:
-	std::string Name = "";
-	int ParentIndex = -1;
+	std::string Name;
+	int ParentIndex;
 
-	DirectX::XMFLOAT4X4 LocalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 GlobalBindPose = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 GlobalInvBindPose = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 LocalBindPose;
+	DirectX::XMFLOAT4X4 GlobalBindPose;
+	DirectX::XMFLOAT4X4 GlobalInvBindPose;
 
 	fbxsdk::FbxAMatrix FbxLocalBindPose;
 	fbxsdk::FbxAMatrix FbxGlobalBindPose;
 	fbxsdk::FbxAMatrix FbxGlobalInvBindPose;
 
 public:
-	DxFbxBone() = default;
+	DxFbxBone();
 };
 
 class DxFbxSkeleton {
@@ -68,7 +70,6 @@ public:
 private:
 	friend class DxFbxImporter;
 
-	// The bones in the skeleton.
 	std::vector<DxFbxBone> mBones;
 };
 
@@ -100,12 +101,11 @@ private:
 class DxFbxImporter {
 private:
 	struct BoneIndexWeight {
-		int mBoneIndex = -1;
-		float mWeight = 0.0f;
+		int BoneIndex = -1;
+		float Weight = 0.0f;
 
 		friend bool operator==(const BoneIndexWeight& lhs, const BoneIndexWeight& rhs) {
-			return lhs.mBoneIndex == rhs.mBoneIndex &&
-				MathHelper::IsEqual(lhs.mWeight, rhs.mWeight);
+			return lhs.BoneIndex == rhs.BoneIndex && MathHelper::IsEqual(lhs.Weight, rhs.Weight);
 		}
 	};
 
@@ -120,10 +120,7 @@ private:
 	DxFbxImporter& operator=(DxFbxImporter&& rhs) = delete;
 
 public:
-	//* Loads mesh data from the file name.
-	bool LoadFile(const std::string& inFileName);
-	//* Multi threaded version of the function LoadFile.
-	bool MTLoadFile(const std::string& inFileName);
+	bool LoadDataFromFile(const std::string& inFileName, bool bMultiThreading = false);
 
 	const std::vector<DxFbxVertex>& GetVertices() const;
 	const std::vector<std::uint32_t>& GetIndices() const;
@@ -135,13 +132,12 @@ public:
 
 private:
 	//* Initializes fbx sdk(The app crashes when triangulating geometry).
-	bool LoadScene(const std::string& inFileName);
+	bool LoadFbxScene(const std::string& inFileName);
 
-	int LoadMesh(fbxsdk::FbxNode* inNode, UINT inPrevVertexCounter);
-	int MTLoadMesh(fbxsdk::FbxNode* inNode, UINT inPrevVertexCounter);
-	int MTLoadMeshAlt(fbxsdk::FbxNode* inNode, UINT inPrevVertexCounter);
+	int LoadDataFromMesh(fbxsdk::FbxNode* inNode, UINT inPrevNumVertices);
+	//* Multi threaded version of the fuction LoadMesh.
+	int MTLoadDataFromMesh(fbxsdk::FbxNode* inNode, UINT inPrevNumVertices);
 
-	//* Loads texture file name and argument values.
 	void LoadMaterials(fbxsdk::FbxNode* inNode);
 
 	//* Generates skeleton hierarchy data that is depth-first.
@@ -156,7 +152,7 @@ private:
 	//* Normalizes the weight for the bones in each control point.
 	void NormalizeWeigths();
 	//* Moves matrix data in DxFbxBone from fbxsdk::FbxAMatrix to DirectX::XMFLOAT4X4.
-	void MoveDataFbxAMatrixToDirectXMath();
+	void MoveDataFromFbxAMatrixToDirectXMath();
 	//* Returns bone index in unordered_map of DxFbxSkeleton.
 	UINT FindBoneIndexUsingName(const std::string& inBoneName);
 
@@ -178,14 +174,14 @@ private:
 	void BuildAnimationKeyFrames(fbxsdk::FbxAnimLayer* inAnimLayer, fbxsdk::FbxNode* inNode, fbxsdk::FbxCluster* inCluster,
 		const fbxsdk::FbxAMatrix& inGeometryTransform, fbxsdk::FbxTakeInfo* inTakeInfo, DxFbxAnimation& outAnimation,
 		UINT inClusterIndex, int inParentIndex);
-	//* Temporary function
+	//* Deprecated.
 	void BuildAnimationKeyFrames(fbxsdk::FbxTakeInfo* inTakeInfo, fbxsdk::FbxCluster* inCluster, fbxsdk::FbxNode* inNode,
 		fbxsdk::FbxAMatrix inGeometryTransform, DxFbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex);
 
 private:
-	fbxsdk::FbxManager* mFbxManager = nullptr;
-	fbxsdk::FbxIOSettings* mFbxIos = nullptr;
-	fbxsdk::FbxScene* mFbxScene = nullptr;
+	fbxsdk::FbxManager* mFbxManager;
+	fbxsdk::FbxIOSettings* mFbxIos;
+	fbxsdk::FbxScene* mFbxScene;
 
 	std::vector<DxFbxVertex> mVertices;
 	std::vector<std::uint32_t> mIndices;
