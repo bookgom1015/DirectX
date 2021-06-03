@@ -18,8 +18,6 @@ AnimationsMap::AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* 
 	BuildResource();
 }
 
-AnimationsMap::~AnimationsMap() {}
-
 UINT AnimationsMap::AddAnimation(const std::string& inClipName, 
 		const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves) {
 	size_t numFrames = inAnimCurves.size();

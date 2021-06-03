@@ -5,54 +5,68 @@ const size_t gNumBones = 512;
 #include "DX12Game/FrameResource.h"
 #include "common/UploadBuffer.h"
 
+enum EInstanceDataState : UINT {
+	EID_Visible = 0,
+	EID_Invisible = 1,
+	EID_Culled = 1 << 1,
+	EID_DrawAlways = 1 << 2
+};
+
 struct ObjectConstants {
-	UINT InstanceIndex = 0;
+public:
+	UINT InstanceIndex;
 	UINT ObjectPad0;
 	UINT ObjectPad1;
 	UINT ObjectPad2;
-};
 
-enum EInstanceDataState : UINT {
-	EID_Visible		= 0,
-	EID_Invisible	= 1,
-	EID_Culled		= 1 << 1,
-	EID_DrawAlways	= 1 << 2
+public:
+	ObjectConstants();
 };
 
 struct InstanceData {
-	DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	float TimePos = 0.0f;
-	UINT MaterialIndex = 0;
-	UINT AnimClipIndex = 0;
-	UINT State = EInstanceDataState::EID_Visible;
+public:
+	DirectX::XMFLOAT4X4 World;
+	DirectX::XMFLOAT4X4 TexTransform;
+	float TimePos;
+	UINT MaterialIndex;
+	UINT AnimClipIndex;
+	UINT State;
+
+public:
+	InstanceData();
+	InstanceData(const DirectX::XMFLOAT4X4& inWorld, const DirectX::XMFLOAT4X4& inTexTransform,
+		float inTimePos, UINT inMaterialIndex, UINT inAnimClipIndex);
 };
 
 struct PassConstants {
-	DirectX::XMFLOAT4X4 View = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 InvView = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 Proj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 InvProj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ViewProj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 InvViewProj = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ViewProjTex = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
-	DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-	float cbPerObjectPad1 = 0.0f;
-	DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
-	DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
-	float NearZ = 0.0f;
-	float FarZ = 0.0f;
-	float TotalTime = 0.0f;
-	float DeltaTime = 0.0f;
+public:
+	DirectX::XMFLOAT4X4 View;
+	DirectX::XMFLOAT4X4 InvView;
+	DirectX::XMFLOAT4X4 Proj;
+	DirectX::XMFLOAT4X4 InvProj;
+	DirectX::XMFLOAT4X4 ViewProj;
+	DirectX::XMFLOAT4X4 InvViewProj;
+	DirectX::XMFLOAT4X4 ViewProjTex;
+	DirectX::XMFLOAT4X4 ShadowTransform;
+	DirectX::XMFLOAT3 EyePosW;
+	float cbPerObjectPad1;
+	DirectX::XMFLOAT2 RenderTargetSize;
+	DirectX::XMFLOAT2 InvRenderTargetSize;
+	float NearZ;
+	float FarZ;
+	float TotalTime;
+	float DeltaTime;
 
-	DirectX::XMFLOAT4 AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+	DirectX::XMFLOAT4 AmbientLight;
 
 	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
 	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
 	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
 	// are spot lights for a maximum of MaxLights per object.
 	Light Lights[MaxLights];
+
+public:
+	PassConstants();
 };
 
 struct SsaoConstants {
@@ -64,54 +78,67 @@ struct SsaoConstants {
 	// For SsaoBlur.hlsl
 	DirectX::XMFLOAT4 BlurWeights[3];
 
-	DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
+	DirectX::XMFLOAT2 InvRenderTargetSize;
 
 	// Coordinates given in view space.
-	float OcclusionRadius = 0.5f;
-	float OcclusionFadeStart = 0.2f;
-	float OcclusionFadeEnd = 2.0f;
-	float SurfaceEpsilon = 0.05f;
+	float OcclusionRadius;
+	float OcclusionFadeStart;
+	float OcclusionFadeEnd;
+	float SurfaceEpsilon;
+
+public:
+	SsaoConstants();
 };
 
 struct MaterialData {
-	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-	float Roughness = 64.0f;
+	DirectX::XMFLOAT4 DiffuseAlbedo;
+	DirectX::XMFLOAT3 FresnelR0;
+	float Roughness;
 
 	// Used in texture mapping.
-	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+	DirectX::XMFLOAT4X4 MatTransform;
 
 	UINT DiffuseMapIndex;
 	UINT NormalMapIndex;
 	INT SpecularMapIndex;
 	UINT MaterialPad0;
+
+public:
+	MaterialData();
 };
 
 struct Vertex {
-	DirectX::XMFLOAT3 Pos = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 Normal = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT2 TexC = { 0.0f, 0.0f };
-	DirectX::XMFLOAT3 TangentU = { 0.0f, 0.0f, 0.0f };
+public:
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 TexC;
+	DirectX::XMFLOAT3 TangentU;
 
-	Vertex() = default;
-	Vertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
+public:
+	Vertex();
+	Vertex(DirectX::XMFLOAT3 inPos, DirectX::XMFLOAT3 inNormal, DirectX::XMFLOAT2 inTexC, DirectX::XMFLOAT3 inTangent);
 
+public:
 	friend bool operator==(const Vertex& lhs, const Vertex& rhs);
 };
 
 struct SkinnedVertex {
-	DirectX::XMFLOAT3 Pos = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT3 Normal = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT2 TexC = { 0.0f, 0.0f };
-	DirectX::XMFLOAT3 TangentU = { 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT4 BoneWeights0 = { 0.0f, 0.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT4 BoneWeights1 = { 0.0f, 0.0f, 0.0f, 0.0f };
-	int BoneIndices0[4] = { -1 };
-	int BoneIndices1[4] = { -1 };
+public:
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 TexC;
+	DirectX::XMFLOAT3 TangentU;
+	DirectX::XMFLOAT4 BoneWeights0;
+	DirectX::XMFLOAT4 BoneWeights1;
+	int BoneIndices0[4];
+	int BoneIndices1[4];
 
-	SkinnedVertex() = default;
-	SkinnedVertex(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 normal, DirectX::XMFLOAT2 texC, DirectX::XMFLOAT3 tangent);
+public:
+	SkinnedVertex();
+	SkinnedVertex(DirectX::XMFLOAT3 inPos, DirectX::XMFLOAT3 inNormal, 
+		DirectX::XMFLOAT2 inTexC, DirectX::XMFLOAT3 inTangent);
 
+public:
 	friend bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs);
 };
 
@@ -119,7 +146,8 @@ struct SkinnedVertex {
 // for a frame.  
 struct FrameResource {
 public:    
-    FrameResource(ID3D12Device* device, UINT passCount, UINT objectCount, UINT maxInstanceCount, UINT materialCount);
+    FrameResource(ID3D12Device* inDevice, UINT inPassCount, 
+		UINT inObjectCount, UINT inMaxInstanceCount, UINT inMaterialCount);
     virtual ~FrameResource() = default;
 
 private:

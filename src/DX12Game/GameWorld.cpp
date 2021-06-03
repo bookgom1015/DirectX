@@ -150,16 +150,16 @@ bool GameWorld::LoadData() {
 		for (int j = -1; j <= 1; ++j) {
 			if (i == 0 && j == 0)
 				continue;
-
+	
 			treeActor = new Actor();
-
+	
 			XMVECTOR pos = XMVectorSet(static_cast<float>(12 * i), 0.0f, static_cast<float>(12 * j), 1.0f);
 			XMVECTOR offset = XMVectorSet(16.0f * MathHelper::RandF() - 8.0f, 0.0f, 16.0f * MathHelper::RandF() - 8.0f, 0.0f);
-
+	
 			treeActor->SetPosition(pos + offset);
 			treeActor->SetQuaternion(XMQuaternionRotationAxis(
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
-
+	
 			treeMeshComp = new MeshComponent(treeActor);
 			if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
 				return false;
@@ -707,8 +707,19 @@ void GameWorld::CalculateFrameStats() {
 		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
-		mRenderer->AddOutputText(L"fps: " + std::to_wstring(fps), 0);
-		mRenderer->AddOutputText(L"mspf: " + std::to_wstring(mspf), 1);
+		mRenderer->AddOutputText(
+			L"fps: " + std::to_wstring(fps),
+			static_cast<float>(mClientWidth * 0.01f),
+			static_cast<float>(mClientHeight * 0.01f),
+			16.0f, 
+			"TEXT_FPS");
+
+		mRenderer->AddOutputText(
+			L"mspf: " + std::to_wstring(mspf),
+			static_cast<float>(mClientWidth * 0.01f),
+			static_cast<float>(mClientHeight * 0.05f),
+			16.0f,
+			"TEXT_MSPF");
 
 		// Reset for next average
 		frameCnt = 0;

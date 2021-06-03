@@ -7,15 +7,29 @@ using namespace DirectX;
 using namespace DirectX::PackedVector;
 
 TpsActor::TpsActor()
-	: Actor() {
+	: Actor(),
+	  mWalkingSpeed(2.0f),
+	  mMaxElevation(0.85f),
+	  mMinElevation(-0.85f),	
+	  mCameraDistance(4.0f),
+	  mCameraPosY(2.0f),
+	  mCameraTargetPosY(1.8f),	
+	  mLocalOffset(0.3f) {
 	mCameraComp = std::make_unique<CameraComponent>(this);
 
 	GameWorld::GetWorld()->GetRenderer()->SetMainCamerea(mCameraComp->GetCamera());
 
 	mSkeletalMeshComponent = new SkeletalMeshComponent(this);
-}
 
-TpsActor::~TpsActor() {}
+	mForwardSpeed = 0;
+	mStrafeSpeed = 0;
+
+	mAzimuth = -DirectX::XM_PIDIV2;
+	mYAngularSpeed = 0.0f;
+
+	mElevation = 0.0f;
+	mPitchRotationSpeed = 0.0f;
+}
 
 void TpsActor::UpdateActor(const GameTimer& gt) {
 	//----------------------------------------------------------------------------------------------------------------
@@ -80,7 +94,7 @@ void TpsActor::UpdateActor(const GameTimer& gt) {
 	}
 }
 
-void TpsActor::ActorInput(const InputState& input) {
+void TpsActor::ProcessActorInput(const InputState& input) {
 	mForwardSpeed = 0;
 	mStrafeSpeed = 0;
 

@@ -38,17 +38,14 @@ public:
 	bool Initialize();
 	void Update(const GameTimer& gt);
 
-	// Load / unload banks
 	bool LoadBank(const std::string& inFileName);
 	void UnloadBank(const std::string& inFileName);
 	void UnloadAllBanks();
 
 	SoundEvent PlayEvent(const std::string& inEventName);
 
-	// For posiitonal audio
 	void SetListener(const DirectX::XMFLOAT4X4& inViewMatrix);
 
-	// Control buses
 	float GetBusVolume(const std::string& inBusName) const;
 	bool GetBusPaused(const std::string& inBusName) const;
 	void SetBusVolume(const std::string& inBusName, float inVolume);

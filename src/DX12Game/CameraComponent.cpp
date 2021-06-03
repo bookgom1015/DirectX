@@ -12,8 +12,6 @@ CameraComponent::CameraComponent(Actor* inActor, int inUpdateOrder)
 	SetPosition(GetOwner()->GetPosition3f());
 }
 
-CameraComponent::~CameraComponent() {}
-
 void CameraComponent::Update(const GameTimer& gt) {
 	mCamera->SetRotationUsingQuaternion(GetOwner()->GetQuaternion());
 }

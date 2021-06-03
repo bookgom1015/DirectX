@@ -8,11 +8,22 @@ using namespace DirectX;
 using namespace DirectX::PackedVector;
 
 FpsActor::FpsActor()
-	: Actor() {
+	: Actor(),
+	  mMaxPhi(DirectX::XM_PIDIV2 - 0.1f),
+	  mMinPhi(-DirectX::XM_PIDIV2 + 0.1f),
+	  mCameraPosY(2.0f) {
 	mCameraComp = std::make_unique<CameraComponent>(this);
 	mCameraComp->SetInheritYaw(true);
 
 	GameWorld::GetWorld()->GetRenderer()->SetMainCamerea(mCameraComp->GetCamera());
+
+	mForwardSpeed = 0.0f;
+	mStrafeSpeed = 0.0f;
+
+	mYAngularSpeed = 0.0f;
+
+	mPhi = 0.0f;
+	mPhiRotationSpeed = 0.0f;
 }
 
 FpsActor::~FpsActor() {}
@@ -52,7 +63,7 @@ void FpsActor::UpdateActor(const GameTimer& gt) {
 	mCameraComp->SetPosition(XMVectorAdd(pos, XMVectorSet(0.0f, mCameraPosY, 0.0f, 0.0f)));
 }
 
-void FpsActor::ActorInput(const InputState& input) {
+void FpsActor::ProcessActorInput(const InputState& input) {
 	mForwardSpeed = 0.0f;
 	mStrafeSpeed = 0.0f;
 

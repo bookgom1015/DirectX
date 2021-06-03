@@ -5,7 +5,7 @@
 class AnimationsMap {
 public:
 	AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
-	virtual ~AnimationsMap();
+	virtual ~AnimationsMap() = default;
 
 public:
 	UINT AddAnimation(const std::string& inClipName, const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves);

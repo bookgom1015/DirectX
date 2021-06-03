@@ -4,13 +4,30 @@
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-GameCamera::GameCamera()
-	: mView(MathHelper::Identity4x4()),
-	mProj(MathHelper::Identity4x4()) {
+GameCamera::GameCamera() {
+	mPosition = { 0.0f, 0.0f, 0.0f };
+	mRight = { 1.0f, 0.0f, 0.0f };
+	mUp = { 0.0f, 1.0f, 0.0f };
+	mLook = { 0.0f, 0.0f, 1.0f };
+
+	mNearZ = 0.0f;
+	mFarZ = 0.0f;
+	mAspect = 0.0f;
+	mFovY = 0.0f;
+	mNearWindowHeight = 0.0f;
+	mFarWindowHeight = 0.0f;
+
+	bool mViewDirty = true;
+
+	mView = MathHelper::Identity4x4();
+	mProj = MathHelper::Identity4x4();
+
+	bInheritPitch = false;
+	bInheritYaw = false;
+	bInheritRoll = false;
+
 	SetLens(0.5f * MathHelper::Pi, 1.0f, 1.0f, 1000.0f);
 }
-
-GameCamera::~GameCamera() {}
 
 void GameCamera::Pitch(float inAngle) {
 	// Rotate up and look vector about the right vector.

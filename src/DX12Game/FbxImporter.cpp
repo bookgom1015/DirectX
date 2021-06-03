@@ -39,7 +39,6 @@ bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
 				   MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
 				   MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
 				   MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
-
 	if (!bResult) 
 		return false;
 	

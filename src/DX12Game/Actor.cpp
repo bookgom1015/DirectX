@@ -37,7 +37,7 @@ void Actor::ProcessInput(const InputState& input) {
 		for (auto comp : mComponents)
 			comp->ProcessInput(input);
 
-		ActorInput(input);
+		ProcessActorInput(input);
 	}
 }
 
@@ -85,7 +85,7 @@ void Actor::UpdateActor(const GameTimer& gt) {
 		(*func)(gt, this);
 }
 
-void Actor::ActorInput(const InputState& input) {}
+void Actor::ProcessActorInput(const InputState& input) {}
 
 void Actor::AddFunction(std::shared_ptr<std::function<void(const GameTimer&, Actor*)>> inFunction) {
 	auto iter = std::find(mFunctions.begin(), mFunctions.end(), inFunction);

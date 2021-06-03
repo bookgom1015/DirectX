@@ -16,6 +16,9 @@ namespace {
 	const std::wstring fontFileNamePrefix = L"./../../../../Assets/Fonts/";
 
 	const UINT gMaxInstanceCount = 32;
+
+	const float gDefaultFontSize = 32;
+	const float gInvDefaultFontSize = 1.0f / gDefaultFontSize;
 }
 
 Renderer::Renderer() 
@@ -95,10 +98,6 @@ bool Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 
 	// After uploadResourcesFinished.wait() returned.
 	mSpriteBatch->SetViewport(mScreenViewport);
-	
-	auto world = GameWorld::GetWorld();
-	mTextPos.x = static_cast<float>(mScreenViewport.Width * 0.01f);
-	mTextPos.y = static_cast<float>(mScreenViewport.Height * 0.01f);
 
 	return true;
 }
@@ -429,59 +428,64 @@ void Renderer::AddGeometry(const Mesh* inMesh) {
 void Renderer::DrawTexts() {
 	mSpriteBatch->Begin(mCommandList.Get());
 
-	std::wstringstream textsStream;
-	for (const auto& text : mOutputTexts)
-		textsStream << text << std::endl;
-
-	const wchar_t* outputTexts = textsStream.str().c_str();
 	auto origin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	auto scale = XMVectorSet(0.5f, 0.5f, 0.0f, 0.0f);
 
-	// Left outline.
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos - SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
-		Colors::Black,
-		0.0f,
-		origin,
-		scale);
-	// Right outline.
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos + SimpleMath::Vector2(mTextPos.x * 0.1f, 0.0f),
-		Colors::Black,
-		0.0f,
-		origin,
-		scale);
-	// Top outline.
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos - SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
-		Colors::Black,
-		0.0f,
-		origin,
-		scale);
-	// Bottom outline.
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos + SimpleMath::Vector2(0.0f, mTextPos.y * 0.1f),
-		Colors::Black,
-		0.0f,
-		origin,
-		scale);
-	// Draw texts.
-	mDefaultFont->DrawString(
-		mSpriteBatch.get(),
-		outputTexts,
-		mTextPos,
-		Colors::White,
-		0.0f,
-		origin,
-		scale);
+	for (const auto& textIter : mOutputTexts) {
+		const auto& text = textIter.second.first;
+
+		const auto& refVec3 = textIter.second.second;
+		SimpleMath::Vector2 textPos = { refVec3.x, refVec3.y };
+		float scalef = refVec3.z * gInvDefaultFontSize;
+		auto scalev = XMVectorSet(scalef, scalef, 0.0f, 0.0f);
+
+		const wchar_t* outputTexts = text.c_str();
+
+		// Left outline.
+		mDefaultFont->DrawString(
+			mSpriteBatch.get(),
+			outputTexts,
+			textPos - SimpleMath::Vector2(1.0f, 0.0f),
+			Colors::Black,
+			0.0f,
+			origin,
+			scalev);
+		// Right outline.
+		mDefaultFont->DrawString(
+			mSpriteBatch.get(),
+			outputTexts,
+			textPos + SimpleMath::Vector2(1.0f, 0.0f),
+			Colors::Black,
+			0.0f,
+			origin,
+			scalev);
+		// Top outline.
+		mDefaultFont->DrawString(
+			mSpriteBatch.get(),
+			outputTexts,
+			textPos - SimpleMath::Vector2(0.0f, 1.0f),
+			Colors::Black,
+			0.0f,
+			origin,
+			scalev);
+		// Bottom outline.
+		mDefaultFont->DrawString(
+			mSpriteBatch.get(),
+			outputTexts,
+			textPos + SimpleMath::Vector2(0.0f, 1.0f),
+			Colors::Black,
+			0.0f,
+			origin,
+			scalev);
+		// Draw texts.
+		mDefaultFont->DrawString(
+			mSpriteBatch.get(),
+			outputTexts,
+			textPos,
+			Colors::White,
+			0.0f,
+			origin,
+			scalev);
+	}
 
 	mSpriteBatch->End();
 }
@@ -578,24 +582,13 @@ void Renderer::UpdateAnimationsMap() {
 	FlushCommandQueue();
 }
 
-void Renderer::AddOutputText(const std::wstring& inText, size_t inIdx) {
-	size_t preperSize = inIdx + 1;
-	if (mOutputTexts.size() < preperSize)
-		mOutputTexts.resize(preperSize);
-
-	mOutputTexts[inIdx] = inText;
+void Renderer::AddOutputText(const std::wstring& inText, float inX, float inY, float inScale, const std::string& inName) {
+	mOutputTexts[inName].first = inText;
+	mOutputTexts[inName].second = SimpleMath::Vector3(inX, inY, inScale);
 }
 
-void Renderer::RemoveOutputText(size_t inIdx) {
-	auto size = mOutputTexts.size();
-	if (size < inIdx + 1)
-		return;
-
-	size_t lastIdx = size - 1;
-	auto temp = mOutputTexts[inIdx];
-	mOutputTexts[inIdx] = mOutputTexts[lastIdx];
-	mOutputTexts[lastIdx] = temp;
-	mOutputTexts.pop_back();
+void Renderer::RemoveOutputText(const std::string& inName) {
+	mOutputTexts.erase(inName);
 }
 
 ID3D12Device* Renderer::GetDevice() const {
@@ -1154,7 +1147,12 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		}
 	}
 
-	AddOutputText(L"voc: " + std::to_wstring(visibleObjectCount), 2);
+	AddOutputText(
+		L"voc: " + std::to_wstring(visibleObjectCount), 
+		static_cast<float>(mScreenViewport.Width * 0.01f),
+		static_cast<float>(mScreenViewport.Height * 0.09f),
+		16.0f,
+		"TEXT_VOC");
 }
 
 void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {

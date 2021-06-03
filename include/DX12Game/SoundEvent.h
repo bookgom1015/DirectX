@@ -35,19 +35,18 @@ public:
 	// Stop this event
 	void Stop(bool inAllowFadeOut = true);
 
-	// Setters
+	bool GetPaused() const;
 	void SetPaused(bool inPause);
+
+	float GetVolume() const;
 	void SetVolume(float inVolume);
+
+	float GetPitch() const;
 	void SetPitch(float inPitch);
+
+	float GetParameter(const std::string& inParamName);
 	void SetParameter(const std::string& inParamName, float inValue);
 
-	// Getters
-	bool GetPaused() const;
-	float GetVolume() const;
-	float GetPitch() const;
-	float GetParameter(const std::string& inParamName);
-
-	// Positional
 	bool Is3D() const;
 	void Set3DAttributes(const DirectX::XMFLOAT4X4& inWorldTransform);
 

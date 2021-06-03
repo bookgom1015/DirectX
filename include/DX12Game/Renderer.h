@@ -137,8 +137,8 @@ public:
 
 	void UpdateAnimationsMap();
 
-	void AddOutputText(const std::wstring& inText, size_t inIdx);
-	void RemoveOutputText(size_t inIdx);
+	void AddOutputText(const std::wstring& inText, float inX, float inY, float inScale, const std::string& inNameId);
+	void RemoveOutputText(const std::string& inName);
 
 	virtual ID3D12Device* GetDevice() const override;
 	virtual ID3D12GraphicsCommandList* GetCommandList() const override;
@@ -258,6 +258,6 @@ private:
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
-	DirectX::SimpleMath::Vector2 mTextPos;
-	std::vector<std::wstring> mOutputTexts;
+	std::unordered_map<std::string /* Name id */, 
+		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector3>> mOutputTexts;
 };

@@ -32,36 +32,18 @@ void SoundEvent::Stop(bool inAllowFadeOut) {
 	}
 }
 
-void SoundEvent::SetPaused(bool inPause) {
-	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
-	if (event)
-		event->setPaused(inPause);
-}
-
-void SoundEvent::SetVolume(float inVolume) {
-	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
-	if (event)
-		event->setVolume(inVolume);
-}
-
-void SoundEvent::SetPitch(float inPitch) {
-	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
-	if (event)
-		event->setPitch(inPitch);
-}
-
-void SoundEvent::SetParameter(const std::string& inParamName, float inValue) {
-	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
-	if (event)
-		event->setParameterValue(inParamName.c_str(), inValue);
-}
-
 bool SoundEvent::GetPaused() const {
 	bool retVal = false;
 	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
 	if (event)
 		event->getPaused(&retVal);
 	return retVal;
+}
+
+void SoundEvent::SetPaused(bool inPause) {
+	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
+	if (event)
+		event->setPaused(inPause);
 }
 
 float SoundEvent::GetVolume() const {
@@ -72,6 +54,12 @@ float SoundEvent::GetVolume() const {
 	return retVal;
 }
 
+void SoundEvent::SetVolume(float inVolume) {
+	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
+	if (event)
+		event->setVolume(inVolume);
+}
+
 float SoundEvent::GetPitch() const {
 	float retVal = 0.0f;
 	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
@@ -80,12 +68,24 @@ float SoundEvent::GetPitch() const {
 	return retVal;
 }
 
+void SoundEvent::SetPitch(float inPitch) {
+	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
+	if (event)
+		event->setPitch(inPitch);
+}
+
 float SoundEvent::GetParameter(const std::string& inParamName) {
 	float retVal = 0.0f;
 	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
 	if (event)
 		event->getParameterValue(inParamName.c_str(), &retVal);
 	return retVal;
+}
+
+void SoundEvent::SetParameter(const std::string& inParamName, float inValue) {
+	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
+	if (event)
+		event->setParameterValue(inParamName.c_str(), inValue);
 }
 
 bool SoundEvent::Is3D() const {

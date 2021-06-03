@@ -7,10 +7,25 @@
 using namespace DirectX;
 
 Camera::Camera() {
+	mPosition = { 0.0f, 0.0f, 0.0f };
+	mRight = { 1.0f, 0.0f, 0.0f };
+	mUp = { 0.0f, 1.0f, 0.0f };
+	mLook = { 0.0f, 0.0f, 1.0f };
+
+	mNearZ = 0.0f;
+	mFarZ = 0.0f;
+	mAspect = 0.0f;
+	mFovY = 0.0f;
+	mNearWindowHeight = 0.0f;
+	mFarWindowHeight = 0.0f;
+
+	mViewDirty = true;
+
+	mView = MathHelper::Identity4x4();
+	mProj = MathHelper::Identity4x4();
+
 	SetLens(0.25f*MathHelper::Pi, 1.0f, 1.0f, 1000.0f);
 }
-
-Camera::~Camera() {}
 
 XMVECTOR Camera::GetPosition() const {
 	return XMLoadFloat3(&mPosition);

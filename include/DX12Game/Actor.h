@@ -24,28 +24,20 @@ public:
 	Actor& operator=(Actor&& rhs) = default;
 
 public:
-	// Update function called from GameWorld (not overridable).
 	void Update(const GameTimer& gt);
-	// Updates all the components attached to the actor (not overridable).
 	void UpdateComponents(const GameTimer& gt);
-	// ProcessInput function called from Game (not overridable).
 	void ProcessInput(const InputState& input);
-	// Called when the application loads data
 	virtual bool OnLoadingData();
-	// Called when the application unloads data
 	virtual void OnUnloadingData();
 
-	// Add/remove components.
 	void AddComponent(Component* inComponent);
 	void RemoveComponent(Component* inComponent);
 
 	void ComputeWorldTransform();
 
 protected:
-	//* Any actor-specific update code (overridable)
 	virtual void UpdateActor(const GameTimer& gt);
-	//* Any actor-specific input code (overridable)
-	virtual void ActorInput(const InputState& input);
+	virtual void ProcessActorInput(const InputState& input);
 
 public:
 	void AddFunction(std::shared_ptr<std::function<void(const GameTimer&, Actor*)>> inFunction);
@@ -81,10 +73,8 @@ public:
 	void SetOwnerThreadID(UINT inId);
 
 private:
-	// Actors's state.
 	ActorState mState = ActorState::EActive;
 
-	// Actor's Transform.
 	DirectX::XMFLOAT4X4 mWorldTransform = MathHelper::Identity4x4();
 	DirectX::XMFLOAT3 mScale = { 1.0f, 1.0f, 1.0f };
 	DirectX::XMFLOAT4 mQuaternion = { 0.0f, 0.0f, 0.0f, 1.0f };
