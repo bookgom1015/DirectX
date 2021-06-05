@@ -7,19 +7,20 @@
 
 struct DxFbxVertex {
 public:
-	DirectX::XMFLOAT3 Pos;
-	DirectX::XMFLOAT3 Normal;
-	DirectX::XMFLOAT2 TexC;
-	DirectX::XMFLOAT3 TangentU;
-	float BoneWeights[8];
-	int BoneIndices[8];
+	DirectX::XMFLOAT3 mPos;
+	DirectX::XMFLOAT3 mNormal;
+	DirectX::XMFLOAT2 mTexC;
+	DirectX::XMFLOAT3 mTangentU;
+	float mBoneWeights[8];
+	int mBoneIndices[8];
 
 public:
-	DxFbxVertex();
-	DxFbxVertex(DirectX::XMFLOAT3 inPos, 
-				DirectX::XMFLOAT3 inNormal, 
-				DirectX::XMFLOAT2 inTexC,
-				DirectX::XMFLOAT3 inTangentU);
+	DxFbxVertex(
+		DirectX::XMFLOAT3 inPos			= { 0.0f, 0.0f, 0.0f },
+		DirectX::XMFLOAT3 inNormal		= { 0.0f, 0.0f, 0.0f },
+		DirectX::XMFLOAT2 inTexC		= { 0.0f, 0.0f },
+		DirectX::XMFLOAT3 inTangentU	= { 0.0f, 0.0f, 0.0f }
+	);
 
 public:
 	friend bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs);
@@ -27,15 +28,15 @@ public:
 
 struct DxFbxMaterial {
 public:
-	std::string MaterialName;
-	std::string DiffuseMapFileName;
-	std::string NormalMapFileName;
-	std::string SpecularMapFileName;
+	std::string mMaterialName;
+	std::string mDiffuseMapFileName;
+	std::string mNormalMapFileName;
+	std::string mSpecularMapFileName;
 
-	DirectX::XMFLOAT4X4 MatTransform;
-	DirectX::XMFLOAT4 DiffuseAlbedo;
-	DirectX::XMFLOAT3 FresnelR0;
-	float Roughness;
+	DirectX::XMFLOAT4X4 mMatTransform;
+	DirectX::XMFLOAT4 mDiffuseAlbedo;
+	DirectX::XMFLOAT3 mFresnelR0;
+	float mRoughness;
 
 public:
 	DxFbxMaterial();
@@ -43,16 +44,16 @@ public:
 
 struct DxFbxBone {
 public:
-	std::string Name;
-	int ParentIndex;
+	std::string mName;
+	int mParentIndex;
 
-	DirectX::XMFLOAT4X4 LocalBindPose;
-	DirectX::XMFLOAT4X4 GlobalBindPose;
-	DirectX::XMFLOAT4X4 GlobalInvBindPose;
+	DirectX::XMFLOAT4X4 mLocalBindPose;
+	DirectX::XMFLOAT4X4 mGlobalBindPose;
+	DirectX::XMFLOAT4X4 mGlobalInvBindPose;
 
-	fbxsdk::FbxAMatrix FbxLocalBindPose;
-	fbxsdk::FbxAMatrix FbxGlobalBindPose;
-	fbxsdk::FbxAMatrix FbxGlobalInvBindPose;
+	fbxsdk::FbxAMatrix mFbxLocalBindPose;
+	fbxsdk::FbxAMatrix mFbxGlobalBindPose;
+	fbxsdk::FbxAMatrix mFbxGlobalInvBindPose;
 
 public:
 	DxFbxBone();
@@ -101,11 +102,11 @@ private:
 class DxFbxImporter {
 private:
 	struct BoneIndexWeight {
-		int BoneIndex = -1;
-		float Weight = 0.0f;
+		int mBoneIndex = -1;
+		float mWeight = 0.0f;
 
 		friend bool operator==(const BoneIndexWeight& lhs, const BoneIndexWeight& rhs) {
-			return lhs.BoneIndex == rhs.BoneIndex && MathHelper::IsEqual(lhs.Weight, rhs.Weight);
+			return lhs.mBoneIndex == rhs.mBoneIndex && MathHelper::IsEqual(lhs.mWeight, rhs.mWeight);
 		}
 	};
 

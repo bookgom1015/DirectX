@@ -1,12 +1,12 @@
-﻿  d3dApp.cpp
-  d3dUtil.cpp
-  DDSTextureLoader.cpp
-  GameTimer.cpp
-  GeometryGenerator.cpp
-  MathHelper.cpp
-  FrameResource.cpp
+﻿  FrameResource.cpp
   TesscellationApp.cpp
+  GameTimer.cpp
+  MathHelper.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
   Generating code
-  All 2424 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  0 of 2424 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   Tesscellation.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Tesscellation\Release\Tesscellation.exe

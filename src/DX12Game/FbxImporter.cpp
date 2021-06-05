@@ -9,41 +9,32 @@ namespace {
 	const int InvalidBoneIndex = std::numeric_limits<UINT>::infinity();
 }
 
-DxFbxVertex::DxFbxVertex() {
-	Pos = { 0.0f, 0.0f, 0.0f };
-	Normal = { 0.0f, 0.0f, 0.0f };
-	TexC = { 0.0f, 0.0f };
-	TangentU = { 0.0f, 0.0f, 0.0f };
-	for (auto& weight : BoneWeights)
-		weight = 0.0f;
-	for (auto& index : BoneIndices)
-		index = -1;
-}
+DxFbxVertex::DxFbxVertex(
+	DirectX::XMFLOAT3 inPos			/* = { 0.0f, 0.0f, 0.0f } */, 
+	DirectX::XMFLOAT3 inNormal		/* = { 0.0f, 0.0f, 0.0f } */,
+	DirectX::XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
+	DirectX::XMFLOAT3 inTangentU	/* = { 0.0f, 0.0f, 0.0f } */) {
 
-DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos, 
-						 DirectX::XMFLOAT3 inNormal,
-						 DirectX::XMFLOAT2 inTexC, 
-						 DirectX::XMFLOAT3 inTangentU) {
-	Pos = inPos;
-	Normal = inNormal;
-	TexC = inTexC;
-	TangentU = inTangentU;
-	for (auto& weight : BoneWeights)
+	mPos = inPos;
+	mNormal = inNormal;
+	mTexC = inTexC;
+	mTangentU = inTangentU;
+	for (auto& weight : mBoneWeights)
 		weight = 0.0f;
-	for (auto& index : BoneIndices)
+	for (auto& index : mBoneIndices)
 		index = -1;
 }
 
 bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
-	bool bResult = MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-				   MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-				   MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-				   MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
+	bool bResult = MathHelper::IsEqual(lhs.mPos,		rhs.mPos)		&&
+				   MathHelper::IsEqual(lhs.mNormal,		rhs.mNormal)	&&
+				   MathHelper::IsEqual(lhs.mTexC,		rhs.mTexC)		&&
+				   MathHelper::IsEqual(lhs.mTangentU,	rhs.mTangentU);
 	if (!bResult) 
 		return false;
 	
 	for (UINT i = 0; i < 8; ++i) {
-		if (MathHelper::IsNotEqual(lhs.BoneWeights[i], rhs.BoneWeights[i]) || lhs.BoneIndices[i] != rhs.BoneIndices[i])
+		if (MathHelper::IsNotEqual(lhs.mBoneWeights[i], rhs.mBoneWeights[i]) || lhs.mBoneIndices[i] != rhs.mBoneIndices[i])
 			return false;
 	}
 
@@ -51,18 +42,18 @@ bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
 }
 
 DxFbxMaterial::DxFbxMaterial() {
-	MatTransform = MathHelper::Identity4x4();
-	DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	FresnelR0 = { 0.5f, 0.5f, 0.5f };
-	Roughness = 0.5f;
+	mMatTransform = MathHelper::Identity4x4();
+	mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+	mFresnelR0 = { 0.5f, 0.5f, 0.5f };
+	mRoughness = 0.5f;
 }
 
 DxFbxBone::DxFbxBone() {
-	ParentIndex = -1;
+	mParentIndex = -1;
 
-	LocalBindPose = MathHelper::Identity4x4();
-	GlobalBindPose = MathHelper::Identity4x4();
-	GlobalInvBindPose = MathHelper::Identity4x4();
+	mLocalBindPose = MathHelper::Identity4x4();
+	mGlobalBindPose = MathHelper::Identity4x4();
+	mGlobalInvBindPose = MathHelper::Identity4x4();
 }
 
 const std::vector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
@@ -394,8 +385,8 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 			DxFbxVertex vertex = { pos, normal, texC, tangent };
 			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
 			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.BoneIndices[i] = boneIdxWeights[i].BoneIndex;
-				vertex.BoneWeights[i] = boneIdxWeights[i].Weight;
+				vertex.mBoneIndices[i] = boneIdxWeights[i].mBoneIndex;
+				vertex.mBoneWeights[i] = boneIdxWeights[i].mWeight;
 			}
 
 			auto iter = std::find(mVertices.cbegin(), mVertices.cend(), vertex);
@@ -515,8 +506,8 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 			DxFbxVertex vertex = { pos, normal, texC, tangent };
 			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
 			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.BoneIndices[i] = boneIdxWeights[i].BoneIndex;
-				vertex.BoneWeights[i] = boneIdxWeights[i].Weight;
+				vertex.mBoneIndices[i] = boneIdxWeights[i].mBoneIndex;
+				vertex.mBoneWeights[i] = boneIdxWeights[i].mWeight;
 			}
 
 			polygonVertices.push_back(vertex);
@@ -619,7 +610,7 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 		auto material = inNode->GetMaterial(i);
 
 		std::string meshName = inNode->GetName();
-		mMaterials[meshName].MaterialName = material->GetName();
+		mMaterials[meshName].mMaterialName = material->GetName();
 
 		auto diffProp = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
 
@@ -633,7 +624,7 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 			std::string str = fileTexture->GetFileName();
 			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
 
-			mMaterials[meshName].DiffuseMapFileName = str.substr(strIndex);
+			mMaterials[meshName].mDiffuseMapFileName = str.substr(strIndex);
 		}
 
 		auto normalProp = material->FindProperty(FbxSurfaceMaterial::sNormalMap);
@@ -646,7 +637,7 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 			std::string str = fileTexture->GetFileName();
 			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
 
-			mMaterials[meshName].NormalMapFileName = str.substr(strIndex);
+			mMaterials[meshName].mNormalMapFileName = str.substr(strIndex);
 		}
 
 		auto specProp = material->FindProperty(FbxSurfaceMaterial::sSpecularFactor);
@@ -659,13 +650,13 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 			std::string str = fileTexture->GetFileName();
 			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
 
-			mMaterials[meshName].SpecularMapFileName = str.substr(strIndex);
+			mMaterials[meshName].mSpecularMapFileName = str.substr(strIndex);
 		}
 
-		XMStoreFloat4x4(&mMaterials[meshName].MatTransform, XMMatrixScaling(1.0f, -1.0f, 0.0f));
-		mMaterials[meshName].DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-		mMaterials[meshName].FresnelR0 = { 0.1f, 0.1f, 0.1f };
-		mMaterials[meshName].Roughness = 0.6f;
+		XMStoreFloat4x4(&mMaterials[meshName].mMatTransform, XMMatrixScaling(1.0f, -1.0f, 0.0f));
+		mMaterials[meshName].mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+		mMaterials[meshName].mFresnelR0 = { 0.1f, 0.1f, 0.1f };
+		mMaterials[meshName].mRoughness = 0.6f;
 	}
 }
 
@@ -683,8 +674,8 @@ void DxFbxImporter::LoadSkeletonHierarchyRecurcively(FbxNode* inNode, int inDept
 		inNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
 
 		DxFbxBone bone;
-		bone.ParentIndex = inParentIndex;
-		bone.Name = inNode->GetName();
+		bone.mParentIndex = inParentIndex;
+		bone.mName = inNode->GetName();
 		mSkeleton.mBones.push_back(bone);
 		bResult = true;
 	}
@@ -774,7 +765,7 @@ void DxFbxImporter::LoadBones(FbxNode* inNode) {
 			mClusters[clusterIndex] = currCluster;
 
 			auto& currBone = mSkeleton.mBones[clusterIndex];
-			int parentIndex = currBone.ParentIndex;
+			int parentIndex = currBone.mParentIndex;
 
 			BuildBindPoseData(currCluster, geometryTransform, clusterIndex, parentIndex, mSkeleton, currBone);
 			BuildAnimations(inNode, currCluster, geometryTransform, clusterIndex, parentIndex);
@@ -789,12 +780,12 @@ void DxFbxImporter::NormalizeWeigths() {
 			auto& boneIdxWeights = cpIdxIter->second;
 			float sum = 0.0f;
 			for (const auto& boneIdxWeight : boneIdxWeights)
-				sum += boneIdxWeight.Weight;
+				sum += boneIdxWeight.mWeight;
 
 			if (!MathHelper::IsEqual(sum, 1.0f)) {
 				float invSum = 1.0f / sum;
 				for (auto& boneIdxWeight : boneIdxWeights)
-					boneIdxWeight.Weight *= invSum;
+					boneIdxWeight.mWeight *= invSum;
 			}
 		}
 	}
@@ -848,16 +839,16 @@ namespace {
 
 void DxFbxImporter::MoveDataFromFbxAMatrixToDirectXMath() {
 	for (auto& bone : mSkeleton.mBones) {
-		FbxAMatrixToXMFloat4x4(bone.LocalBindPose, bone.FbxLocalBindPose);
-		FbxAMatrixToXMFloat4x4(bone.GlobalBindPose, bone.FbxGlobalBindPose);
-		FbxAMatrixToXMFloat4x4(bone.GlobalInvBindPose, bone.FbxGlobalInvBindPose);
+		FbxAMatrixToXMFloat4x4(bone.mLocalBindPose,		bone.mFbxLocalBindPose);
+		FbxAMatrixToXMFloat4x4(bone.mGlobalBindPose,	bone.mFbxGlobalBindPose);
+		FbxAMatrixToXMFloat4x4(bone.mGlobalInvBindPose, bone.mFbxGlobalInvBindPose);
 	}
 }
 
 UINT DxFbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
 	const auto& bones = mSkeleton.mBones;
 	for (auto iter = bones.cbegin(), end = bones.cend(); iter != end; ++iter) {
-		if (iter->Name == inBoneName)
+		if (iter->mName == inBoneName)
 			return static_cast<int>(iter - bones.cbegin());
 	}
 
@@ -881,14 +872,14 @@ void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsd
 		mClusters[inParentIndex]->GetTransformLinkMatrix(transformParentLinkMatrix);
 		UnifyCoordinates(transformParentLinkMatrix);
 
-		outBone.FbxLocalBindPose = transformParentLinkMatrix.Inverse() * transformLinkMatrix;
+		outBone.mFbxLocalBindPose = transformParentLinkMatrix.Inverse() * transformLinkMatrix;
 	}
 	else {
-		outBone.FbxLocalBindPose = transformLinkMatrix;
+		outBone.mFbxLocalBindPose = transformLinkMatrix;
 	}
 
-	outBone.FbxGlobalBindPose = transformLinkMatrix * inGeometryTransform;
-	outBone.FbxGlobalInvBindPose = transformLinkMatrix.Inverse() * inGeometryTransform;
+	outBone.mFbxGlobalBindPose = transformLinkMatrix * inGeometryTransform;
+	outBone.mFbxGlobalInvBindPose = transformLinkMatrix.Inverse() * inGeometryTransform;
 }
 
 void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClusterIndex, const std::string& inMeshName) {
@@ -897,8 +888,8 @@ void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClus
 	auto controlPointWeights = inCluster->GetControlPointWeights();
 	for (UINT i = 0; i < indexCount; ++i) {
 		BoneIndexWeight boneIdxWeight;
-		boneIdxWeight.BoneIndex = inClusterIndex;
-		boneIdxWeight.Weight = (float)controlPointWeights[i];
+		boneIdxWeight.mBoneIndex = inClusterIndex;
+		boneIdxWeight.mWeight = (float)controlPointWeights[i];
 
 		auto& cpWeights = mControlPointsWeights[inMeshName][controlPointIndices[i]];
 		auto iter = std::find(cpWeights.begin(), cpWeights.end(), boneIdxWeight);
@@ -964,28 +955,28 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 	const auto& animCurveTransX = inCluster->GetLink()->LclTranslation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_X);
 	const auto& animCurveTransY = inCluster->GetLink()->LclTranslation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y);
 	const auto& animCurveTransZ = inCluster->GetLink()->LclTranslation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-	const auto& animCurveRotX = inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	const auto& animCurveRotY = inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-	const auto& animCurveRotZ = inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z);
-	const auto& animCurveScaleX = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_X);
-	const auto& animCurveScaleY = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Y);
-	const auto& animCurveScaleZ = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer, FBXSDK_CURVENODE_COMPONENT_Z);
+	const auto& animCurveRotX	= inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_X);
+	const auto& animCurveRotY	= inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_Y);
+	const auto& animCurveRotZ	= inCluster->GetLink()->LclRotation.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_Z);
+	const auto& animCurveScaleX = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_X);
+	const auto& animCurveScaleY = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_Y);
+	const auto& animCurveScaleZ = inCluster->GetLink()->LclScaling.GetCurve(inAnimLayer,	 FBXSDK_CURVENODE_COMPONENT_Z);
 	
 	for (auto currFrame = startFrameCount; currFrame <= endFrameCount; ++currFrame) {
 		FbxTime currTime;
 		currTime.SetFrame(currFrame, timeMode);
 		
-		FbxAMatrix localTransform = mSkeleton.mBones[inClusterIndex].FbxLocalBindPose;
+		FbxAMatrix localTransform = mSkeleton.mBones[inClusterIndex].mFbxLocalBindPose;
 		const auto& T = localTransform.GetT();
 		const auto& R = localTransform.GetR();
 		const auto& S = localTransform.GetS();
 
 		float transX = (animCurveTransX != NULL) ? -animCurveTransX->Evaluate(currTime) : (float)T.mData[0];
-		float transY = (animCurveTransY != NULL) ? animCurveTransY->Evaluate(currTime) : (float)T.mData[1];
-		float transZ = (animCurveTransZ != NULL) ? animCurveTransZ->Evaluate(currTime) : (float)T.mData[2];
+		float transY = (animCurveTransY != NULL) ? animCurveTransY->Evaluate(currTime)  : (float)T.mData[1];
+		float transZ = (animCurveTransZ != NULL) ? animCurveTransZ->Evaluate(currTime)  : (float)T.mData[2];
 		FbxVector4 transVector4(transX, transY, transZ, 1.0);
 
-		float rotX = (animCurveRotX != NULL) ? animCurveRotX->Evaluate(currTime) : (float)R.mData[0];
+		float rotX = (animCurveRotX != NULL) ? animCurveRotX->Evaluate(currTime)  : (float)R.mData[0];
 		float rotY = (animCurveRotY != NULL) ? -animCurveRotY->Evaluate(currTime) : (float)R.mData[1];
 		float rotZ = (animCurveRotZ != NULL) ? -animCurveRotZ->Evaluate(currTime) : (float)R.mData[2];
 		FbxVector4 rotVector4(rotX, rotY, rotZ, 0.0);
@@ -1006,7 +997,7 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 		FbxAMatrix currTransformOffset =
 			UnifyCoordinates(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
 
-		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].FbxGlobalInvBindPose;
+		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].mFbxGlobalInvBindPose;
 
 		outAnimation.mParentGlobalTransforms[inClusterIndex].push_back(globalTransform);
 		outAnimation.mCurves[inClusterIndex].push_back(FbxAMatrixToXMFloat4x4(
@@ -1053,7 +1044,7 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo* inTakeInfo, FbxCluster*
 				UnifyCoordinates(std::as_const(inCluster->GetLink()->EvaluateLocalTransform(currTime)));
 		}
 
-		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].FbxGlobalInvBindPose;
+		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].mFbxGlobalInvBindPose;
 		outAnimation.mCurves[inClusterIndex].push_back(FbxAMatrixToXMFloat4x4(globalTransform * globalInvTransform));
 	}
 }

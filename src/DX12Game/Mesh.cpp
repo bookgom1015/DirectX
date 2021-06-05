@@ -13,69 +13,74 @@ namespace {
 	void LoadVertices(const DxFbxImporter& inImporter, std::vector<Vertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
 		std::vector<Vertex> vertices(fbxVertices.size());
+
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
 			auto& vert = vertices[i];
-			vert.Pos = fbxVertices[i].Pos;
-			vert.Normal = fbxVertices[i].Normal;
-			vert.TexC = fbxVertices[i].TexC;
-			vert.TangentU = fbxVertices[i].TangentU;
+			vert.mPos		= fbxVertices[i].mPos;
+			vert.mNormal	= fbxVertices[i].mNormal;
+			vert.mTexC		= fbxVertices[i].mTexC;
+			vert.mTangentU	= fbxVertices[i].mTangentU;
 
-			vert.Pos.x *= -1.0f;
-			vert.Normal.x *= -1.0f;
-			vert.TangentU.x *= -1.0f;
+			vert.mPos.x		 *= -1.0f;
+			vert.mNormal.x	 *= -1.0f;
+			vert.mTangentU.x *= -1.0f;
 		}
+
 		outVertices.swap(vertices);
 	}
 
 	void LoadSkinnedVertices(const DxFbxImporter& inImporter, std::vector<SkinnedVertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
 		std::vector<SkinnedVertex> vertices(fbxVertices.size());
+
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
-			vertices[i].Pos = fbxVertices[i].Pos;
-			vertices[i].Normal = fbxVertices[i].Normal;
-			vertices[i].TexC = fbxVertices[i].TexC;
-			vertices[i].TangentU = fbxVertices[i].TangentU;
+			vertices[i].mPos		= fbxVertices[i].mPos;
+			vertices[i].mNormal		= fbxVertices[i].mNormal;
+			vertices[i].mTexC		= fbxVertices[i].mTexC;
+			vertices[i].mTangentU	= fbxVertices[i].mTangentU;
 
-			vertices[i].BoneWeights0.x = fbxVertices[i].BoneWeights[0];
-			vertices[i].BoneWeights0.y = fbxVertices[i].BoneWeights[1];
-			vertices[i].BoneWeights0.z = fbxVertices[i].BoneWeights[2];
-			vertices[i].BoneWeights0.w = fbxVertices[i].BoneWeights[3];
+			vertices[i].mBoneWeights0.x = fbxVertices[i].mBoneWeights[0];
+			vertices[i].mBoneWeights0.y = fbxVertices[i].mBoneWeights[1];
+			vertices[i].mBoneWeights0.z = fbxVertices[i].mBoneWeights[2];
+			vertices[i].mBoneWeights0.w = fbxVertices[i].mBoneWeights[3];
 
-			vertices[i].BoneWeights1.x = fbxVertices[i].BoneWeights[4];
-			vertices[i].BoneWeights1.y = fbxVertices[i].BoneWeights[5];
-			vertices[i].BoneWeights1.z = fbxVertices[i].BoneWeights[6];
-			vertices[i].BoneWeights1.w = fbxVertices[i].BoneWeights[7];
+			vertices[i].mBoneWeights1.x = fbxVertices[i].mBoneWeights[4];
+			vertices[i].mBoneWeights1.y = fbxVertices[i].mBoneWeights[5];
+			vertices[i].mBoneWeights1.z = fbxVertices[i].mBoneWeights[6];
+			vertices[i].mBoneWeights1.w = fbxVertices[i].mBoneWeights[7];
 
-			vertices[i].BoneIndices0[0] = fbxVertices[i].BoneIndices[0];
-			vertices[i].BoneIndices0[1] = fbxVertices[i].BoneIndices[1];
-			vertices[i].BoneIndices0[2] = fbxVertices[i].BoneIndices[2];
-			vertices[i].BoneIndices0[3] = fbxVertices[i].BoneIndices[3];
+			vertices[i].mBoneIndices0[0] = fbxVertices[i].mBoneIndices[0];
+			vertices[i].mBoneIndices0[1] = fbxVertices[i].mBoneIndices[1];
+			vertices[i].mBoneIndices0[2] = fbxVertices[i].mBoneIndices[2];
+			vertices[i].mBoneIndices0[3] = fbxVertices[i].mBoneIndices[3];
 
-			vertices[i].BoneIndices1[0] = fbxVertices[i].BoneIndices[4];
-			vertices[i].BoneIndices1[1] = fbxVertices[i].BoneIndices[5];
-			vertices[i].BoneIndices1[2] = fbxVertices[i].BoneIndices[6];
-			vertices[i].BoneIndices1[3] = fbxVertices[i].BoneIndices[7];
+			vertices[i].mBoneIndices1[0] = fbxVertices[i].mBoneIndices[4];
+			vertices[i].mBoneIndices1[1] = fbxVertices[i].mBoneIndices[5];
+			vertices[i].mBoneIndices1[2] = fbxVertices[i].mBoneIndices[6];
+			vertices[i].mBoneIndices1[3] = fbxVertices[i].mBoneIndices[7];
 
-			vertices[i].Pos.x *= -1.0f;
-			vertices[i].Normal.x *= -1.0f;
-			vertices[i].TangentU.x *= -1.0f;
+			vertices[i].mPos.x		*= -1.0f;
+			vertices[i].mNormal.x	*= -1.0f;
+			vertices[i].mTangentU.x *= -1.0f;
 		}
+
 		outVertices.swap(vertices);
 	}
 
 	void LoadIndices(const DxFbxImporter& inImporter, std::vector<std::uint32_t>& outIndices) {
 		const auto& fbxIndices = inImporter.GetIndices();
 		std::vector<std::uint32_t> indices(fbxIndices.size());
+
 		for (UINT i = 0; i < fbxIndices.size(); i += 3) {
-			indices[i] = fbxIndices[i + 2];
-			indices[i + 1] = fbxIndices[i + 1];
-			indices[i + 2] = fbxIndices[i];
+			indices[i]		= fbxIndices[i + 2];
+			indices[i + 1]	= fbxIndices[i + 1];
+			indices[i + 2]	= fbxIndices[i];
 		}
+
 		outIndices.swap(indices);
 	}
 
-	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName,
-						std::vector<std::string>& outDrawArgs) {
+	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName, std::vector<std::string>& outDrawArgs) {
 		const auto& subsetNames = inImporter.GetSubsetNames();
 		for (const auto& subsetName : subsetNames) {
 			std::stringstream sstream;
@@ -93,8 +98,13 @@ namespace {
 	void LoadSkeletons(const DxFbxImporter& inImporter, Skeleton& outSkeleton) {
 		const auto& skeleton = inImporter.GetSkeleton();
 		for (const auto& bone : skeleton.GetBones()) {
-			outSkeleton.mBones.emplace_back(bone.Name, bone.ParentIndex,
-				bone.LocalBindPose, bone.GlobalBindPose, bone.GlobalInvBindPose);
+			outSkeleton.mBones.emplace_back(
+				bone.mName, 
+				bone.mParentIndex,
+				bone.mLocalBindPose,
+				bone.mGlobalBindPose,
+				bone.mGlobalInvBindPose
+			);
 		}
 	}
 
@@ -115,19 +125,20 @@ namespace {
 		}
 	}
 
-	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inMeshName,
-						std::unordered_map<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
+	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inMeshName, 
+		std::unordered_map<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
+
 		const auto& fbxMaterials = inImporter.GetMaterials();
 		if (!fbxMaterials.empty()) {
 			for (auto material : fbxMaterials) {
 				std::stringstream matNameSstream;
-				matNameSstream << inMeshName << '_' << material.second.MaterialName;
+				matNameSstream << inMeshName << '_' << material.second.mMaterialName;
 
 				std::stringstream geoNameSstream;
 				geoNameSstream << inMeshName << '_' << material.first.c_str();
 
 				size_t texFileNameExtIndex;
-				const std::string& diffuseMapFileName = material.second.DiffuseMapFileName;
+				const std::string& diffuseMapFileName = material.second.mDiffuseMapFileName;
 				std::string modifiedDiffuseMapFileName;
 				if (!diffuseMapFileName.empty()) {
 					texFileNameExtIndex = diffuseMapFileName.find_last_of('.', diffuseMapFileName.length());
@@ -135,7 +146,7 @@ namespace {
 					modifiedDiffuseMapFileName.append(".dds");
 				}
 
-				const std::string& normalMapFileName = material.second.NormalMapFileName;
+				const std::string& normalMapFileName = material.second.mNormalMapFileName;
 				std::string modifiedNormalMapFileName;
 				if (!normalMapFileName.empty()) {
 					texFileNameExtIndex = normalMapFileName.find_last_of('.', normalMapFileName.length());
@@ -143,7 +154,7 @@ namespace {
 					modifiedNormalMapFileName.append(".dds");
 				}
 
-				const std::string& specularMapFileName = material.second.SpecularMapFileName;
+				const std::string& specularMapFileName = material.second.mSpecularMapFileName;
 				std::string modifiedSpecularMapFileName;
 				if (!specularMapFileName.empty()) {
 					texFileNameExtIndex = specularMapFileName.find_last_of('.', specularMapFileName.length());
@@ -151,10 +162,16 @@ namespace {
 					modifiedSpecularMapFileName.append(".dds");
 				}
 
-				MaterialIn matIn = { matNameSstream.str(), modifiedDiffuseMapFileName,
-					modifiedNormalMapFileName, modifiedSpecularMapFileName,
-					material.second.MatTransform, material.second.DiffuseAlbedo,
-					material.second.FresnelR0, material.second.Roughness };
+				MaterialIn matIn = { 
+					matNameSstream.str(), 
+					modifiedDiffuseMapFileName,
+					modifiedNormalMapFileName, 
+					modifiedSpecularMapFileName,
+					material.second.mMatTransform, 
+					material.second.mDiffuseAlbedo,
+					material.second.mFresnelR0, 
+					material.second.mRoughness 
+				};
 
 				outMaterials[geoNameSstream.str()] = matIn;
 			}
@@ -304,8 +321,8 @@ void Mesh::GenerateSkeletonData() {
 		XMStoreFloat4(&transf, trans);
 
 		Vertex vert;
-		vert.Pos = { transf.x, transf.y, transf.z };
-		vert.TexC = { (float)index, (float)parentIndex };
+		vert.mPos = { transf.x, transf.y, transf.z };
+		vert.mTexC = { (float)index, (float)parentIndex };
 		AddSkeletonVertex(vert);
 
 		if (parentIndex != -1) {
@@ -314,11 +331,11 @@ void Mesh::GenerateSkeletonData() {
 
 			XMStoreFloat4(&transf, trans + (0.125f * scale * forward));
 
-			vert.Pos = { transf.x, transf.y, transf.z };
+			vert.mPos = { transf.x, transf.y, transf.z };
 		}
 		else {
-			vert.Pos = { 0.0f, 0.0f, 0.0f };
-			vert.TexC = { -1.0f, 0.0f };
+			vert.mPos = { 0.0f, 0.0f, 0.0f };
+			vert.mTexC = { -1.0f, 0.0f };
 		}
 		AddSkeletonVertex(vert);
 	}

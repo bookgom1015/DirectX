@@ -1,7 +1,13 @@
-﻿  InstancingAndCullingApp.cpp
+﻿  FrameResource.cpp
+  InstancingAndCullingApp.cpp
+  Camera.cpp
+  GameTimer.cpp
+  MathHelper.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
   Generating code
-  2 of 2519 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+  4 of 2519 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    1 functions had inline decision re-evaluated but remain unchanged
+    2 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   InstancingAndCulling.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\InstancingAndCulling\Release\InstancingAndCulling.exe

@@ -39,7 +39,8 @@ struct GeoOut {
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f; 
 
-	InstanceData instData = gInstanceData[gInstanceIndex * MAX_INSTANCE_DATA + instanceID];
+	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * MAX_INSTANCE_DATA + instanceID];
+	InstanceData instData = gInstanceData[instIdxData.InstIdx];
 	float4x4 world = instData.World;
 
 	vout.PosW = vin.PosL;

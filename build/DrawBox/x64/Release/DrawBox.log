@@ -1,14 +1,4 @@
-﻿  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\clip_color.cso
-  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\easing_color.cso
-  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\moving_vert.cso
-  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\pulse_color.cso
-  compilation object save succeeded; see F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\unmatched.cso
-  d3dApp.cpp
-  d3dUtil.cpp
-  GameTimer.cpp
-  MathHelper.cpp
-  BoxApp.cpp
-  Generating code
-  All 901 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
-  Finished generating code
-  DrawBox.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DrawBox\Release\DrawBox.exe
+﻿  an error occurred while setting the initial search directory.
+  searches will be relative to the application's starting directory.
+  compilation failed; no code produced
+C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\VC\VCTargets\Microsoft.CppCommon.targets(1327,5): error MSB6006: "fxc.exe" exited with code 1.

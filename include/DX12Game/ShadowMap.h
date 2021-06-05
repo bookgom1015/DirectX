@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "common/d3dUtil.h"
+#include "DX12Game/GameCore.h"
 
 enum class CubeMapFace : int {
 	PositiveX = 0,
@@ -28,6 +28,8 @@ private:
 	ShadowMap& operator=(ShadowMap&& rhs) = delete;
 
 public:
+	DxResult Initialize();
+
     UINT Width() const;
     UINT Height() const;
 	ID3D12Resource* Resource();
@@ -42,11 +44,11 @@ public:
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
 
-	void OnResize(UINT newWidth, UINT newHeight);
+	DxResult OnResize(UINT newWidth, UINT newHeight);
 
 private:
 	void BuildDescriptors();
-	void BuildResource();
+	DxResult BuildResource();
 
 private:
 	ID3D12Device* md3dDevice = nullptr;

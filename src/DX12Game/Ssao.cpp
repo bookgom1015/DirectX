@@ -13,11 +13,19 @@ Ssao::Ssao(
     ID3D12GraphicsCommandList* cmdList, 
     UINT width, UINT height) {
     md3dDevice = device;
+	mCmdList = cmdList;
 
-    OnResize(width, height);
+	mWidth = width;
+	mHeight = height;
+}
+
+DxResult Ssao::Initialize() {
+	CheckDxResult(OnResize(mWidth, mHeight));
 
 	BuildOffsetVectors();
-	BuildRandomVectorTexture(cmdList);
+	CheckDxResult(BuildRandomVectorTexture(mCmdList));
+
+	return DxResult(S_OK);
 }
 
 UINT Ssao::SsaoMapWidth() const {
@@ -148,7 +156,7 @@ void Ssao::SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPs
     mBlurPso = ssaoBlurPso;
 }
 
-void Ssao::OnResize(UINT newWidth, UINT newHeight) {
+DxResult Ssao::OnResize(UINT newWidth, UINT newHeight) {
     if(mRenderTargetWidth != newWidth || mRenderTargetHeight != newHeight) {
         mRenderTargetWidth = newWidth;
         mRenderTargetHeight = newHeight;
@@ -163,8 +171,10 @@ void Ssao::OnResize(UINT newWidth, UINT newHeight) {
 
         mScissorRect = { 0, 0, (int)mRenderTargetWidth / 2, (int)mRenderTargetHeight / 2 };
 
-        BuildResources();
+        CheckDxResult(BuildResources());
     }
+
+	return DxResult(S_OK);
 }
 
 void Ssao::ComputeSsao(
@@ -187,7 +197,7 @@ void Ssao::ComputeSsao(
     cmdList->OMSetRenderTargets(1, &mhAmbientMap0CpuRtv, true, nullptr);
 
     // Bind the constant buffer for this pass.
-    auto ssaoCBAddress = currFrame->SsaoCB->Resource()->GetGPUVirtualAddress();
+    auto ssaoCBAddress = currFrame->mSsaoCB->Resource()->GetGPUVirtualAddress();
     cmdList->SetGraphicsRootConstantBufferView(0, ssaoCBAddress);
     cmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 
@@ -215,7 +225,7 @@ void Ssao::ComputeSsao(
 void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount) {
     cmdList->SetPipelineState(mBlurPso);
 
-    auto ssaoCBAddress = currFrame->SsaoCB->Resource()->GetGPUVirtualAddress();
+    auto ssaoCBAddress = currFrame->mSsaoCB->Resource()->GetGPUVirtualAddress();
     cmdList->SetGraphicsRootConstantBufferView(0, ssaoCBAddress);
  
     for(int i = 0; i < blurCount; ++i) {
@@ -271,7 +281,7 @@ void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur) {
         D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
  
-void Ssao::BuildResources() {
+DxResult Ssao::BuildResources() {
 	// Free the old resources if they exist.
     mNormalMap = nullptr;
     mAmbientMap0 = nullptr;
@@ -294,7 +304,7 @@ void Ssao::BuildResources() {
 
     float normalClearColor[] = { 0.0f, 0.0f, 1.0f, 0.0f };
     CD3DX12_CLEAR_VALUE optClear(NormalMapFormat, normalClearColor);
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
+    ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
@@ -310,7 +320,7 @@ void Ssao::BuildResources() {
     float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
     optClear = CD3DX12_CLEAR_VALUE(AmbientMapFormat, ambientClearColor);
 
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
+   ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
@@ -318,16 +328,18 @@ void Ssao::BuildResources() {
         &optClear,
         IID_PPV_ARGS(&mAmbientMap0)));
 
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
+   ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &optClear,
         IID_PPV_ARGS(&mAmbientMap1)));
+
+	return DxResult(S_OK);
 }
 
-void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
+DxResult Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
     D3D12_RESOURCE_DESC texDesc;
     ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -342,7 +354,7 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
     texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
+    ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &texDesc,
@@ -358,7 +370,7 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
     const UINT num2DSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mRandomVectorMap.Get(), 0, num2DSubresources);
 
-    ThrowIfFailed(md3dDevice->CreateCommittedResource(
+	ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
         D3D12_HEAP_FLAG_NONE,
         &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
@@ -393,6 +405,8 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
 		0, 0, num2DSubresources, &subResourceData);
     cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mRandomVectorMap.Get(),
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+	return DxResult(S_OK);
 }
  
 void Ssao::BuildOffsetVectors() {

@@ -35,7 +35,7 @@ private:
 	GameWorld& operator=(GameWorld&& rhs) = delete;
 
 public:
-	bool Initialize();
+	DxResult Initialize();
 	bool LoadData();
 	void UnloadData();
 	int RunLoop();
@@ -83,7 +83,7 @@ private:
 #endif 
 	void Draw(const GameTimer& gt);
 
-	bool InitMainWindow();
+	DxResult InitMainWindow();
 	void OnResize();
 	void CalculateFrameStats();
 

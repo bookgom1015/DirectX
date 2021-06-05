@@ -20,9 +20,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 	try {
 		GameWorld game(hInstance);
-	
-		if (!game.Initialize())
-			return 0;
+
+		DxResult result = game.Initialize();
+		if (result.hr != S_OK) {
+			MessageBox(nullptr, result.msg.c_str(), L"Failed", MB_OK);
+		}
 
 		int status = game.RunLoop();
 
@@ -63,19 +65,17 @@ GameWorld::GameWorld(HINSTANCE hInstance)
 
 GameWorld::~GameWorld() {}
 
-bool GameWorld::Initialize() {
-	if (!InitMainWindow())
-		return false;
+DxResult GameWorld::Initialize() {
+	CheckDxResult(InitMainWindow());
 	
-	if (!mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight))
-		return false;
-
+	CheckDxResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
+	
 	if (!mAudioSystem->Initialize())
-		return false;
+		return DxResult(S_FALSE, L"");
 	mAudioSystem->SetBusVolume("bus:/", 0.0f);
 
 	if (!mInputSystem->Initialize(mhMainWnd))
-		return false;
+		return DxResult(S_FALSE, L"");
 
 	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
@@ -88,7 +88,7 @@ bool GameWorld::Initialize() {
 	bMTUpdatingActors.resize(numProcessors);
 #endif
 
-	return true;
+	return DxResult(S_OK, L"");
 }
 
 bool GameWorld::LoadData() {
@@ -146,15 +146,16 @@ bool GameWorld::LoadData() {
 
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
-	for (int i = -1; i <= 1; ++i) {
-		for (int j = -1; j <= 1; ++j) {
+	int numTrees = 7;
+	for (int i = -numTrees; i <= numTrees; ++i) {
+		for (int j = -numTrees; j <= numTrees; ++j) {
 			if (i == 0 && j == 0)
 				continue;
 	
 			treeActor = new Actor();
 	
 			XMVECTOR pos = XMVectorSet(static_cast<float>(12 * i), 0.0f, static_cast<float>(12 * j), 1.0f);
-			XMVECTOR offset = XMVectorSet(16.0f * MathHelper::RandF() - 8.0f, 0.0f, 16.0f * MathHelper::RandF() - 8.0f, 0.0f);
+			XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
 	
 			treeActor->SetPosition(pos + offset);
 			treeActor->SetQuaternion(XMQuaternionRotationAxis(
@@ -326,6 +327,8 @@ void GameWorld::AddActor(Actor* inActor) {
 	else
 		mMTActors[mNextThreadId].push_back(inActor);
 	++mNextThreadId;
+	if (mNextThreadId >= mThreads.size())
+		mNextThreadId = 0;
 	mAddingActorMutex.unlock();
 #else
 	if (bUpdatingActors)
@@ -515,7 +518,7 @@ void GameWorld::Draw(const GameTimer& gt) {
 	mRenderer->Draw(gt);
 }
 
-bool GameWorld::InitMainWindow() {
+DxResult GameWorld::InitMainWindow() {
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWndProc;
@@ -528,10 +531,8 @@ bool GameWorld::InitMainWindow() {
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"MainWnd";
 
-	if (!RegisterClass(&wc)) {
-		MessageBox(0, L"RegisterClass Failed", 0, 0);
-		return false;
-	}
+	if (!RegisterClass(&wc))
+		return DxResult(S_FALSE, L"RegisterClass Failed");
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
 	RECT R = { 0, 0, (LONG)mClientWidth, (LONG)mClientHeight };
@@ -547,15 +548,13 @@ bool GameWorld::InitMainWindow() {
 
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
 		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
-	if (!mhMainWnd) {
-		MessageBox(0, L"CreateWindow Failed", 0, 0);
-		return false;
-	}
+	if (!mhMainWnd)
+		return DxResult(S_FALSE, L"CreateWindow Failed");
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
 
-	return true;
+	return DxResult(S_OK, L"");
 }
 
 LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {

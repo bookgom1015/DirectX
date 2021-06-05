@@ -18,10 +18,17 @@
 #define NUM_SPOT_LIGHTS 0
 #endif
 
-#define MAX_INSTANCE_DATA 32
+#define MAX_INSTANCE_DATA 64
 
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
+
+struct InstanceIdxData {
+	uint InstIdx;
+	uint InstIdxPad0;
+	uint InstIdxPad1;
+	uint InstIdxPad2;
+};
 
 struct InstanceData {
 	float4x4 World;
@@ -56,8 +63,9 @@ Texture2D gAnimationsDataMap					: register(t68);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
-StructuredBuffer<InstanceData> gInstanceData	: register(t0, space1);
-StructuredBuffer<MaterialData> gMaterialData	: register(t1, space1);
+StructuredBuffer<InstanceIdxData> gInstIdxData	: register(t0, space1);
+StructuredBuffer<InstanceData> gInstanceData	: register(t1, space1);
+StructuredBuffer<MaterialData> gMaterialData	: register(t2, space1);
 
 SamplerState gsamPointWrap						: register(s0);
 SamplerState gsamPointClamp						: register(s1);

@@ -27,18 +27,17 @@ bool LowRenderer::IsValid() const {
 	return md3dDevice != nullptr;
 }
 
-bool LowRenderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
+DxResult LowRenderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	mhMainWnd = hMainWnd;
 	mClientWidth = inWidth;
 	mClientHeight = inHeight;
 
-	if (!InitDirect3D())
-		return false;
+	CheckDxResult(InitDirect3D());
 
 	// Do the initial resize case
 	OnResize(inWidth, inHeight);
 
-	return true;
+	return DxResult(S_OK, L"");
 }
 
 void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
@@ -120,20 +119,22 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	mScissorRect = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
 }
 
-void LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
+DxResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
+	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
+	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
+
+	return DxResult(S_OK);
 }
 
 void LowRenderer::FlushCommandQueue() {
@@ -170,7 +171,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE LowRenderer::DepthStencilView() const {
 	return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-bool LowRenderer::InitDirect3D() {
+DxResult LowRenderer::InitDirect3D() {
 #if defined(_DEBUG) 
 	// Enable the D3D12 debug layer
 	{
@@ -180,7 +181,7 @@ bool LowRenderer::InitDirect3D() {
 	}
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
+	ReturnIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
 
 	// Try to create hardware device
 	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));
@@ -188,12 +189,12 @@ bool LowRenderer::InitDirect3D() {
 	// Fallback to WARP device
 	if (FAILED(hardwareResult)) {
 		ComPtr<IDXGIAdapter> pWarpAdapter;
-		ThrowIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
+		ReturnIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
 
-		ThrowIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));
+		ReturnIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice)));
 	}
 
-	ThrowIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+	ReturnIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
 	mRtvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -206,8 +207,13 @@ bool LowRenderer::InitDirect3D() {
 	msQualityLevels.SampleCount = 4;
 	msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	msQualityLevels.NumQualityLevels = 0;
-	ThrowIfFailed(md3dDevice->CheckFeatureSupport(
-		D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
+	ReturnIfFailed(
+		md3dDevice->CheckFeatureSupport(
+			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, 
+			&msQualityLevels, 
+			sizeof(msQualityLevels)
+		)
+	);
 	
 #if defined(_DEBUG)
 	LogAdapters();
@@ -217,7 +223,7 @@ bool LowRenderer::InitDirect3D() {
 	CreateSwapChain();
 	CreateRtvAndDsvDescriptorHeaps();
 
-	return true;
+	return DxResult(S_OK, L"");
 }
 
 void LowRenderer::CreateCommandObjects() {

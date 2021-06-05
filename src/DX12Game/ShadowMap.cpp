@@ -12,8 +12,12 @@ ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height) {
 
 	mViewport = { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f };
 	mScissorRect = { 0, 0, (int)width, (int)height };
+}
 
-	BuildResource();
+DxResult ShadowMap::Initialize() {
+	CheckDxResult(BuildResource());
+
+	return DxResult(S_OK);
 }
 
 UINT ShadowMap::Width() const {
@@ -56,16 +60,18 @@ void ShadowMap::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	BuildDescriptors();
 }
 
-void ShadowMap::OnResize(UINT newWidth, UINT newHeight) {
+DxResult ShadowMap::OnResize(UINT newWidth, UINT newHeight) {
 	if((mWidth != newWidth) || (mHeight != newHeight)) {
 		mWidth = newWidth;
 		mHeight = newHeight;
 
-		BuildResource();
+		CheckDxResult(BuildResource());
 
 		// New resource, so we need new descriptors to that resource.
 		BuildDescriptors();
 	}
+
+	return DxResult(S_OK);
 }
  
 void ShadowMap::BuildDescriptors() {
@@ -89,7 +95,7 @@ void ShadowMap::BuildDescriptors() {
 	md3dDevice->CreateDepthStencilView(mShadowMap.Get(), &dsvDesc, mhCpuDsv);
 }
 
-void ShadowMap::BuildResource() {
+DxResult ShadowMap::BuildResource() {
 	// Note, compressed formats cannot be used for UAV.  We get error like:
 	// ERROR: ID3D11Device::CreateTexture2D: The format (0x4d, BC3_UNORM) 
 	// cannot be bound as an UnorderedAccessView, or cast to a format that
@@ -115,11 +121,13 @@ void ShadowMap::BuildResource() {
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = 0;
 
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
 		&optClear,
 		IID_PPV_ARGS(&mShadowMap)));
+
+	return DxResult(S_OK);
 }

@@ -11,11 +11,15 @@ namespace {
 
 AnimationsMap::AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
 	md3dDevice = inDevice;
-	mCommandList = inCmdList;
+	mCommandList = inCmdList;	
+}
 
+DxResult AnimationsMap::Initialize() {
 	mAnimations.resize(LineSize * LineSize);
 
-	BuildResource();
+	CheckDxResult(BuildResource());
+
+	return DxResult(S_OK);
 }
 
 UINT AnimationsMap::AddAnimation(const std::string& inClipName, 
@@ -83,7 +87,7 @@ double AnimationsMap::GetInvLineSize() const {
 	return InvLineSize;
 }
 
-void AnimationsMap::BuildResource() {
+DxResult AnimationsMap::BuildResource() {
 	// Free the old resources if they exist.
 	mAnimsMap = nullptr;
 
@@ -101,7 +105,7 @@ void AnimationsMap::BuildResource() {
 	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
@@ -117,13 +121,18 @@ void AnimationsMap::BuildResource() {
 	mNumSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
 	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mAnimsMap.Get(), 0, mNumSubresources);
 
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())));
+	ReturnIfFailed(
+		md3dDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())
+		)
+	);
+
+	return DxResult(S_OK);
 }
 
 void AnimationsMap::BuildDescriptors() {

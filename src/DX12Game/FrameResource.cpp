@@ -3,124 +3,160 @@
 
 using namespace DirectX;
 
-ObjectConstants::ObjectConstants() {
-	InstanceIndex = 0;
-	ObjectPad0 = 0;
-	ObjectPad1 = 0;
-	ObjectPad2 = 0;
+ObjectConstants::ObjectConstants(UINT inInstanceIndex /* = 0 */) {
+	mInstanceIndex = inInstanceIndex;
+	mObjectPad0 = 0;
+	mObjectPad1 = 0;
+	mObjectPad2 = 0;
 }
 
-InstanceData::InstanceData() {
-	World = MathHelper::Identity4x4();
-	TexTransform = MathHelper::Identity4x4();
-	TimePos = 0.0f;
-	MaterialIndex = 0;
-	AnimClipIndex = 0;
-	State = EInstanceDataState::EID_Visible;
+InstanceIdxData::InstanceIdxData(UINT inIdx /* = 0 */) {
+	mInstanceIdx = inIdx;
+	mInstIdxPad0 = 0;
+	mInstIdxPad1 = 0;
+	mInstIdxPad2 = 0;
 }
 
-InstanceData::InstanceData(const DirectX::XMFLOAT4X4& inWorld, const DirectX::XMFLOAT4X4& inTexTransform,
-	float inTimePos, UINT inMaterialIndex, UINT inAnimClipIndex) {
+InstanceData::InstanceData(
+	const DirectX::XMFLOAT4X4& inWorld			/* = MathHelper::Identity4x4() */,
+	const DirectX::XMFLOAT4X4& inTexTransform	/* = MathHelper::Identity4x4() */,
+	float inTimePos								/* = 0.0f */,
+	UINT inMaterialIndex						/* = 0 */, 
+	UINT inAnimClipIndex						/* = 0 */,
+	EInstanceRenderState inRenderState /* = EInstanceRenderState::EID_Visible */) {
 
-	World = inWorld;
-	TexTransform = inTexTransform;
-	TimePos = inTimePos;
-	MaterialIndex = inMaterialIndex;
-	AnimClipIndex = inAnimClipIndex;
-	State = 0;
+	mWorld = inWorld;
+	mTexTransform = inTexTransform;
+	mTimePos = inTimePos;
+	mMaterialIndex = inMaterialIndex;
+	mAnimClipIndex = inAnimClipIndex;
+	mRenderState = inRenderState;
+
+	SetNumFramesDirty(gNumFrameResources);
+}
+
+void InstanceData::SetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
+	inRenderState |= inTargetState;
+}
+
+void InstanceData::UnsetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
+	inRenderState &= ~inTargetState;
+}
+
+bool InstanceData::IsMatched(UINT inRenderState, EInstanceRenderState inTargetState) {
+	return (inRenderState & inTargetState) != 0;
+}
+
+bool InstanceData::IsUnmatched(UINT inRenderState, EInstanceRenderState inTargetState) {
+	return (inRenderState & inTargetState) == 0;
+}
+
+namespace {
+	const UINT BitShift = 16;
+	const UINT DecreaseOne = 1 << BitShift;
+}
+
+UINT InstanceData::GetNumFramesDirty() const {
+	return (mRenderState >> BitShift);
+}
+
+void InstanceData::SetNumFramesDirty(UINT inNum) {
+	mRenderState |= (inNum << BitShift);
+}
+
+void InstanceData::DecreaseNumFramesDirty() {
+	//mRenderState -= DecreaseOne;
 }
 
 PassConstants::PassConstants() {
-	View = MathHelper::Identity4x4();
-	InvView = MathHelper::Identity4x4();
-	Proj = MathHelper::Identity4x4();
-	InvProj = MathHelper::Identity4x4();
-	ViewProj = MathHelper::Identity4x4();
-	InvViewProj = MathHelper::Identity4x4();
-	ViewProjTex = MathHelper::Identity4x4();
-	ShadowTransform = MathHelper::Identity4x4();
-	EyePosW = { 0.0f, 0.0f, 0.0f };
-	cbPerObjectPad1 = 0.0f;
-	RenderTargetSize = { 0.0f, 0.0f };
-	InvRenderTargetSize = { 0.0f, 0.0f };
-	NearZ = 0.0f;
-	FarZ = 0.0f;
-	TotalTime = 0.0f;
-	DeltaTime = 0.0f;
+	mView = MathHelper::Identity4x4();
+	mInvView = MathHelper::Identity4x4();
+	mProj = MathHelper::Identity4x4();
+	mInvProj = MathHelper::Identity4x4();
+	mViewProj = MathHelper::Identity4x4();
+	mInvViewProj = MathHelper::Identity4x4();
+	mViewProjTex = MathHelper::Identity4x4();
+	mShadowTransform = MathHelper::Identity4x4();
+	mEyePosW = { 0.0f, 0.0f, 0.0f };
+	mCBPerObjectPad1 = 0.0f;
+	mRenderTargetSize = { 0.0f, 0.0f };
+	mInvRenderTargetSize = { 0.0f, 0.0f };
+	mNearZ = 0.0f;
+	mFarZ = 0.0f;
+	mTotalTime = 0.0f;
+	mDeltaTime = 0.0f;
 
-	AmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
+	mAmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
 SsaoConstants::SsaoConstants() {
-	InvRenderTargetSize = { 0.0f, 0.0f };
+	mInvRenderTargetSize = { 0.0f, 0.0f };
 
-	OcclusionRadius = 0.5f;
-	OcclusionFadeStart = 0.2f;
-	OcclusionFadeEnd = 2.0f;
-	SurfaceEpsilon = 0.05f;
+	mOcclusionRadius = 0.5f;
+	mOcclusionFadeStart = 0.2f;
+	mOcclusionFadeEnd = 2.0f;
+	mSurfaceEpsilon = 0.05f;
 }
 
 MaterialData::MaterialData() {
-	DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	FresnelR0 = { 0.01f, 0.01f, 0.01f };
-	Roughness = 64.0f;
+	mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+	mFresnelR0 = { 0.01f, 0.01f, 0.01f };
+	mRoughness = 64.0f;
 
-	MatTransform = MathHelper::Identity4x4();
+	mMatTransform = MathHelper::Identity4x4();
 }
 
-Vertex::Vertex() {
-	Pos = { 0.0f, 0.0f, 0.0f };
-	Normal = { 0.0f, 0.0f, 0.0f };
-	TexC = { 0.0f, 0.0f };
-	TangentU = { 0.0f, 0.0f, 0.0f };
-}
+Vertex::Vertex(
+	XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */,
+	XMFLOAT3 inNormal	/* = { 0.0f, 0.0f, 0.0f } */, 
+	XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
+	XMFLOAT3 inTangent	/* = { 0.0f, 0.0f, 0.0f } */) {
 
-Vertex::Vertex(XMFLOAT3 inPos, XMFLOAT3 inNormal, XMFLOAT2 inTexC, XMFLOAT3 inTangent) {
-	Pos = inPos;
-	Normal = inNormal;
-	TexC = inTexC;
-	TangentU = inTangent;
+	mPos = inPos;
+	mNormal = inNormal;
+	mTexC = inTexC;
+	mTangentU = inTangent;
 }
 
 bool operator==(const Vertex& lhs, const Vertex& rhs) {
-	return MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-		MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-		MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-		MathHelper::IsEqual(lhs.TangentU, rhs.TangentU);
+	return MathHelper::IsEqual(lhs.mPos,		rhs.mPos)		&&
+		   MathHelper::IsEqual(lhs.mNormal,		rhs.mNormal)	&&
+		   MathHelper::IsEqual(lhs.mTexC,		rhs.mTexC)		&&
+		   MathHelper::IsEqual(lhs.mTangentU,	rhs.mTangentU);
 }
 
 SkinnedVertex::SkinnedVertex() {
-	Pos = { 0.0f, 0.0f, 0.0f };
-	Normal = { 0.0f, 0.0f, 0.0f };
-	TexC = { 0.0f, 0.0f };
-	TangentU = { 0.0f, 0.0f, 0.0f };
-	BoneWeights0 = { 0.0f, 0.0f, 0.0f, 0.0f };
-	BoneWeights1 = { 0.0f, 0.0f, 0.0f, 0.0f };
-	for (auto& index : BoneIndices0)
+	mPos = { 0.0f, 0.0f, 0.0f };
+	mNormal = { 0.0f, 0.0f, 0.0f };
+	mTexC = { 0.0f, 0.0f };
+	mTangentU = { 0.0f, 0.0f, 0.0f };
+	mBoneWeights0 = { 0.0f, 0.0f, 0.0f, 0.0f };
+	mBoneWeights1 = { 0.0f, 0.0f, 0.0f, 0.0f };
+	for (auto& index : mBoneIndices0)
 		index = -1;
-	for (auto& index : BoneIndices1)
+	for (auto& index : mBoneIndices1)
 		index = -1;
 }
 
 SkinnedVertex::SkinnedVertex(XMFLOAT3 inPos, XMFLOAT3 inNormal, XMFLOAT2 inTexC, XMFLOAT3 inTangent) {
-	Pos = inPos;
-	Normal = inNormal;
-	TexC = inTexC;
-	TangentU = inTangent;
+	mPos = inPos;
+	mNormal = inNormal;
+	mTexC = inTexC;
+	mTangentU = inTangent;
 }
 
 bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
-	bool bResult = MathHelper::IsEqual(lhs.Pos, rhs.Pos) &&
-		MathHelper::IsEqual(lhs.Normal, rhs.Normal) &&
-		MathHelper::IsEqual(lhs.TexC, rhs.TexC) &&
-		MathHelper::IsEqual(lhs.TangentU, rhs.TangentU) &&
-		MathHelper::IsEqual(lhs.BoneWeights0, rhs.BoneWeights0) &&
-		MathHelper::IsEqual(lhs.BoneWeights1, rhs.BoneWeights1);
+	bool bResult = MathHelper::IsEqual(lhs.mPos,			rhs.mPos)			&&
+				   MathHelper::IsEqual(lhs.mNormal,			rhs.mNormal)		&&
+				   MathHelper::IsEqual(lhs.mTexC,			rhs.mTexC)			&&
+				   MathHelper::IsEqual(lhs.mTangentU,		rhs.mTangentU)		&&
+				   MathHelper::IsEqual(lhs.mBoneWeights0,	rhs.mBoneWeights0)	&&
+				   MathHelper::IsEqual(lhs.mBoneWeights1,	rhs.mBoneWeights1);
 	if (!bResult)
 		return false;
 
 	for (size_t i = 0; i < 4; ++i) {
-		if (lhs.BoneIndices0[i] != rhs.BoneIndices0[i] || lhs.BoneIndices1[i] != rhs.BoneIndices1[i])
+		if (lhs.mBoneIndices0[i] != rhs.mBoneIndices0[i] || lhs.mBoneIndices1[i] != rhs.mBoneIndices1[i])
 			return false;
 	}
 
@@ -128,15 +164,29 @@ bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
 }
 
 FrameResource::FrameResource(ID3D12Device* inDevice, 
-	UINT inPassCount, UINT inObjectCount, UINT inMaxInstanceCount, UINT inMaterialCount) {
+	UINT inPassCount, UINT inObjectCount, UINT inMaxInstanceCount, UINT inMaterialCount) 
+	: mPassCount(inPassCount), 
+	  mObjectCount(inObjectCount), 
+	  mMaxInstanceCount(inMaxInstanceCount), 
+	  mMaterialCount(inMaterialCount) {
 
-    ThrowIfFailed(inDevice->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(CmdListAlloc.GetAddressOf())));
+	mDevice = inDevice;
+}
 
-    PassCB = std::make_unique<UploadBuffer<PassConstants>>(inDevice, inPassCount, true);
-	ObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(inDevice, inObjectCount, true);
-	SsaoCB = std::make_unique<UploadBuffer<SsaoConstants>>(inDevice, 1, true);
-	MaterialBuffer = std::make_unique<UploadBuffer<MaterialData>>(inDevice, inMaterialCount, false);
-	InstanceBuffer = std::make_unique<UploadBuffer<InstanceData>>(inDevice, inObjectCount * inMaxInstanceCount, false);
+DxResult FrameResource::Initialize() {
+	ReturnIfFailed(
+		mDevice->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(mCmdListAlloc.GetAddressOf())
+		)
+	);
+
+	mPassCB = std::make_unique<UploadBuffer<PassConstants>>(mDevice, mPassCount, true);
+	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(mDevice, mObjectCount, true);
+	mSsaoCB = std::make_unique<UploadBuffer<SsaoConstants>>(mDevice, 1, true);
+	mMaterialBuffer = std::make_unique<UploadBuffer<MaterialData>>(mDevice, mMaterialCount, false);
+	mInstanceIdxBuffer = std::make_unique<UploadBuffer<InstanceIdxData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
+	mInstanceBuffer = std::make_unique<UploadBuffer<InstanceData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
+
+	return DxResult(S_OK);
 }

@@ -8,6 +8,8 @@ public:
 	virtual ~AnimationsMap() = default;
 
 public:
+	DxResult Initialize();
+
 	UINT AddAnimation(const std::string& inClipName, const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves);
 
 	void BuildDescriptors(
@@ -23,7 +25,7 @@ public:
 	double GetInvLineSize() const;
 
 private:
-	void BuildResource();
+	DxResult BuildResource();
 	void BuildDescriptors();
 
 public:

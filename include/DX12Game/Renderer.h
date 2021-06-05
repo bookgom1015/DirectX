@@ -29,77 +29,85 @@ private:
 	// Lightweight structure stores parameters to draw a shape.  This will
 	//  vary from app-to-app.
 	struct RenderItem {
-		RenderItem() = default;
-		RenderItem(const RenderItem& rhs) = delete;
-
+	public:
 		// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
-		int ObjCBIndex = -1;
+		int mObjCBIndex = -1;
 
-		Material* Mat = nullptr;
-		MeshGeometry* Geo = nullptr;
+		Material* mMat = nullptr;
+		MeshGeometry* mGeo = nullptr;
 
 		// Primitive topology.
-		D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		D3D12_PRIMITIVE_TOPOLOGY mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-		DirectX::BoundingBox AABB;
-		DirectX::BoundingOrientedBox OBB;
-		DirectX::BoundingSphere Sphere;
+		DirectX::BoundingBox mAABB;
+		DirectX::BoundingOrientedBox mOBB;
+		DirectX::BoundingSphere mSphere;
 
-		std::vector<InstanceData> Instances;
+		std::vector<InstanceData> mInstances;
 
 		// DrawIndexedInstanced parameters.
-		UINT IndexCount = 0;
-		UINT StartIndexLocation = 0;
-		UINT BaseVertexLocation = 0;
+		UINT mIndexCount = 0;
+		UINT mStartIndexLocation = 0;
+		UINT mBaseVertexLocation = 0;
 
-		UINT NumInstancesToDraw = 0;
+		UINT mNumInstancesToDraw = 0;
+
+	public:
+		RenderItem() = default;
+		
+	private:
+		RenderItem(const RenderItem& src) = delete;
+		RenderItem(RenderItem&& src) = delete;
+		RenderItem& operator=(const RenderItem& rhs) = delete;
+		RenderItem& operator=(RenderItem&& rhs) = delete;
 	};
 
 	struct RootParameterIndices {
-		UINT ObjectCBIndex;
-		UINT PassCBIndex;
-		UINT InstBufferIndex;
-		UINT MatBufferIndex;
-		UINT MiscTextureMapIndex;
-		UINT TextureMapIndex;
-		UINT AnimationsMapIndex;
+		UINT mObjectCBIndex;
+		UINT mPassCBIndex;
+		UINT mInstIdxBufferIndex;
+		UINT mInstBufferIndex;
+		UINT mMatBufferIndex;
+		UINT mMiscTextureMapIndex;
+		UINT mTextureMapIndex;
+		UINT mAnimationsMapIndex;
 	};
 
 	struct DescriptorHeapIndices {
-		UINT SkyTexHeapIndex;
-		UINT BlurSkyTexHeapIndex;
-		UINT ShadowMapHeapIndex;
-		UINT SsaoHeapIndexStart;
-		UINT SsaoAmbientMapIndex;
-		UINT AnimationsMapIndex;
-		UINT NullCubeSrvIndex;
-		UINT NullBlurCubeSrvIndex;
-		UINT NullTexSrvIndex1;
-		UINT NullTexSrvIndex2;
-		UINT DefaultFontIndex;
-		UINT CurrSrvHeapIndex;
+		UINT mSkyTexHeapIndex;
+		UINT mBlurSkyTexHeapIndex;
+		UINT mShadowMapHeapIndex;
+		UINT mSsaoHeapIndexStart;
+		UINT mSsaoAmbientMapIndex;
+		UINT mAnimationsMapIndex;
+		UINT mNullCubeSrvIndex;
+		UINT mNullBlurCubeSrvIndex;
+		UINT mNullTexSrvIndex1;
+		UINT mNullTexSrvIndex2;
+		UINT mDefaultFontIndex;
+		UINT mCurrSrvHeapIndex;
 	};
 
 	struct LightingVariables {
-		float LightNearZ = 0.0f;
-		float LightFarZ = 0.0f;
+		float mLightNearZ = 0.0f;
+		float mLightFarZ = 0.0f;
 
-		DirectX::XMFLOAT3 LightPosW;
-		DirectX::XMFLOAT4X4 LightView = MathHelper::Identity4x4();
-		DirectX::XMFLOAT4X4 LightProj = MathHelper::Identity4x4();
-		DirectX::XMFLOAT4X4 ShadowTransform = MathHelper::Identity4x4();
+		DirectX::XMFLOAT3 mLightPosW;
+		DirectX::XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
+		DirectX::XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
 
-		float LightRotationAngle = 0.0f;
-		DirectX::XMFLOAT3 BaseLightStrengths[3] = {
+		float mLightRotationAngle = 0.0f;
+		DirectX::XMFLOAT3 mBaseLightStrengths[3] = {
 			DirectX::XMFLOAT3(0.7f, 0.6670f, 0.6423f),
 			DirectX::XMFLOAT3(0.4f, 0.3811f, 0.367f),
 			DirectX::XMFLOAT3(0.1f, 0.0952f, 0.0917f)
 		};
 
-		DirectX::XMFLOAT3 BaseLightDirections[3] = {
-			DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
+		DirectX::XMFLOAT3 mBaseLightDirections[3] = {
+			DirectX::XMFLOAT3( 0.57735f, -0.57735f,	 0.57735f),
+			DirectX::XMFLOAT3(-0.57735f, -0.57735f,	 0.57735f),
+			DirectX::XMFLOAT3( 0.0f,	 -0.707f,	-0.707f)
 		};
 	};
 
@@ -117,9 +125,9 @@ private:
 	Renderer& operator=(Renderer&& rhs) = delete;
 
 public:
-	virtual bool Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) override;
-	virtual void Update(const GameTimer& gt) override;
-	virtual void Draw(const GameTimer& gt) override;
+	virtual DxResult Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) override;
+	virtual DxResult Update(const GameTimer& gt) override;
+	virtual DxResult Draw(const GameTimer& gt) override;
 	virtual void OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
 	void UpdateWorldTransform(const std::string& inRenderItemName, 
@@ -130,12 +138,12 @@ public:
 	void SetVisible(const std::string& inRenderItemName, bool inState);
 	void SetSkeletonVisible(const std::string& inRenderItemName, bool inState);
 
-	void AddGeometry(const Mesh* inMesh);
+	DxResult AddGeometry(const Mesh* inMesh);
 	void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh);
-	void AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
-	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
+	DxResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
-	void UpdateAnimationsMap();
+	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
+	DxResult UpdateAnimationsMap();
 
 	void AddOutputText(const std::wstring& inText, float inX, float inY, float inScale, const std::string& inNameId);
 	void RemoveOutputText(const std::string& inName);
@@ -149,19 +157,19 @@ public:
 	virtual bool IsValid() const override;
 
 protected:
-	virtual void CreateRtvAndDsvDescriptorHeaps() override;
+	virtual DxResult CreateRtvAndDsvDescriptorHeaps() override;
 
 private:
 	void DrawTexts();
 	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
-	void LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
-	void LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
+	DxResult LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
+	DxResult LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 
-	void AddSkeletonGeometry(const Mesh* inMesh);
+	DxResult AddSkeletonGeometry(const Mesh* inMesh);
 	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
-	void AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
-	void AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	DxResult AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	DxResult AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
@@ -171,16 +179,16 @@ private:
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateSsaoCB(const GameTimer& gt);
 
-	void LoadBasicTextures();
-	void BuildRootSignature();
-	void BuildSsaoRootSignature();
-	void BuildDescriptorHeaps();
+	DxResult LoadBasicTextures();
+	DxResult BuildRootSignature();
+	DxResult BuildSsaoRootSignature();
+	DxResult BuildDescriptorHeaps();
 	void BuildShadersAndInputLayout();
-	void BuildBasicGeometry();
+	DxResult BuildBasicGeometry();
 	void BuildBasicRenderItems();
 	void BuildBasicMaterials();
-	void BuildPSOs();
-	void BuildFrameResources();
+	DxResult BuildPSOs();
+	DxResult BuildFrameResources();
 
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std::vector<RenderItem*>& inRitems);
 

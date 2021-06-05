@@ -22,13 +22,13 @@ protected:
 
 	virtual bool IsValid() const;
 
-	virtual bool Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight);
-	virtual void Update(const GameTimer& gt) = 0;
-	virtual void Draw(const GameTimer& gt) = 0;
+	virtual DxResult Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight);
+	virtual DxResult Update(const GameTimer& gt) = 0;
+	virtual DxResult Draw(const GameTimer& gt) = 0;
 
 	virtual void OnResize(UINT inClientWidth, UINT inClientHeight);
 
-	virtual void CreateRtvAndDsvDescriptorHeaps();
+	virtual DxResult CreateRtvAndDsvDescriptorHeaps();
 
 	void FlushCommandQueue();
 
@@ -37,7 +37,7 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 private:
-	bool InitDirect3D();
+	DxResult InitDirect3D();
 	void CreateCommandObjects();
 	void CreateSwapChain();
 

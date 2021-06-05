@@ -4,8 +4,8 @@
 
 #pragma once
  
+#include "DX12Game/GameCore.h"
 #include "DX12Game/FrameResource.h"
-#include "common/d3dUtil.h"
 
 class Ssao {
 public:
@@ -21,6 +21,8 @@ private:
 	Ssao& operator=(Ssao&& rhs) = delete;
 
 public:
+	DxResult Initialize();
+
 	UINT SsaoMapWidth() const;
     UINT SsaoMapHeight() const;
 
@@ -50,7 +52,7 @@ public:
 	///<summary>
 	/// Call when the backbuffer is resized.  
 	///</summary>
-	void OnResize(UINT newWidth, UINT newHeight);
+	DxResult OnResize(UINT newWidth, UINT newHeight);
   
     ///<summary>
     /// Changes the render target to the Ambient render target and draws a fullscreen
@@ -72,8 +74,8 @@ private:
 	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount);
 	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur);
 
-	void BuildResources();
-	void BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList);
+	DxResult BuildResources();
+	DxResult BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList);
 
 	void BuildOffsetVectors();
  
@@ -85,6 +87,10 @@ public:
 
 private:
 	ID3D12Device* md3dDevice;
+	ID3D12GraphicsCommandList* mCmdList;
+
+	UINT mWidth;
+	UINT mHeight;
 
     Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSig;
     
