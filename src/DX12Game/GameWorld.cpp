@@ -252,7 +252,7 @@ int GameWorld::GameLoop() {
 		}
 	}
 
-	return (int)msg.wParam;
+	return static_cast<int>(msg.wParam);
 }
 #else
 int GameWorld::MTGameLoop() {
@@ -263,7 +263,7 @@ int GameWorld::MTGameLoop() {
 
 	mTimer.Reset();
 
-	UINT numProcessors = (UINT)ThreadUtil::GetNumberOfProcessors();
+	UINT numProcessors = static_cast<UINT>(ThreadUtil::GetNumberOfProcessors());
 	CVBarrier barrier(numProcessors);
 
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
@@ -314,7 +314,7 @@ int GameWorld::MTGameLoop() {
 	for (UINT i = 0, end = numProcessors - 1; i < end; ++i)
 		mThreads[i].join();
 
-	return (int)msg.wParam;
+	return static_cast<int>(msg.wParam);
 }
 #endif
 
@@ -527,7 +527,7 @@ DxResult GameWorld::InitMainWindow() {
 	wc.hInstance = mhInst;
 	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
 	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"MainWnd";
 
@@ -535,7 +535,7 @@ DxResult GameWorld::InitMainWindow() {
 		return DxResult(S_FALSE, L"RegisterClass Failed");
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
-	RECT R = { 0, 0, (LONG)mClientWidth, (LONG)mClientHeight };
+	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
@@ -656,8 +656,8 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 		// Catch this message so to prevent the window from becoming too small.
 	case WM_GETMINMAXINFO:
-		((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
-		((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
+		(reinterpret_cast<MINMAXINFO*>(lParam))->ptMinTrackSize.x = 200;
+		(reinterpret_cast<MINMAXINFO*>(lParam))->ptMinTrackSize.y = 200;
 		return 0;
 
 	case WM_LBUTTONDOWN:

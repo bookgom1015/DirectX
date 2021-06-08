@@ -14,7 +14,13 @@ void StringUtil::Log(std::initializer_list<std::string> texts) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile,
+		wsstream.str().c_str(), 
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes,
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -27,7 +33,13 @@ void StringUtil::Log(const std::string& text) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile,
+		wsstream.str().c_str(),
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes,
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -42,7 +54,13 @@ void StringUtil::Logln(std::initializer_list<std::string> texts) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile, 
+		wsstream.str().c_str(), 
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes, 
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -55,7 +73,13 @@ void StringUtil::Logln(const std::string& text) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile,
+		wsstream.str().c_str(),
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes,
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -69,7 +93,13 @@ void StringUtil::Log(std::initializer_list<std::wstring> texts) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile, 
+		wsstream.str().c_str(),
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes, 
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -82,7 +112,13 @@ void StringUtil::Log(const std::wstring& text) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile,
+		wsstream.str().c_str(), 
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes, 
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -97,7 +133,13 @@ void StringUtil::Logln(std::initializer_list<std::wstring> texts) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile, 
+		wsstream.str().c_str(), 
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes, 
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -110,7 +152,13 @@ void StringUtil::Logln(const std::wstring& text) {
 	mLogFileMutex.lock();
 
 	DWORD writtenBytes = 0;
-	WriteFile(mhLogFile, wsstream.str().c_str(), (DWORD)wsstream.str().length() * sizeof(wchar_t), &writtenBytes, NULL);
+	WriteFile(
+		mhLogFile,
+		wsstream.str().c_str(),
+		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		&writtenBytes, 
+		NULL
+	);
 
 	mLogFileMutex.unlock();
 }
@@ -121,7 +169,7 @@ void StringUtil::SetTextToWnd(HWND hWnd, LPCWSTR newText) {
 
 void StringUtil::AppendTextToWnd(HWND hWnd, LPCWSTR newText) {
 	int finalLength = GetWindowTextLength(hWnd) + lstrlen(newText) + 1;
-	wchar_t* buf = (wchar_t*)std::malloc(finalLength * sizeof(wchar_t));
+	wchar_t* buf = reinterpret_cast<wchar_t*>(std::malloc(finalLength * sizeof(wchar_t)));
 
 	GetWindowText(hWnd, buf, finalLength);
 

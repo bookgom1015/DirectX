@@ -91,7 +91,8 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	ThrowIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
-		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
+	));
 
 	// Create descriptor to mip level 0 of entire resource using the format of the resource
 	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
@@ -207,13 +208,11 @@ DxResult LowRenderer::InitDirect3D() {
 	msQualityLevels.SampleCount = 4;
 	msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 	msQualityLevels.NumQualityLevels = 0;
-	ReturnIfFailed(
-		md3dDevice->CheckFeatureSupport(
+	ReturnIfFailed(md3dDevice->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, 
 			&msQualityLevels, 
 			sizeof(msQualityLevels)
-		)
-	);
+	));
 	
 #if defined(_DEBUG)
 	LogAdapters();
@@ -233,13 +232,15 @@ void LowRenderer::CreateCommandObjects() {
 	ThrowIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
 
 	ThrowIfFailed(md3dDevice->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())));
+		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())
+	));
 
 	ThrowIfFailed(md3dDevice->CreateCommandList(
 		0, D3D12_COMMAND_LIST_TYPE_DIRECT,
 		mDirectCmdListAlloc.Get(), // Associated command allocator
 		nullptr, // Initial PipelineStateObject
-		IID_PPV_ARGS(mCommandList.GetAddressOf())));
+		IID_PPV_ARGS(mCommandList.GetAddressOf())
+	));
 
 	// Start off in a closed state.  This is because the first time we refer 
 	// to the command list we will Reset it, and it needs to be closed before

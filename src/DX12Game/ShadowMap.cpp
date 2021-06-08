@@ -10,8 +10,8 @@ ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height) {
 	mWidth = width;
 	mHeight = height;
 
-	mViewport = { 0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f };
-	mScissorRect = { 0, 0, (int)width, (int)height };
+	mViewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
+	mScissorRect = { 0, 0, static_cast<int>(width), static_cast<int>(height) };
 }
 
 DxResult ShadowMap::Initialize() {
@@ -127,7 +127,8 @@ DxResult ShadowMap::BuildResource() {
 		&texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
 		&optClear,
-		IID_PPV_ARGS(&mShadowMap)));
+		IID_PPV_ARGS(&mShadowMap)
+	));
 
 	return DxResult(S_OK);
 }

@@ -26,8 +26,8 @@ float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) 
 		animTime -= anim.mDuration;
 
 	float frameTime = static_cast<float>(animTime / anim.mFrameDuration);
-	size_t frame = (size_t)frameTime;
-	float pct = frameTime - (float)frame;
+	size_t frame = static_cast<size_t>(frameTime);
+	float pct = frameTime - static_cast<float>(frame);
 
 	return static_cast<float>(frame + pct);
 }

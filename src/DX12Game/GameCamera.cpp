@@ -251,8 +251,8 @@ void GameCamera::SetLens(float inFovY, float inAspect, float inZnear, float inZf
 	mNearZ = inZnear;
 	mFarZ = inZfar;
 
-	mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f*mFovY);
-	mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f*mFovY);
+	mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f * mFovY);
+	mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f * mFovY);
 
 	XMMATRIX P = XMMatrixPerspectiveFovLH(mFovY, mAspect, mNearZ, mFarZ);
 	XMStoreFloat4x4(&mProj, P);

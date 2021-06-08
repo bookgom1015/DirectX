@@ -233,7 +233,7 @@ namespace {
 				break;
 			}
 		}
-												  break;
+		break;
 
 		case FbxGeometryElement::eByPolygonVertex: {
 			switch (elementNormal->GetReferenceMode()) {
@@ -251,7 +251,7 @@ namespace {
 				break;
 			}
 		}
-												   break;
+		break;
 		}
 
 		return normal;
@@ -281,7 +281,7 @@ namespace {
 				break;
 			}
 		}
-												  break;
+		break;
 
 		case FbxGeometryElement::eByPolygonVertex: {
 			switch (elementTangent->GetReferenceMode()) {
@@ -299,7 +299,7 @@ namespace {
 				break;
 			}
 		}
-												   break;
+		break;
 		}
 
 		return tangent;
@@ -327,7 +327,7 @@ namespace {
 				break;
 			}
 		}
-												  break;
+		break;
 
 		case FbxGeometryElement::eByPolygonVertex: {
 			switch (elementUV->GetReferenceMode()) {
@@ -343,7 +343,7 @@ namespace {
 				break;
 			}
 		}
-												   break;
+		break;
 		}
 
 		return uv;
@@ -395,7 +395,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 				mIndices.push_back(index);
 			}
 			else {
-				const UINT index = (UINT)mVertices.size();
+				const UINT index = static_cast<UINT>(mVertices.size());
 				mIndices.push_back(index);
 				mVertices.push_back(vertex);
 			}
@@ -404,7 +404,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	mSubsets.emplace_back((UINT)vertexCounter, inPrevNumVertices);
+	mSubsets.emplace_back(static_cast<UINT>(vertexCounter), inPrevNumVertices);
 
 	return vertexCounter + inPrevNumVertices;
 }
@@ -516,7 +516,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	UINT numProcessors = (UINT)ThreadUtil::GetNumberOfProcessors();
+	UINT numProcessors = static_cast<UINT>(ThreadUtil::GetNumberOfProcessors());
 
 	std::vector<UINT> eachPolygonCounts(numProcessors);	
 	const UINT lineSize = vertexCounter / numProcessors;
@@ -598,7 +598,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 			mIndices.push_back(vertSize + index);
 	}
 
-	mSubsets.emplace_back((UINT)vertexCounter, inPrevNumVertices);
+	mSubsets.emplace_back(static_cast<UINT>(vertexCounter), inPrevNumVertices);
 
 	return vertexCounter + inPrevNumVertices;
 }
@@ -797,17 +797,46 @@ namespace {
 		const auto& r = inFbxMat.GetR();
 		const auto& t = inFbxMat.GetT();
 
-		XMVECTOR Pitch = XMQuaternionRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[0]));
-		XMVECTOR Yaw = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[1]));
-		XMVECTOR Roll = XMQuaternionRotationAxis(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[2]));
+		XMVECTOR Pitch = XMQuaternionRotationAxis(XMVectorSet(
+			1.0f, 
+			0.0f,
+			0.0f,
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[0]))
+		);
+		XMVECTOR Yaw = XMQuaternionRotationAxis(XMVectorSet(
+			0.0f,
+			1.0f,
+			0.0f, 
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[1]))
+		);
+		XMVECTOR Roll = XMQuaternionRotationAxis(XMVectorSet(
+			0.0f, 
+			0.0f,
+			1.0f,
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[2]))
+		);
 		XMVECTOR Quat = XMQuaternionMultiply(XMQuaternionMultiply(Pitch, Yaw), Roll);
 
-		XMVECTOR S = XMVectorSet((float)s.mData[0], (float)s.mData[1], (float)s.mData[2], 0.0f);
-		XMVECTOR Q = XMVectorSet(Quat.m128_f32[0], Quat.m128_f32[1], Quat.m128_f32[2], Quat.m128_f32[3]);
-		XMVECTOR T = XMVectorSet((float)t.mData[0], (float)t.mData[1], (float)t.mData[2], 1.0f);
+		XMVECTOR S = XMVectorSet(static_cast<float>(
+			s.mData[0]),
+			static_cast<float>(s.mData[1]),
+			static_cast<float>(s.mData[2]), 
+			0.0f
+		);
+		XMVECTOR Q = XMVectorSet(
+			Quat.m128_f32[0],
+			Quat.m128_f32[1],
+			Quat.m128_f32[2], 
+			Quat.m128_f32[3]
+		);
+		XMVECTOR T = XMVectorSet(
+			static_cast<float>(t.mData[0]),
+			static_cast<float>(t.mData[1]),
+			static_cast<float>(t.mData[2]), 1.0f
+		);
 		XMVECTOR Zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		XMMATRIX affine = XMMatrixAffineTransformation(S, Zero, Q, T);
 		XMStoreFloat4x4(&outDxMat, affine);
@@ -818,17 +847,47 @@ namespace {
 		const auto& r = inFbxMat.GetR();
 		const auto& t = inFbxMat.GetT();
 
-		XMVECTOR Pitch = XMQuaternionRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[0]));
-		XMVECTOR Yaw = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[1]));
-		XMVECTOR Roll = XMQuaternionRotationAxis(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
-			MathHelper::DegreesToRadians((float)r.mData[2]));
+		XMVECTOR Pitch = XMQuaternionRotationAxis(XMVectorSet(
+			1.0f,
+			0.0f,
+			0.0f,
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[0]))
+		);
+		XMVECTOR Yaw = XMQuaternionRotationAxis(XMVectorSet(
+			0.0f, 
+			1.0f,
+			0.0f,
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[1]))
+		);
+		XMVECTOR Roll = XMQuaternionRotationAxis(XMVectorSet(
+			0.0f,
+			0.0f,
+			1.0f,
+			0.0f),
+			MathHelper::DegreesToRadians(static_cast<float>(r.mData[2]))
+		);
 		XMVECTOR Quat = XMQuaternionMultiply(XMQuaternionMultiply(Pitch, Yaw), Roll);
 		
-		XMVECTOR S = XMVectorSet((float)s.mData[0], (float)s.mData[1], (float)s.mData[2], 0.0f);
-		XMVECTOR Q = XMVectorSet(Quat.m128_f32[0], Quat.m128_f32[1], Quat.m128_f32[2], Quat.m128_f32[3]);
-		XMVECTOR T = XMVectorSet((float)t.mData[0], (float)t.mData[1], (float)t.mData[2], 1.0f);
+		XMVECTOR S = XMVectorSet(
+			static_cast<float>(s.mData[0]), 
+			static_cast<float>(s.mData[1]), 
+			static_cast<float>(s.mData[2]), 
+			0.0f
+		);
+		XMVECTOR Q = XMVectorSet(
+			Quat.m128_f32[0],
+			Quat.m128_f32[1], 
+			Quat.m128_f32[2], 
+			Quat.m128_f32[3]
+		);
+		XMVECTOR T = XMVectorSet(
+			static_cast<float>(t.mData[0]),
+			static_cast<float>(t.mData[1]),
+			static_cast<float>(t.mData[2]),
+			1.0f
+		);
 		XMVECTOR Zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		
 		XMFLOAT4X4 result;
@@ -971,31 +1030,32 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 		const auto& R = localTransform.GetR();
 		const auto& S = localTransform.GetS();
 
-		float transX = (animCurveTransX != NULL) ? -animCurveTransX->Evaluate(currTime) : (float)T.mData[0];
-		float transY = (animCurveTransY != NULL) ? animCurveTransY->Evaluate(currTime)  : (float)T.mData[1];
-		float transZ = (animCurveTransZ != NULL) ? animCurveTransZ->Evaluate(currTime)  : (float)T.mData[2];
+		float transX = (animCurveTransX != NULL) ? -animCurveTransX->Evaluate(currTime) : static_cast<float>(T.mData[0]);
+		float transY = (animCurveTransY != NULL) ? animCurveTransY->Evaluate(currTime)  : static_cast<float>(T.mData[1]);
+		float transZ = (animCurveTransZ != NULL) ? animCurveTransZ->Evaluate(currTime)  : static_cast<float>(T.mData[2]);
 		FbxVector4 transVector4(transX, transY, transZ, 1.0);
 
-		float rotX = (animCurveRotX != NULL) ? animCurveRotX->Evaluate(currTime)  : (float)R.mData[0];
-		float rotY = (animCurveRotY != NULL) ? -animCurveRotY->Evaluate(currTime) : (float)R.mData[1];
-		float rotZ = (animCurveRotZ != NULL) ? -animCurveRotZ->Evaluate(currTime) : (float)R.mData[2];
+		float rotX = (animCurveRotX != NULL) ? animCurveRotX->Evaluate(currTime)  : static_cast<float>(R.mData[0]);
+		float rotY = (animCurveRotY != NULL) ? -animCurveRotY->Evaluate(currTime) : static_cast<float>(R.mData[1]);
+		float rotZ = (animCurveRotZ != NULL) ? -animCurveRotZ->Evaluate(currTime) : static_cast<float>(R.mData[2]);
 		FbxVector4 rotVector4(rotX, rotY, rotZ, 0.0);
 
-		float scaleX = (animCurveScaleX != NULL) ? animCurveScaleX->Evaluate(currTime) : (float)S.mData[0];
-		float scaleY = (animCurveScaleY != NULL) ? animCurveScaleY->Evaluate(currTime) : (float)S.mData[1];
-		float scaleZ = (animCurveScaleZ != NULL) ? animCurveScaleZ->Evaluate(currTime) : (float)S.mData[2];
+		float scaleX = (animCurveScaleX != NULL) ? animCurveScaleX->Evaluate(currTime) : static_cast<float>(S.mData[0]);
+		float scaleY = (animCurveScaleY != NULL) ? animCurveScaleY->Evaluate(currTime) : static_cast<float>(S.mData[1]);
+		float scaleZ = (animCurveScaleZ != NULL) ? animCurveScaleZ->Evaluate(currTime) : static_cast<float>(S.mData[2]);
 		FbxVector4 scaleVector4(scaleX, scaleY, scaleZ, 0.0);
 
 		FbxAMatrix currentPoseTransform(transVector4, rotVector4, scaleVector4);
 
 		FbxAMatrix globalTransform;
 		if (inParentIndex != -1)
-			globalTransform = outAnimation.mParentGlobalTransforms[inParentIndex][(size_t)currFrame] * currentPoseTransform;
+			globalTransform = 
+			outAnimation.mParentGlobalTransforms[inParentIndex][static_cast<size_t>(currFrame)] * currentPoseTransform;
 		else 
 			globalTransform = currentPoseTransform;
 
 		FbxAMatrix currTransformOffset =
-			UnifyCoordinates(std::as_const(inNode->EvaluateGlobalTransform(currTime))) *	inGeometryTransform;
+			UnifyCoordinates(std::as_const(inNode->EvaluateGlobalTransform(currTime))) * inGeometryTransform;
 
 		const auto& globalInvTransform = mSkeleton.mBones[inClusterIndex].mFbxGlobalInvBindPose;
 

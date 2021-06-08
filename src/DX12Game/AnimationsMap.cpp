@@ -111,7 +111,8 @@ DxResult AnimationsMap::BuildResource() {
 		&texDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&mAnimsMap)));
+		IID_PPV_ARGS(&mAnimsMap)
+	));
 
 	//
 	// In order to copy CPU memory data into our default buffer,
@@ -121,16 +122,14 @@ DxResult AnimationsMap::BuildResource() {
 	mNumSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
 	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mAnimsMap.Get(), 0, mNumSubresources);
 
-	ReturnIfFailed(
-		md3dDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())
-		)
-	);
+	ReturnIfFailed(md3dDevice->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())
+	));
 
 	return DxResult(S_OK);
 }

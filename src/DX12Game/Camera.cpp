@@ -86,8 +86,8 @@ float Camera::GetFovY() const {
 }
 
 float Camera::GetFovX() const {
-	float halfWidth = 0.5f*GetNearWindowWidth();
-	return 2.0f*atan(halfWidth / mNearZ);
+	float halfWidth = 0.5f * GetNearWindowWidth();
+	return 2.0f * atan(halfWidth / mNearZ);
 }
 
 float Camera::GetNearWindowWidth() const {
@@ -113,8 +113,8 @@ void Camera::SetLens(float fovY, float aspect, float zn, float zf) {
 	mNearZ = zn;
 	mFarZ = zf;
 
-	mNearWindowHeight = 2.0f * mNearZ * tanf( 0.5f*mFovY );
-	mFarWindowHeight  = 2.0f * mFarZ * tanf( 0.5f*mFovY );
+	mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f * mFovY);
+	mFarWindowHeight  = 2.0f * mFarZ * tanf(0.5f * mFovY);
 
 	XMMATRIX P = XMMatrixPerspectiveFovLH(mFovY, mAspect, mNearZ, mFarZ);
 	XMStoreFloat4x4(&mProj, P);
@@ -198,7 +198,7 @@ void Camera::RotateY(float angle) {
 
 	XMMATRIX R = XMMatrixRotationY(angle);
 
-	XMStoreFloat3(&mRight,   XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+	XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
 	XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
 	XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 

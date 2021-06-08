@@ -62,8 +62,8 @@ void TpsActor::UpdateActor(const GameTimer& gt) {
 	look3f.y = 0.0f;
 	auto lookVec = XMVector4Normalize(XMLoadFloat3(&look3f));
 
-	const XMVECTOR& forward = lookVec * (float)mForwardSpeed;
-	const XMVECTOR& right = mCameraComp->GetRight() * (float)mStrafeSpeed;
+	const XMVECTOR& forward = lookVec * static_cast<float>(mForwardSpeed);
+	const XMVECTOR& right = mCameraComp->GetRight() * static_cast<float>(mStrafeSpeed);
 
 	XMVECTOR disp = XMVector4Normalize(XMVectorAdd(forward, right));
 	const XMVECTOR& pos = XMVectorAdd(GetPosition(), disp * mWalkingSpeed * gt.DeltaTime());

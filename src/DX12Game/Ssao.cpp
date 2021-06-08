@@ -41,11 +41,11 @@ void Ssao::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]) {
 }
 
 std::vector<float> Ssao::CalcGaussWeights(float sigma) {
-    float twoSigma2 = 2.0f*sigma*sigma;
+    float twoSigma2 = 2.0f * sigma * sigma;
 
     // Estimate the blur radius based on sigma since sigma controls the "width" of the bell curve.
     // For example, for sigma = 3, the width of the bell curve is 
-    int blurRadius = (int)ceil(2.0f * sigma);
+    int blurRadius = static_cast<int>(ceil(2.0f * sigma));
 
     assert(blurRadius <= MaxBlurRadius);
 
@@ -55,7 +55,7 @@ std::vector<float> Ssao::CalcGaussWeights(float sigma) {
     float weightSum = 0.0f;
 
     for(int i = -blurRadius; i <= blurRadius; ++i) {
-        float x = (float)i;
+        float x = static_cast<float>(i);
 
         weights[i + blurRadius] = expf(-x*x / twoSigma2);
 
@@ -169,7 +169,7 @@ DxResult Ssao::OnResize(UINT newWidth, UINT newHeight) {
         mViewport.MinDepth = 0.0f;
         mViewport.MaxDepth = 1.0f;
 
-        mScissorRect = { 0, 0, (int)mRenderTargetWidth / 2, (int)mRenderTargetHeight / 2 };
+        mScissorRect = { 0, 0, static_cast<int>(mRenderTargetWidth / 2), static_cast<int>(mRenderTargetHeight / 2) };
 
         CheckDxResult(BuildResources());
     }
@@ -310,7 +310,8 @@ DxResult Ssao::BuildResources() {
         &texDesc,
         D3D12_RESOURCE_STATE_COMMON,
         &optClear,
-        IID_PPV_ARGS(&mNormalMap)));
+        IID_PPV_ARGS(&mNormalMap)
+	));
 
 	// Ambient occlusion maps are at half resolution.
     texDesc.Width = mRenderTargetWidth / 2;
@@ -326,7 +327,8 @@ DxResult Ssao::BuildResources() {
         &texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &optClear,
-        IID_PPV_ARGS(&mAmbientMap0)));
+        IID_PPV_ARGS(&mAmbientMap0)
+   ));
 
    ReturnIfFailed(md3dDevice->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -334,7 +336,8 @@ DxResult Ssao::BuildResources() {
         &texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         &optClear,
-        IID_PPV_ARGS(&mAmbientMap1)));
+        IID_PPV_ARGS(&mAmbientMap1)
+   ));
 
 	return DxResult(S_OK);
 }
@@ -360,7 +363,8 @@ DxResult Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
         &texDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
-        IID_PPV_ARGS(&mRandomVectorMap)));
+        IID_PPV_ARGS(&mRandomVectorMap)
+	));
 
     //
     // In order to copy CPU memory data into our default buffer,
@@ -376,7 +380,8 @@ DxResult Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList) {
         &CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
-        IID_PPV_ARGS(mRandomVectorMapUploadBuffer.GetAddressOf())));
+        IID_PPV_ARGS(mRandomVectorMapUploadBuffer.GetAddressOf())
+	));
 
     XMCOLOR initData[256 * 256];
     for(int i = 0; i < 256; ++i) {

@@ -49,7 +49,7 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 		md3dDevice.Get(),
 		mCommandList.Get(),
 		mClientWidth, mClientHeight
-		);
+	);
 	CheckDxResult(mSsao->Initialize());
 
 	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get(), mCommandList.Get());
@@ -89,7 +89,8 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 		resourceUpload,
 		(FontFileNamePrefix + L"D2Coding.spritefont").c_str(),
 		GetCpuSrv(mDescHeapIdx.mDefaultFontIndex),
-		GetGpuSrv(mDescHeapIdx.mDefaultFontIndex));
+		GetGpuSrv(mDescHeapIdx.mDefaultFontIndex)
+	);
 
 	RenderTargetState rtState(mBackBufferFormat, mDepthStencilFormat);
 	SpriteBatchPipelineStateDescription pd(rtState);
@@ -655,7 +656,11 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 			auto& ritems = iter->second;
 			for (auto ritem : ritems) {
 				ritem->mInstances.push_back({ 
-					MathHelper::Identity4x4(), MathHelper::Identity4x4(), 0.0f, (UINT)ritem->mMat->MatCBIndex, 0 
+					MathHelper::Identity4x4(),
+					MathHelper::Identity4x4(),
+					0.0f,
+					static_cast<UINT>(ritem->mMat->MatCBIndex), 
+					0
 				});
 				mRefRitems[inRenderItemName].push_back(ritem);
 				mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->mInstances.size() - 1);
@@ -681,7 +686,11 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 			}
 
 			ritem->mInstances.push_back({
-				MathHelper::Identity4x4(), MathHelper::Identity4x4(), 0.0f, (UINT)ritem->mMat->MatCBIndex, 0 
+				MathHelper::Identity4x4(), 
+				MathHelper::Identity4x4(),
+				0.0f,
+				static_cast<UINT>(ritem->mMat->MatCBIndex),
+				0 
 			});
 			ritem->mGeo = mGeometries[inMesh->GetMeshName()].get();
 			ritem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -739,7 +748,7 @@ DxResult Renderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, Bo
 	outGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, outGeo->IndexBufferUploader);
 	
-	outGeo->VertexByteStride = (UINT)vertexSize;
+	outGeo->VertexByteStride = static_cast<UINT>(vertexSize);
 	outGeo->VertexBufferByteSize = vbByteSize;
 	outGeo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	outGeo->IndexBufferByteSize = ibByteSize;
@@ -783,7 +792,7 @@ DxResult Renderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo,
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStride = (UINT)vertexSize;
+	geo->VertexByteStride = static_cast<UINT>(vertexSize);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
@@ -832,13 +841,13 @@ DxResult Renderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStride = (UINT)vertexSize;
+	geo->VertexByteStride = static_cast<UINT>(vertexSize);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
 	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
+	submesh.IndexCount = static_cast<UINT>(indices.size());
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 	submesh.AABB = bound;
@@ -858,7 +867,11 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 			auto& ritems = iter->second;			
 			for (auto ritem : ritems) {
 				ritem->mInstances.push_back({ 
-					MathHelper::Identity4x4(), MathHelper::Identity4x4(), 0.0f, (UINT)ritem->mMat->MatCBIndex, 0 
+					MathHelper::Identity4x4(),
+					MathHelper::Identity4x4(), 
+					0.0f,
+					static_cast<UINT>(ritem->mMat->MatCBIndex),
+					0 
 				});
 				mRefRitems[name].push_back(ritem);
 				mInstancesIndex[name] = static_cast<UINT>(ritem->mInstances.size() - 1);
@@ -873,7 +886,11 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 		ritem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 		ritem->mIndexCount = ritem->mGeo->DrawArgs["skeleton"].IndexCount;
 		ritem->mInstances.push_back({ 
-			MathHelper::Identity4x4(), MathHelper::Identity4x4(), 0.0f, (UINT)ritem->mMat->MatCBIndex, 0 
+			MathHelper::Identity4x4(),
+			MathHelper::Identity4x4(),
+			0.0f, 
+			static_cast<UINT>(ritem->mMat->MatCBIndex),
+			0 
 		});
 		ritem->mStartIndexLocation = ritem->mGeo->DrawArgs["skeleton"].StartIndexLocation;
 		ritem->mBaseVertexLocation = ritem->mGeo->DrawArgs["skeleton"].BaseVertexLocation;
@@ -1247,7 +1264,8 @@ void Renderer::UpdateShadowTransform(const GameTimer& gt) {
 		0.5f, 0.0f, 0.0f, 0.0f,
 		0.0f, -0.5f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f);
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
 	
 	XMMATRIX S = lightView * lightProj*T;
 	XMStoreFloat4x4(&mLightingVars.mLightView, lightView);
@@ -1284,7 +1302,7 @@ void Renderer::UpdateMainPassCB(const GameTimer& gt) {
 	XMStoreFloat4x4(&mMainPassCB.mViewProjTex, XMMatrixTranspose(viewProjTex));
 	XMStoreFloat4x4(&mMainPassCB.mShadowTransform, XMMatrixTranspose(shadowTransform));
 	mMainPassCB.mEyePosW = mMainCamera->GetPosition3f();
-	mMainPassCB.mRenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
+	mMainPassCB.mRenderTargetSize = XMFLOAT2(static_cast<float>(mClientWidth), static_cast<float>(mClientHeight));
 	mMainPassCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mClientWidth, 1.0f / mClientHeight);
 	mMainPassCB.mNearZ = 1.0f;
 	mMainPassCB.mFarZ = 1000.0f;
@@ -1321,7 +1339,7 @@ void Renderer::UpdateShadowPassCB(const GameTimer& gt) {
 	XMStoreFloat4x4(&mShadowPassCB.mViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mShadowPassCB.mInvViewProj, XMMatrixTranspose(invViewProj));
 	mShadowPassCB.mEyePosW = mLightingVars.mLightPosW;
-	mShadowPassCB.mRenderTargetSize = XMFLOAT2((float)w, (float)h);
+	mShadowPassCB.mRenderTargetSize = XMFLOAT2(static_cast<float>(w), static_cast<float>(h));
 	mShadowPassCB.mInvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
 	mShadowPassCB.mNearZ = mLightingVars.mLightNearZ;
 	mShadowPassCB.mFarZ = mLightingVars.mLightFarZ;
@@ -1340,7 +1358,8 @@ void Renderer::UpdateSsaoCB(const GameTimer& gt) {
 		0.5f, 0.0f, 0.0f, 0.0f,
 		0.0f, -0.5f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f);
+		0.5f, 0.5f, 0.0f, 1.0f
+	);
 
 	ssaoCB.mProj = mMainPassCB.mProj;
 	ssaoCB.mInvProj = mMainPassCB.mInvProj;
@@ -1520,7 +1539,7 @@ DxResult Renderer::BuildRootSignature() {
 
 	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(numParameters, slotRootParameter,
-		(UINT)staticSamplers.size(), staticSamplers.data(),
+		static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
@@ -1530,7 +1549,7 @@ DxResult Renderer::BuildRootSignature() {
 		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
 	if (errorBlob != nullptr)
-		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
 	ReturnIfFailed(hr);
 
 	ReturnIfFailed(
@@ -1562,36 +1581,39 @@ DxResult Renderer::BuildSsaoRootSignature() {
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
-		0, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+		0,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT,		// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP	// addressW
+	);
 
 	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
-		1, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+		1,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	// addressW
 
 	const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
-		2, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
+		2,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressW
 		0.0f,
 		0,
 		D3D12_COMPARISON_FUNC_LESS_EQUAL,
-		D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE);
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+	);
 
 	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-		3, // shaderRegister
-		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+		3,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP		// addressW
+	); 
 
 	std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers = {
 		pointClamp, linearClamp, depthMapSam, linearWrap
@@ -1599,7 +1621,7 @@ DxResult Renderer::BuildSsaoRootSignature() {
 
 	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-		(UINT)staticSamplers.size(), staticSamplers.data(),
+		static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
@@ -1609,7 +1631,7 @@ DxResult Renderer::BuildSsaoRootSignature() {
 		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
 	if (errorBlob != nullptr)
-		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
 	ReturnIfFailed(hr);
 
 	ReturnIfFailed(
@@ -1675,7 +1697,7 @@ DxResult Renderer::BuildDescriptorHeaps() {
 	srvDesc.Format = blurSkyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(blurSkyCubeMap.Get(), &srvDesc, hDescriptor);
 	
-	mDescHeapIdx.mSkyTexHeapIndex		= (UINT)tex2DList.size();
+	mDescHeapIdx.mSkyTexHeapIndex		= static_cast<UINT>(tex2DList.size());
 	mDescHeapIdx.mBlurSkyTexHeapIndex	= mDescHeapIdx.mSkyTexHeapIndex + 1;
 	mDescHeapIdx.mShadowMapHeapIndex	= mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
 	mDescHeapIdx.mSsaoHeapIndexStart	= mDescHeapIdx.mShadowMapHeapIndex + 1;
@@ -1831,40 +1853,40 @@ DxResult Renderer::BuildBasicGeometry() {
 
 	// Cache the vertex offsets to each object in the concatenated vertex buffer.
 	UINT boxVertexOffset = 0;
-	UINT gridVertexOffset = (UINT)box.Vertices.size();
-	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
-	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
-	UINT quadVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
+	UINT gridVertexOffset = static_cast<UINT>(box.Vertices.size());
+	UINT sphereVertexOffset = gridVertexOffset + static_cast<UINT>(grid.Vertices.size());
+	UINT cylinderVertexOffset = sphereVertexOffset + static_cast<UINT>(sphere.Vertices.size());
+	UINT quadVertexOffset = cylinderVertexOffset + static_cast<UINT>(cylinder.Vertices.size());
 
 	// Cache the starting index for each object in the concatenated index buffer.
 	UINT boxIndexOffset = 0;
-	UINT gridIndexOffset = (UINT)box.Indices32.size();
-	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
-	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
-	UINT quadIndexOffset = cylinderIndexOffset + (UINT)cylinder.Indices32.size();
+	UINT gridIndexOffset = static_cast<UINT>(box.Indices32.size());
+	UINT sphereIndexOffset = gridIndexOffset + static_cast<UINT>(grid.Indices32.size());
+	UINT cylinderIndexOffset = sphereIndexOffset + static_cast<UINT>(sphere.Indices32.size());
+	UINT quadIndexOffset = cylinderIndexOffset + static_cast<UINT>(cylinder.Indices32.size());
 
 	SubmeshGeometry boxSubmesh;
-	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
+	boxSubmesh.IndexCount = static_cast<UINT>(box.Indices32.size());
 	boxSubmesh.StartIndexLocation = boxIndexOffset;
 	boxSubmesh.BaseVertexLocation = boxVertexOffset;
 
 	SubmeshGeometry gridSubmesh;
-	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
+	gridSubmesh.IndexCount = static_cast<UINT>(grid.Indices32.size());
 	gridSubmesh.StartIndexLocation = gridIndexOffset;
 	gridSubmesh.BaseVertexLocation = gridVertexOffset;
 
 	SubmeshGeometry sphereSubmesh;
-	sphereSubmesh.IndexCount = (UINT)sphere.Indices32.size();
+	sphereSubmesh.IndexCount = static_cast<UINT>(sphere.Indices32.size());
 	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
 	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
 
 	SubmeshGeometry cylinderSubmesh;
-	cylinderSubmesh.IndexCount = (UINT)cylinder.Indices32.size();
+	cylinderSubmesh.IndexCount = static_cast<UINT>(cylinder.Indices32.size());
 	cylinderSubmesh.StartIndexLocation = cylinderIndexOffset;
 	cylinderSubmesh.BaseVertexLocation = cylinderVertexOffset;
 
 	SubmeshGeometry quadSubmesh;
-	quadSubmesh.IndexCount = (UINT)quad.Indices32.size();
+	quadSubmesh.IndexCount = static_cast<UINT>(quad.Indices32.size());
 	quadSubmesh.StartIndexLocation = quadIndexOffset;
 	quadSubmesh.BaseVertexLocation = quadVertexOffset;
 
@@ -1981,8 +2003,8 @@ DxResult Renderer::BuildBasicGeometry() {
 	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
 	indices.insert(indices.end(), std::begin(quad.GetIndices16()), std::end(quad.GetIndices16()));
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
-	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+	const UINT vbByteSize = static_cast<UINT>(vertices.size() * sizeof(Vertex));
+	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint16_t));
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "standardGeo";
@@ -1999,7 +2021,7 @@ DxResult Renderer::BuildBasicGeometry() {
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexByteStride = static_cast<UINT>(sizeof(Vertex));
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
@@ -2052,7 +2074,13 @@ void Renderer::BuildBasicRenderItems() {
 	skyRitem->mBaseVertexLocation = skyRitem->mGeo->DrawArgs["sphere"].BaseVertexLocation;
 	skyRitem->mAABB = skyRitem->mGeo->DrawArgs["sphere"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-	skyRitem->mInstances.push_back({ world, MathHelper::Identity4x4(), 0.0f, (UINT)skyRitem->mMat->MatCBIndex, 0 });
+	skyRitem->mInstances.push_back({
+		world,
+		MathHelper::Identity4x4(),
+		0.0f, 
+		static_cast<UINT>(skyRitem->mMat->MatCBIndex), 
+		0 
+	});
 	mRitemLayer[RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
@@ -2066,7 +2094,13 @@ void Renderer::BuildBasicRenderItems() {
 	boxRitem->mBaseVertexLocation = boxRitem->mGeo->DrawArgs["box"].BaseVertexLocation;
 	boxRitem->mAABB = boxRitem->mGeo->DrawArgs["box"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	boxRitem->mInstances.push_back({ world, MathHelper::Identity4x4(), 0.0f, (UINT)boxRitem->mMat->MatCBIndex, 0 });
+	boxRitem->mInstances.push_back({
+		world,
+		MathHelper::Identity4x4(),
+		0.0f,
+		static_cast<UINT>(boxRitem->mMat->MatCBIndex),
+		0 
+	});
 	mRitemLayer[RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
@@ -2083,7 +2117,7 @@ void Renderer::BuildBasicRenderItems() {
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(), 
 		0.0f, 
-		(UINT)quadRitem->mMat->MatCBIndex,
+		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
 		0,
 		EInstanceRenderState::EID_DrawAlways
 	});
@@ -2091,10 +2125,10 @@ void Renderer::BuildBasicRenderItems() {
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(),
 		0.0f,
-		(UINT)quadRitem->mMat->MatCBIndex,
+		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
 		0,
 		EInstanceRenderState::EID_DrawAlways
-		});
+	});
 	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
@@ -2108,7 +2142,13 @@ void Renderer::BuildBasicRenderItems() {
 	gridRitem->mBaseVertexLocation = gridRitem->mGeo->DrawArgs["grid"].BaseVertexLocation;
 	gridRitem->mAABB = gridRitem->mGeo->DrawArgs["grid"].AABB;
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
-	gridRitem->mInstances.push_back({ MathHelper::Identity4x4(), tex, 0.0f, (UINT)gridRitem->mMat->MatCBIndex, 0 });
+	gridRitem->mInstances.push_back({ 
+		MathHelper::Identity4x4(), 
+		tex, 
+		0.0f, 
+		static_cast<UINT>(gridRitem->mMat->MatCBIndex),
+		0 
+	});
 	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }
@@ -2146,7 +2186,7 @@ DxResult Renderer::BuildPSOs() {
 	// PSO for skinned pass.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedOpaquePsoDesc = opaquePsoDesc;
-	skinnedOpaquePsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
+	skinnedOpaquePsoDesc.InputLayout = { mSkinnedInputLayout.data(), static_cast<UINT>(mSkinnedInputLayout.size()) };
 	skinnedOpaquePsoDesc.VS = {
 		reinterpret_cast<BYTE*>(mShaders["skinnedVS"]->GetBufferPointer()),
 		mShaders["skinnedVS"]->GetBufferSize()
@@ -2197,7 +2237,7 @@ DxResult Renderer::BuildPSOs() {
 	// PSO for shadow map pass for skinned render items.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedSmapPsoDesc = smapPsoDesc;
-	skinnedSmapPsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
+	skinnedSmapPsoDesc.InputLayout = { mSkinnedInputLayout.data(), static_cast<UINT>(mSkinnedInputLayout.size()) };
 	skinnedSmapPsoDesc.VS = {
 		reinterpret_cast<BYTE*>(mShaders["skinnedShadowVS"]->GetBufferPointer()),
 		mShaders["skinnedShadowVS"]->GetBufferSize()
@@ -2241,7 +2281,7 @@ DxResult Renderer::BuildPSOs() {
 	// PSO for drawing normals for skinned render items.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedDrawNormalsPsoDesc = drawNormalsPsoDesc;
-	skinnedDrawNormalsPsoDesc.InputLayout = { mSkinnedInputLayout.data(), (UINT)mSkinnedInputLayout.size() };
+	skinnedDrawNormalsPsoDesc.InputLayout = { mSkinnedInputLayout.data(), static_cast<UINT>(mSkinnedInputLayout.size()) };
 	skinnedDrawNormalsPsoDesc.VS = {
 		reinterpret_cast<BYTE*>(mShaders["skinnedDrawNormalsVS"]->GetBufferPointer()),
 		mShaders["skinnedDrawNormalsVS"]->GetBufferSize()

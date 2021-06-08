@@ -322,7 +322,7 @@ void Mesh::GenerateSkeletonData() {
 
 		Vertex vert;
 		vert.mPos = { transf.x, transf.y, transf.z };
-		vert.mTexC = { (float)index, (float)parentIndex };
+		vert.mTexC = { static_cast<float>(index), static_cast<float>(parentIndex) };
 		AddSkeletonVertex(vert);
 
 		if (parentIndex != -1) {
@@ -348,7 +348,7 @@ void Mesh::AddSkeletonVertex(const Vertex& inVertex) {
 		mSkeletonIndices.push_back(index);
 	}
 	else {		
-		mSkeletonIndices.push_back((std::uint32_t)mSkeletonVertices.size());
+		mSkeletonIndices.push_back(static_cast<std::uint32_t>(mSkeletonVertices.size()));
 		mSkeletonVertices.push_back(inVertex);
 	}
 }
