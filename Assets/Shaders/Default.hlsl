@@ -52,7 +52,7 @@ VertexIn TransformUsingSkinnedData(VertexIn vin);
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f;
 
-	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * MAX_INSTANCE_DATA + instanceID];
+	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * gMaxInstanceDataCount + instanceID];
 	InstanceData instData = gInstanceData[instIdxData.InstIdx];
 	float4x4 world = instData.World;
 	float4x4 texTransform = instData.TexTransform;
@@ -204,7 +204,7 @@ float4 PS(VertexOut pin) : SV_Target{
 
 	// Add in specular reflections.
 	float3 r = reflect(-toEyeW, bumpedNormalW);
-	float3 lookup = BoxCubeMapLookup(pin.PosW, r, 0.0f, 100.0f);
+	float3 lookup = BoxCubeMapLookup(pin.PosW, r, gCubeMapCenter, gCubeMapExtents);
 	float4 reflectionColor = gBlurCubeMap.Sample(gsamLinearWrap, lookup);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);
 	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;

@@ -35,11 +35,19 @@ ButtonState KeyboardState::GetKeyState(int inKeyCode) const {
 	return GetKeyButtonState(inKeyCode);
 }
 
+void MouseState::WheelUp() {
+	mScrollWheelAccum += 1.0f;
+}
+
+void MouseState::WheelDown() {
+	mScrollWheelAccum -= 1.0f;
+}
+
 const XMFLOAT2& MouseState::GetPosition() const {
 	return mMousePos;
 }
 
-const XMFLOAT2& MouseState::GetScrollWheel() const {
+float MouseState::GetScrollWheel() const {
 	return mScrollWheel;
 }
 
@@ -74,6 +82,11 @@ bool InputSystem::Initialize(HWND hMainWnd) {
 
 	ShowCursor(false);
 
+	mState.Mouse.mMousePos = XMFLOAT2(0.0f, 0.0f);
+	mState.Mouse.mScrollWheel = 0.0f;
+	mState.Mouse.mScrollWheelAccum = 0.0f;
+	mState.Mouse.mMouseCenter = XMFLOAT2(0.0f, 0.0f);
+	mState.Mouse.mIsRelative = false;
 	mState.Mouse.mIsIgnored = true;
 
 	return true;
@@ -89,7 +102,9 @@ void InputSystem::PrepareForUpdate() {
 	mState.Mouse.mMouseCenter = XMFLOAT2(xPos, yPos);
 
 	mState.Mouse.mIsRelative = false;
-	mState.Mouse.mScrollWheel = XMFLOAT2(0.0f, 0.0f);
+
+	mState.Mouse.mScrollWheel = mState.Mouse.mScrollWheelAccum;
+	mState.Mouse.mScrollWheelAccum = 0.0f;
 }
 
 void InputSystem::Update() {	
@@ -121,6 +136,14 @@ void InputSystem::Update() {
 
 void InputSystem::IgnoreMouseInput() {
 	mState.Mouse.mIsIgnored = true;
+}
+
+void InputSystem::OnWheelUp() {
+	mState.Mouse.WheelUp();
+}
+
+void InputSystem::OnWheelDown() {
+	mState.Mouse.WheelDown();
 }
 
 const InputState& InputSystem::GetState() const {

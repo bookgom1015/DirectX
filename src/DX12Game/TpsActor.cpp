@@ -8,13 +8,17 @@ using namespace DirectX::PackedVector;
 
 TpsActor::TpsActor()
 	: Actor(),
-	  mWalkingSpeed(2.0f),
-	  mMaxElevation(0.85f),
-	  mMinElevation(-0.85f),	
-	  mCameraDistance(4.0f),
-	  mCameraPosY(2.0f),
-	  mCameraTargetPosY(1.8f),	
-	  mLocalOffset(0.3f) {
+	mWalkingSpeed(2.0f),
+	mRunningSpeed(8.0f),
+	mMaxElevation(0.85f),
+	mMinElevation(-0.85f),	
+	mCameraMaxDistance(5.0f),
+	mCameraCurrDistance(3.0f),
+	mCameraMinDistance(1.0f),
+	mCameraPosY(2.0f),
+	mCameraTargetPosY(1.8f),	
+	mLocalOffset(0.3f) {
+
 	mCameraComp = std::make_unique<CameraComponent>(this);
 
 	GameWorld::GetWorld()->GetRenderer()->SetMainCamerea(mCameraComp->GetCamera());
@@ -48,11 +52,11 @@ void TpsActor::UpdateActor(const GameTimer& gt) {
 	float sinE = MathHelper::Sin(mElevation);
 	float cosE = MathHelper::Cos(mElevation);
 
-	float t = mCameraDistance * cosE;
+	float t = mCameraCurrDistance * cosE;
 	float offsetX = mLocalOffset * -sinA;
 	float offsetZ = mLocalOffset * cosA;
 	float x = t * cosA + offsetX;
-	float y = mCameraDistance * sinE;
+	float y = mCameraCurrDistance * sinE;
 	float z = t * sinA + offsetZ;
 
 	//----------------------------------------------------------------------------------------------------------------
@@ -66,7 +70,7 @@ void TpsActor::UpdateActor(const GameTimer& gt) {
 	const XMVECTOR& right = mCameraComp->GetRight() * static_cast<float>(mStrafeSpeed);
 
 	XMVECTOR disp = XMVector4Normalize(XMVectorAdd(forward, right));
-	const XMVECTOR& pos = XMVectorAdd(GetPosition(), disp * mWalkingSpeed * gt.DeltaTime());
+	const XMVECTOR& pos = XMVectorAdd(GetPosition(), disp * mCurrSpeed * gt.DeltaTime());
 
 	SetPosition(pos);
 
@@ -106,6 +110,20 @@ void TpsActor::ProcessActorInput(const InputState& input) {
 		mStrafeSpeed -= 1;
 	if (input.Keyboard.GetKeyValue('D'))
 		mStrafeSpeed += 1;
+
+	float scroll = input.Mouse.GetScrollWheel();
+	if (scroll > 0.0f) {
+		mCameraCurrDistance -= 0.1f;
+		if (mCameraCurrDistance < mCameraMinDistance)
+			mCameraCurrDistance = mCameraMinDistance;
+	}
+	else if (scroll < 0.0f) {
+		mCameraCurrDistance += 0.1f;
+		if (mCameraCurrDistance > mCameraMaxDistance)
+			mCameraCurrDistance = mCameraMaxDistance;
+	}
+	
+	mCurrSpeed = input.Keyboard.GetKeyValue(VK_LSHIFT) ? mRunningSpeed : mWalkingSpeed;
 
 	// Make each pixel correspond to a quarter of a degree.
 	mYAngularSpeed = XMConvertToRadians(input.Mouse.GetPosition().x * -0.25f);

@@ -70,6 +70,7 @@ private:
 		UINT mMatBufferIndex;
 		UINT mMiscTextureMapIndex;
 		UINT mTextureMapIndex;
+		UINT mConstSettingsIndex;
 		UINT mAnimationsMapIndex;
 	};
 
@@ -268,4 +269,6 @@ private:
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 	std::unordered_map<std::string /* Name id */, 
 		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector3>> mOutputTexts;
+
+	std::vector<float> mConstantSettings;
 };

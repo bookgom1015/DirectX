@@ -81,7 +81,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
@@ -90,6 +90,9 @@
       <StackReserveSize>
       </StackReserveSize>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -129,7 +132,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC);</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -140,6 +143,9 @@
       <StackReserveSize>
       </StackReserveSize>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp" />

@@ -1,9 +1,13 @@
-﻿  Camera.cpp
-  StringUtil.cpp
-  ThreadUtil.cpp
+﻿  TpsActor.cpp
   Generating code
-  6 of 11375 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+  2 of 11394 functions (<0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    29 functions had inline decision re-evaluated but remain unchanged
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe
+  F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\fmod64.dll
+  F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\fmodL64.dll
+  F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\fmodstudio64.dll
+  F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\fmodstudioL64.dll
+  F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\libfbxsdk.dll
+  5 File(s) copied

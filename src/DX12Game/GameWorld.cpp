@@ -146,7 +146,7 @@ bool GameWorld::LoadData() {
 
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
-	int numTrees = 7;
+	int numTrees = 5;
 	for (int i = -numTrees; i <= numTrees; ++i) {
 		for (int j = -numTrees; j <= numTrees; ++j) {
 			if (i == 0 && j == 0)
@@ -154,7 +154,7 @@ bool GameWorld::LoadData() {
 	
 			treeActor = new Actor();
 	
-			XMVECTOR pos = XMVectorSet(static_cast<float>(12 * i), 0.0f, static_cast<float>(12 * j), 1.0f);
+			XMVECTOR pos = XMVectorSet(static_cast<float>(16 * i), 0.0f, static_cast<float>(16 * j), 1.0f);
 			XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
 	
 			treeActor->SetPosition(pos + offset);
@@ -674,6 +674,13 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 	case WM_MOUSEMOVE:
 		OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+
+	case WM_MOUSEWHEEL:
+		if (static_cast<SHORT>(HIWORD(wParam)) > 0)
+			mInputSystem->OnWheelUp();
+		else
+			mInputSystem->OnWheelDown();
 		return 0;
 
 	case WM_KEYUP:

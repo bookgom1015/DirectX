@@ -41,7 +41,7 @@ struct VertexOut {
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f;
 
-	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * MAX_INSTANCE_DATA + instanceID];
+	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * gMaxInstanceDataCount + instanceID];
 	InstanceData instData = gInstanceData[instIdxData.InstIdx];
 	float4x4 world = instData.World;
 	float4x4 texTransform = instData.TexTransform;

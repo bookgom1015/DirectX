@@ -23,6 +23,8 @@ private:
 	int mStrafeSpeed;
 
 	const float mWalkingSpeed;
+	const float mRunningSpeed;
+	float mCurrSpeed;
 
 	float mAzimuth;
 	float mYAngularSpeed;
@@ -33,7 +35,10 @@ private:
 	const float mMaxElevation;
 	const float mMinElevation;
 
-	const float mCameraDistance;
+	const float mCameraMaxDistance;
+	const float mCameraMinDistance;
+	float mCameraCurrDistance;
+
 	const float mCameraPosY;
 	const float mCameraTargetPosY;
 

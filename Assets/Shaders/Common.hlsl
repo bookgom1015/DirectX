@@ -18,8 +18,6 @@
 #define NUM_SPOT_LIGHTS 0
 #endif
 
-#define MAX_INSTANCE_DATA 64
-
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
@@ -108,6 +106,12 @@ cbuffer cbPass : register(b1) {
 	// indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
 	// are spot lights for a maximum of MaxLights per object.
 	Light gLights[MaxLights];
+};
+
+cbuffer cbSettings : register(b2) {
+	int		gMaxInstanceDataCount;
+	float	gCubeMapCenter;
+	float	gCubeMapExtents;
 };
 
 //---------------------------------------------------------------------------------------

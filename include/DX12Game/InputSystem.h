@@ -12,10 +12,14 @@ enum class ButtonState {
 
 // Helper for keyboard input
 class KeyboardState {
-public:
 	// Friend so InputSystem can easily update it
 	friend class InputSystem;
 
+public:
+	KeyboardState() = default;
+	virtual ~KeyboardState() = default;
+
+public:
 	// Get just the boolean true/false value of key
 	bool GetKeyValue(int inKeyCode) const;
 	// Get a state based on current and previous frame
@@ -24,13 +28,21 @@ public:
 
 // Helper for mouse input
 class MouseState {
-public:
 	friend class InputSystem;
+
+public:
+	MouseState() = default;
+	virtual ~MouseState() = default;
+
+public:
+	void WheelUp();
+	void WheelDown();
 
 	// For mouse position
 	const DirectX::XMFLOAT2& GetPosition() const;
-	const DirectX::XMFLOAT2& GetScrollWheel() const;
+	float GetScrollWheel() const;
 	const DirectX::XMFLOAT2& GetMouseCenter() const;
+
 	bool IsRelative() const;
 	bool IsIgnored() const;
 
@@ -42,7 +54,8 @@ private:
 	// Store current mouse position
 	DirectX::XMFLOAT2 mMousePos;
 	// Motion of scroll wheel
-	DirectX::XMFLOAT2 mScrollWheel;
+	float mScrollWheel;
+	float mScrollWheelAccum;
 	DirectX::XMFLOAT2 mMouseCenter;
 	// Are we in relative mouse mode
 	bool mIsRelative;
@@ -51,8 +64,11 @@ private:
 
 // Helper for controller input
 class ControllerState {
-public:
 	friend class InputSystem;
+
+public:
+	ControllerState() = default;
+	virtual ~ControllerState() = default;
 };
 
 // Wrapper that contains current state of input
@@ -81,6 +97,9 @@ public:
 	void Update();
 
 	void IgnoreMouseInput();
+
+	void OnWheelUp();
+	void OnWheelDown();
 
 	const InputState& GetState() const;
 

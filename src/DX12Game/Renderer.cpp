@@ -15,10 +15,13 @@ namespace {
 	const std::wstring ShaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
 	const std::wstring FontFileNamePrefix = L"./../../../../Assets/Fonts/";
 
-	const UINT MaxInstanceCount = 64;
+	const UINT MaxInstanceCount = 128;
 
 	const float DefaultFontSize = 32;
 	const float InvDefaultFontSize = 1.0f / DefaultFontSize;
+
+	const float SceneBoundsRadius = 64.0f;
+	const float SceneBoundQuarterRadius = SceneBoundsRadius * 0.75f;
 }
 
 Renderer::Renderer() 
@@ -28,7 +31,11 @@ Renderer::Renderer()
 	// the world space origin.  In general, you need to loop over every world space vertex
 	// position and compute the bounding sphere.
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = sqrtf(40.0f * 40.0f + 40.0f * 40.0f);
+	mSceneBounds.Radius = sqrtf(SceneBoundsRadius * SceneBoundsRadius * 2.0f);
+
+	mConstantSettings.resize(2);
+	mConstantSettings[0] = 0.0f;
+	mConstantSettings[1] = 128.0f;
 }
 
 Renderer::~Renderer() {
@@ -172,6 +179,19 @@ DxResult Renderer::Draw(const GameTimer& gt) {
 		mRootParams.mAnimationsMapIndex,
 		mAnimsMap->AnimationsMapSrv());
 
+	mCommandList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+	mCommandList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
 	DrawSceneToShadowMap();
 
 	//
@@ -279,7 +299,7 @@ void Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	LowRenderer::OnResize(inClientWidth, inClientHeight);
 
 	if (mMainCamera != nullptr)
-		mMainCamera->SetLens(XM_PIDIV4, AspectRatio(), 0.1f, 1000.0f);
+		mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
 
 	if (mSsao != nullptr) {
 		mSsao->OnResize(mClientWidth, mClientHeight);
@@ -1135,13 +1155,13 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
 	UINT visibleObjectCount = 0;
-	UINT index;
 
 	auto currObjectCB = mCurrFrameResource->mObjectCB.get();
 	auto currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.get();
 	auto currInstBuffer = mCurrFrameResource->mInstanceBuffer.get();
+
 	for (auto& e : mAllRitems) {
-		index = e->mObjCBIndex * MaxInstanceCount;
+		UINT index = e->mObjCBIndex * MaxInstanceCount;
 		UINT iterIdx = 0;
 		UINT offset = 0;
 
@@ -1234,9 +1254,22 @@ void Renderer::UpdateMaterialBuffer(const GameTimer& gt) {
 }
 
 void Renderer::UpdateShadowTransform(const GameTimer& gt) {
+	XMFLOAT3 camPos = { 0.0f, 0.0f, 0.0f };
+	XMFLOAT3 dirf = { 0.0f, 0.0f, 0.0f };
+	if (mMainCamera != nullptr) {
+		camPos = mMainCamera->GetPosition3f();
+
+		auto dir = mMainCamera->GetLook() * SceneBoundQuarterRadius;
+		XMStoreFloat3(&dirf, dir);
+
+		mSceneBounds.Center = XMFLOAT3(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z);
+	}
+
 	// Only the first "main" light casts a shadow.
 	XMVECTOR lightDir = XMLoadFloat3(&mLightingVars.mBaseLightDirections[0]);
-	XMVECTOR lightPos = -2.0f*mSceneBounds.Radius*lightDir;
+	XMVECTOR lightPos = mMainCamera != nullptr  ? 
+		-2.0f * mSceneBounds.Radius * lightDir + XMVectorSet(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z, 0.0f) :
+		-2.0f * mSceneBounds.Radius * lightDir;
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
@@ -1498,7 +1531,7 @@ DxResult Renderer::BuildRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable2;
 	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 68, 0);
 
-	const UINT numParameters = 8;
+	const UINT numParameters = 9;
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[numParameters];
@@ -1510,6 +1543,7 @@ DxResult Renderer::BuildRootSignature() {
 	mRootParams.mInstBufferIndex = cnt++;
 	mRootParams.mMatBufferIndex = cnt++;
 	mRootParams.mMiscTextureMapIndex = cnt++;
+	mRootParams.mConstSettingsIndex = cnt++;
 	mRootParams.mTextureMapIndex = cnt++;
 	mRootParams.mAnimationsMapIndex = cnt++;
 
@@ -1517,22 +1551,29 @@ DxResult Renderer::BuildRootSignature() {
 	slotRootParameter[mRootParams.mObjectCBIndex].InitAsConstantBufferView(
 		0, 0, D3D12_SHADER_VISIBILITY_VERTEX
 	);
-	slotRootParameter[mRootParams.mPassCBIndex].InitAsConstantBufferView(1);
+	slotRootParameter[mRootParams.mPassCBIndex].InitAsConstantBufferView(
+		1, 0, D3D12_SHADER_VISIBILITY_ALL
+	);
 	slotRootParameter[mRootParams.mInstIdxBufferIndex].InitAsShaderResourceView(
 		0, 1, D3D12_SHADER_VISIBILITY_VERTEX
 	);
 	slotRootParameter[mRootParams.mInstBufferIndex].InitAsShaderResourceView(
 		1, 1, D3D12_SHADER_VISIBILITY_VERTEX
 	);
-	slotRootParameter[mRootParams.mMatBufferIndex].InitAsShaderResourceView(2, 1);
+	slotRootParameter[mRootParams.mMatBufferIndex].InitAsShaderResourceView(
+		2, 1, D3D12_SHADER_VISIBILITY_ALL
+	);
 	slotRootParameter[mRootParams.mMiscTextureMapIndex].InitAsDescriptorTable(
 		1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL
 	);
 	slotRootParameter[mRootParams.mTextureMapIndex].InitAsDescriptorTable(
 		1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL
 	);
+	slotRootParameter[mRootParams.mConstSettingsIndex].InitAsConstants(
+		3, 2, 0, D3D12_SHADER_VISIBILITY_ALL
+	);
 	slotRootParameter[mRootParams.mAnimationsMapIndex].InitAsDescriptorTable(
-		1, &texTable2
+		1, &texTable2, D3D12_SHADER_VISIBILITY_ALL
 	);
 
 	auto staticSamplers = GetStaticSamplers();
