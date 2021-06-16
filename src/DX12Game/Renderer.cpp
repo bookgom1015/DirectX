@@ -134,6 +134,21 @@ DxResult Renderer::Update(const GameTimer& gt) {
 	UpdateShadowPassCB(gt);
 	UpdateSsaoCB(gt);
 
+	std::vector<std::string> textsToRemove;
+	for (auto& text : mOutputTexts) {
+		float& lifeTime = text.second.second.w;
+
+		if (lifeTime == -1.0f)
+			continue;
+
+		lifeTime -= gt.DeltaTime();
+		if (lifeTime <= 0.0f)
+			textsToRemove.push_back(text.first);
+	}
+
+	for (const auto& text : textsToRemove)
+		mOutputTexts.erase(text);
+
 	return DxResult(S_OK);
 }
 
@@ -620,9 +635,11 @@ DxResult Renderer::UpdateAnimationsMap() {
 	return DxResult(S_OK);
 }
 
-void Renderer::AddOutputText(const std::wstring& inText, float inX, float inY, float inScale, const std::string& inName) {
+void Renderer::AddOutputText(const std::string& inName, const std::wstring& inText, 
+	float inX /* = 0.0f */, float inY /* = 0.0f */, float inScale /* = 1.0f */, float inLifeTime /* = -1.0f */) {
+
 	mOutputTexts[inName].first = inText;
-	mOutputTexts[inName].second = SimpleMath::Vector3(inX, inY, inScale);
+	mOutputTexts[inName].second = SimpleMath::Vector4(inX, inY, inScale, inLifeTime);
 }
 
 void Renderer::RemoveOutputText(const std::string& inName) {
@@ -1219,11 +1236,11 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 	}
 
 	AddOutputText(
-		L"voc: " + std::to_wstring(visibleObjectCount), 
+		"TEXT_VOC",
+		L"voc: " + std::to_wstring(visibleObjectCount), 		
 		static_cast<float>(mScreenViewport.Width * 0.01f),
 		static_cast<float>(mScreenViewport.Height * 0.09f),
-		16.0f,
-		"TEXT_VOC"
+		16.0f
 	);
 }
 

@@ -146,7 +146,8 @@ public:
 	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
 	DxResult UpdateAnimationsMap();
 
-	void AddOutputText(const std::wstring& inText, float inX, float inY, float inScale, const std::string& inNameId);
+	void AddOutputText(const std::string& inNameId, const std::wstring& inText,
+		float inX = 0.0f, float inY = 0.0f, float inScale = 1.0f, float inLifeTime = -1.0f);
 	void RemoveOutputText(const std::string& inName);
 
 	virtual ID3D12Device* GetDevice() const override;
@@ -268,7 +269,7 @@ private:
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 	std::unordered_map<std::string /* Name id */, 
-		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector3>> mOutputTexts;
+		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector4>> mOutputTexts;
 
 	std::vector<float> mConstantSettings;
 };

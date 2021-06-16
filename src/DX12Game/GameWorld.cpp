@@ -714,18 +714,20 @@ void GameWorld::CalculateFrameStats() {
 		float mspf = 1000.0f / fps;
 
 		mRenderer->AddOutputText(
+			"TEXT_FPS",
 			L"fps: " + std::to_wstring(fps),
 			static_cast<float>(mClientWidth * 0.01f),
 			static_cast<float>(mClientHeight * 0.01f),
-			16.0f, 
-			"TEXT_FPS");
+			16.0f
+		);
 
 		mRenderer->AddOutputText(
+			"TEXT_MSPF",
 			L"mspf: " + std::to_wstring(mspf),
 			static_cast<float>(mClientWidth * 0.01f),
 			static_cast<float>(mClientHeight * 0.05f),
-			16.0f,
-			"TEXT_MSPF");
+			16.0f	
+		);
 
 		// Reset for next average
 		frameCnt = 0;
