@@ -10,7 +10,7 @@
 #include "FrameResource.h"
 
 //#define Ex1
-#define Ex2
+//#define Ex2
 #define Ex3
 
 const int gNumFrameResources = 3;

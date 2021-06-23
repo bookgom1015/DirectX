@@ -10,10 +10,10 @@
 #include "FrameResource.h"
 #include "CubeRenderTarget.h"
 
-//#define SkyCube
+#define SkyCube
 
 //#define Ex3
-//#define Ex4
+#define Ex4
 
 const int gNumFrameResources = 3;
 

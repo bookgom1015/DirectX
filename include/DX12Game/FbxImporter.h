@@ -148,7 +148,7 @@ private:
 
 	//* Generates pose matrix data for each bone(like a global [inverse] bind pose)
 	//   and weight data for each bone.
-	void LoadBones(fbxsdk::FbxNode* inNode);
+	bool LoadBones(fbxsdk::FbxNode* inNode);
 
 	//* Normalizes the weight for the bones in each control point.
 	void NormalizeWeigths();

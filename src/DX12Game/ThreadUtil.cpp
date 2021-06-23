@@ -5,322 +5,33 @@ HANDLE ThreadUtil::mhLogFile = CreateFile(L"./tlog.txt",
 
 std::mutex ThreadUtil::mLogFileMutex;
 
-void ThreadUtil::Log(const std::string& text) {
-	std::wstringstream wsstream;
+void ThreadUtil::TLogFunc(const std::string& text) {
+	std::wstring wstr;
+	wstr.assign(text.begin(), text.end());
 
-	wsstream << "tid: " << std::this_thread::get_id() << '\t' << text.c_str();
+	DWORD writtenBytes = 0;
 
 	mLogFileMutex.lock();
 
-	DWORD writtenBytes = 0;
 	WriteFile(
 		mhLogFile,
-		wsstream.str().c_str(), 
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)), 
+		wstr.c_str(),
+		static_cast<DWORD>(wstr.length() * sizeof(wchar_t)),
 		&writtenBytes, NULL
 	);
 
 	mLogFileMutex.unlock();
 }
 
-void ThreadUtil::Logln(const std::string& text) {
-	std::wstringstream wsstream;
-
-	wsstream << "tid: " << std::this_thread::get_id() << '\t' << text.c_str() << '\n';
+void ThreadUtil::TLogFunc(const std::wstring& text) {
+	DWORD writtenBytes = 0;
 
 	mLogFileMutex.lock();
 
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognid(const std::string& text) {
-	std::wstringstream wsstream;
-
-	wsstream << text.c_str();
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognidln(const std::string& text) {
-	std::wstringstream wsstream;
-
-	wsstream << text.c_str() << '\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Log(std::initializer_list<std::string> texts) {
-	std::wstringstream wsstream;
-
-	wsstream << "tid: " << std::this_thread::get_id() << '\t';
-
-	for (auto text : texts)
-		wsstream << text.c_str();
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
 	WriteFile(
 		mhLogFile, 
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Logln(std::initializer_list<std::string> texts) {
-	std::wstringstream wsstream;
-
-	wsstream << "tid: " << std::this_thread::get_id() << '\t';
-
-	for (auto text : texts)
-		wsstream << text.c_str();
-	wsstream << '\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes, 
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognid(std::initializer_list<std::string> texts) {
-	std::wstringstream wsstream;
-
-	for (auto text : texts)
-		wsstream << text.c_str();
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile, 
-		wsstream.str().c_str(), 
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognidln(std::initializer_list<std::string> texts) {
-	std::wstringstream wsstream;
-
-	for (auto text : texts)
-		wsstream << text.c_str();
-	wsstream << '\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile, 
-		wsstream.str().c_str(), 
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Log(const std::wstring& text) {
-	std::wstringstream wsstream;
-
-	wsstream << L"tid: " << std::this_thread::get_id() << L'\t' << text;
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile, 
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes, 
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Logln(const std::wstring& text) {
-	std::wstringstream wsstream;
-
-	wsstream << L"tid: " << std::this_thread::get_id() << L'\t' << text << L'\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognid(const std::wstring& text) {
-	std::wstringstream wsstream;
-
-	wsstream << text;
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognidln(const std::wstring& text) {
-	std::wstringstream wsstream;
-
-	wsstream << text << L'\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Log(std::initializer_list<std::wstring> texts) {
-	std::wstringstream wsstream;
-
-	wsstream << L"tid: " << std::this_thread::get_id() << L'\t';
-
-	for (auto text : texts)
-		wsstream << text;
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes, 
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Logln(std::initializer_list<std::wstring> texts) {
-	std::wstringstream wsstream;
-
-	wsstream << L"tid: " << std::this_thread::get_id() << L'\t';
-
-	for (auto text : texts)
-		wsstream << text;
-	wsstream << L'\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognid(std::initializer_list<std::wstring> texts) {
-	std::wstringstream wsstream;
-
-	for (auto text : texts)
-		wsstream << text;
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(),
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
-		&writtenBytes,
-		NULL
-	);
-
-	mLogFileMutex.unlock();
-}
-
-void ThreadUtil::Lognidln(std::initializer_list<std::wstring> texts) {
-	std::wstringstream wsstream;
-
-	for (auto text : texts)
-		wsstream << text;
-	wsstream << L'\n';
-
-	mLogFileMutex.lock();
-
-	DWORD writtenBytes = 0;
-	WriteFile(
-		mhLogFile,
-		wsstream.str().c_str(), 
-		static_cast<DWORD>(wsstream.str().length() * sizeof(wchar_t)),
+		text.c_str(),
+		static_cast<DWORD>(text.length() * sizeof(wchar_t)),
 		&writtenBytes, 
 		NULL
 	);

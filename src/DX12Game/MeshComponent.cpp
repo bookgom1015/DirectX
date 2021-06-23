@@ -35,9 +35,11 @@ void MeshComponent::OnUpdateWorldTransform() {
 
 bool MeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName, bool bMultiThreading) {
 	mMesh = GameWorld::GetWorld()->AddMesh(inFileName, false, false, bMultiThreading);
-	if (mMesh == nullptr)
+	if (mMesh == nullptr) {
+		WErrln(L"Failed to load mesh");
 		return false;
-
+	}
+	
 	mMeshName = inMeshName;
 	mRenderer->AddRenderItem(mMeshName, mMesh);
 
@@ -46,4 +48,8 @@ bool MeshComponent::LoadMesh(const std::string& inMeshName, const std::string& i
 
 void MeshComponent::SetVisible(bool inStatus) {
 	mRenderer->SetVisible(mMeshName, inStatus);
+}
+
+std::string MeshComponent::GetMeshName() const {
+	return mMeshName;
 }

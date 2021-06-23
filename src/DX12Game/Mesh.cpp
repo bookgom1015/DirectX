@@ -196,11 +196,15 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		std::stringstream fileNameSstream;
 		fileNameSstream << fileNamePrefix << inFileName;
 
-		if (!importer.LoadDataFromFile(fileNameSstream.str(), bMultiThreading))
+		if (!importer.LoadDataFromFile(fileNameSstream.str(), bMultiThreading)) {
+			std::wstring wstr;
+			wstr.assign(inFileName.begin(), inFileName.end());
+			WErrln(L"Failed to load data from file: " + wstr);
 			return false;
+		}
 	}
 	timer.SetEndTime();
-	StringUtil::Log({ inFileName, " Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
+	Logln({ inFileName, " Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
 
 	std::thread vertThread;
 	if (mIsSkeletal)
@@ -354,14 +358,14 @@ void Mesh::AddSkeletonVertex(const Vertex& inVertex) {
 }
 
 void Mesh::OutputSkinnedDataInfo() {
-	StringUtil::Logln({ "Mesh Name: ", mMeshName });
-	StringUtil::Logln({ L" Num Bones: ", std::to_wstring(mSkinnedData.mSkeleton.mBones.size()), L"\n" });
+	Logln("Mesh Name: ", mMeshName);
+	WLogln(L" Num Bones: ", std::to_wstring(mSkinnedData.mSkeleton.mBones.size()), L"\n");
 	for (auto animIter = mSkinnedData.mAnimations.cbegin(), end = mSkinnedData.mAnimations.cend(); animIter != end; ++animIter) {
 		const auto& anim = animIter->second;
-		StringUtil::Logln({ " Clip Name: ", animIter->first });
-		StringUtil::Logln({ L" Num Frames: ", std::to_wstring(anim.mNumFrames) });
-		StringUtil::Logln({ L" Duration: ", std::to_wstring(anim.mDuration) });
-		StringUtil::Logln({ L" Frame Duration: ", std::to_wstring(anim.mFrameDuration) });
-		StringUtil::Logln({ L" Curves Size: ", std::to_wstring(anim.mCurves.size()), L"\n" });
+		Logln(" Clip Name: ", animIter->first);
+		WLogln(L" Num Frames: ", std::to_wstring(anim.mNumFrames));
+		WLogln(L" Duration: ", std::to_wstring(anim.mDuration));
+		WLogln(L" Frame Duration: ", std::to_wstring(anim.mFrameDuration));
+		WLogln(L" Curves Size: ", std::to_wstring(anim.mCurves.size()), L"\n");
 	}
 }

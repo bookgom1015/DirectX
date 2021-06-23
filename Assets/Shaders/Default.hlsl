@@ -64,64 +64,67 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	MaterialData matData = gMaterialData[matIndex];
 
 #ifdef SKINNED
-	float weights[8];
-	weights[0] = vin.BoneWeights0.x;
-	weights[1] = vin.BoneWeights0.y;
-	weights[2] = vin.BoneWeights0.z;
-	weights[3] = vin.BoneWeights0.w;
-	weights[4] = vin.BoneWeights1.x;
-	weights[5] = vin.BoneWeights1.y;
-	weights[6] = vin.BoneWeights1.z;
-	weights[7] = vin.BoneWeights1.w;
+	int animClipIdx = instData.AnimClipIndex;
+	if (animClipIdx != -1) {
+		float weights[8];
+		weights[0] = vin.BoneWeights0.x;
+		weights[1] = vin.BoneWeights0.y;
+		weights[2] = vin.BoneWeights0.z;
+		weights[3] = vin.BoneWeights0.w;
+		weights[4] = vin.BoneWeights1.x;
+		weights[5] = vin.BoneWeights1.y;
+		weights[6] = vin.BoneWeights1.z;
+		weights[7] = vin.BoneWeights1.w;
 
-	int indices[8];
-	indices[0] = vin.BoneIndices0.x;
-	indices[1] = vin.BoneIndices0.y;
-	indices[2] = vin.BoneIndices0.z;
-	indices[3] = vin.BoneIndices0.w;
-	indices[4] = vin.BoneIndices1.x;
-	indices[5] = vin.BoneIndices1.y;
-	indices[6] = vin.BoneIndices1.z;
-	indices[7] = vin.BoneIndices1.w;
+		int indices[8];
+		indices[0] = vin.BoneIndices0.x;
+		indices[1] = vin.BoneIndices0.y;
+		indices[2] = vin.BoneIndices0.z;
+		indices[3] = vin.BoneIndices0.w;
+		indices[4] = vin.BoneIndices1.x;
+		indices[5] = vin.BoneIndices1.y;
+		indices[6] = vin.BoneIndices1.z;
+		indices[7] = vin.BoneIndices1.w;
 
-	float3 posL = float3(0.0f, 0.0f, 0.0f);
-	float3 normalL = float3(0.0f, 0.0f, 0.0f);
-	float3 tangentL = float3(0.0f, 0.0f, 0.0f);
-	for (int i = 0; i < 8; ++i) {
-		// Assume no nonuniform scaling when transforming normals, so 
-		// that we do not have to use the inverse-transpose.
-		if (indices[i] == -1)
-			break;
+		float3 posL = float3(0.0f, 0.0f, 0.0f);
+		float3 normalL = float3(0.0f, 0.0f, 0.0f);
+		float3 tangentL = float3(0.0f, 0.0f, 0.0f);
+		for (int i = 0; i < 8; ++i) {
+			// Assume no nonuniform scaling when transforming normals, so 
+			// that we do not have to use the inverse-transpose.
+			if (indices[i] == -1)
+				break;
 
-		int rowIndex = indices[i] * 4;
-		int colIndex = instData.AnimClipIndex + (int)instData.TimePos;
-		float pct = instData.TimePos - (int)instData.TimePos;
+			int rowIndex = indices[i] * 4;
+			int colIndex = animClipIdx + (int)instData.TimePos;
+			float pct = instData.TimePos - (int)instData.TimePos;
 
-		float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex,     colIndex, 0));
-		float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));
-		float4 r3_f0 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex, 0));
-		float4 r4_f0 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex, 0));
+			float4 r1_f0 = gAnimationsDataMap.Load(int3(rowIndex, colIndex, 0));
+			float4 r2_f0 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex, 0));
+			float4 r3_f0 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex, 0));
+			float4 r4_f0 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex, 0));
 
-		float4 r1_f1 = gAnimationsDataMap.Load(int3(rowIndex,     colIndex + 1, 0));
-		float4 r2_f1 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex + 1, 0));
-		float4 r3_f1 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex + 1, 0));
-		float4 r4_f1 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex + 1, 0));
-		
-		float4 r1 = r1_f0 + pct * (r1_f1 - r1_f0);
-		float4 r2 = r2_f0 + pct * (r2_f1 - r2_f0);
-		float4 r3 = r3_f0 + pct * (r3_f1 - r3_f0);
-		float4 r4 = r4_f0 + pct * (r4_f1 - r4_f0);
-		
-		float4x4 trans = { r1, r2, r3, r4 };
-		
-		posL += weights[i] * mul(float4(vin.PosL, 1.0f), trans).xyz;
-		normalL += weights[i] * mul(vin.NormalL, (float3x3)trans);
-		tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)trans);
+			float4 r1_f1 = gAnimationsDataMap.Load(int3(rowIndex, colIndex + 1, 0));
+			float4 r2_f1 = gAnimationsDataMap.Load(int3(rowIndex + 1, colIndex + 1, 0));
+			float4 r3_f1 = gAnimationsDataMap.Load(int3(rowIndex + 2, colIndex + 1, 0));
+			float4 r4_f1 = gAnimationsDataMap.Load(int3(rowIndex + 3, colIndex + 1, 0));
+
+			float4 r1 = r1_f0 + pct * (r1_f1 - r1_f0);
+			float4 r2 = r2_f0 + pct * (r2_f1 - r2_f0);
+			float4 r3 = r3_f0 + pct * (r3_f1 - r3_f0);
+			float4 r4 = r4_f0 + pct * (r4_f1 - r4_f0);
+
+			float4x4 trans = { r1, r2, r3, r4 };
+
+			posL += weights[i] * mul(float4(vin.PosL, 1.0f), trans).xyz;
+			normalL += weights[i] * mul(vin.NormalL, (float3x3)trans);
+			tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)trans);
+		}
+
+		vin.PosL = posL;
+		vin.NormalL = normalL;
+		vin.TangentL.xyz = tangentL;
 	}
-
-	vin.PosL = posL;
-	vin.NormalL = normalL;
-	vin.TangentL.xyz = tangentL;
 #endif
 
 	// Transform to world space.

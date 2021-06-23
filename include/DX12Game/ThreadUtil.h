@@ -1,5 +1,67 @@
 #pragma once
 
+#ifndef TLog
+	#define TLog(x, ...)												\
+	{																	\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };			\
+		std::stringstream _sstream;										\
+																		\
+		_sstream << "[tid: " << std::this_thread::get_id() << "] ";		\
+																		\
+		for (const auto& text : texts)									\
+			_sstream << text << ' ';									\
+																		\
+		ThreadUtil::TLogFunc(_sstream.str());							\
+	}
+#endif
+
+#ifndef TLogln
+	#define TLogln(x, ...)												\
+	{																	\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };			\
+		std::stringstream _sstream;										\
+																		\
+		_sstream << "[tid: " << std::this_thread::get_id() << "] ";		\
+																		\
+		for (const auto& text : texts)									\
+			_sstream << text << ' ';									\
+		_sstream << '\n';												\
+																		\
+		ThreadUtil::TLogFunc(_sstream.str());							\
+	}
+#endif
+
+#ifndef TWLog
+	#define TWLog(x, ...)												\
+	{																	\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };			\
+		std::wstringstream _wsstream;									\
+																		\
+		_wsstream << L"[tid: " << std::this_thread::get_id() << L"] ";	\
+																		\
+		for (const auto& text : texts)									\
+			_wsstream << text << L' ';									\
+																		\
+		ThreadUtil::TLogFunc(_wsstream.str());							\
+	}
+#endif
+
+#ifndef TWLogln
+	#define TWLogln(x, ...)												\
+	{																	\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };			\
+		std::wstringstream _wsstream;									\
+																		\
+		_wsstream << L"[tid: " << std::this_thread::get_id() << L"] ";	\
+																		\
+		for (const auto& text : texts)									\
+			_wsstream << text << L' ';									\
+		_wsstream << L'\n';												\
+																		\
+		ThreadUtil::TLogFunc(_wsstream.str());							\
+	}
+#endif
+
 class ThreadUtil {
 public:
 	// PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
@@ -29,23 +91,8 @@ public:
 		return sysInfo.dwNumberOfProcessors;
 	}
 
-	static void Log(const std::string& text);
-	static void Logln(const std::string& text);
-	static void Lognid(const std::string& text);
-	static void Lognidln(const std::string& text);
-	static void Log(std::initializer_list<std::string> texts);
-	static void Logln(std::initializer_list<std::string> texts);
-	static void Lognid(std::initializer_list<std::string> texts);
-	static void Lognidln(std::initializer_list<std::string> texts);
-
-	static void Log(const std::wstring& text);
-	static void Logln(const std::wstring& text);
-	static void Lognid(const std::wstring& text);
-	static void Lognidln(const std::wstring& text);
-	static void Log(std::initializer_list<std::wstring> texts);	
-	static void Logln(std::initializer_list<std::wstring> texts);	
-	static void Lognid(std::initializer_list<std::wstring> texts);
-	static void Lognidln(std::initializer_list<std::wstring> texts);
+	static void TLogFunc(const std::string& text);
+	static void TLogFunc(const std::wstring& text);
 
 private:
 	static HANDLE mhLogFile;

@@ -1,8 +1,8 @@
-﻿  Renderer.cpp
+﻿  GameWorld.cpp
   Generating code
-  36 of 11406 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
+  1 of 11471 functions (<0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    127 functions had inline decision re-evaluated but remain unchanged
+    2 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe
   F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\\lib\dll\fmod64.dll

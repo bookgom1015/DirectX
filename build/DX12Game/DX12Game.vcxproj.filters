@@ -67,6 +67,9 @@
     <Filter Include="Header Files\Component">
       <UniqueIdentifier>{58b34c58-58cf-4d79-8c7b-8a26e7f6962d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Inline Files">
+      <UniqueIdentifier>{aaa774d8-3eb3-47eb-b9ad-c855b26650aa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp">
@@ -135,9 +138,6 @@
     <ClCompile Include="..\..\src\DX12Game\TpsActor.cpp">
       <Filter>Source Files\Actor</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
@@ -155,6 +155,9 @@
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
+      <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -260,5 +263,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="..\..\include\DX12Game\StringUtil.inl">
+      <Filter>Inline Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Assets\Shaders\Waves.hlsl">
+      <Filter>Shader Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

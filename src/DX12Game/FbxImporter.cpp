@@ -6,7 +6,7 @@ using namespace DirectX::PackedVector;
 using namespace fbxsdk;
 
 namespace {
-	const int InvalidBoneIndex = std::numeric_limits<UINT>::infinity();
+	const UINT InvalidBoneIndex = std::numeric_limits<UINT>::max();
 }
 
 DxFbxVertex::DxFbxVertex(
@@ -98,31 +98,45 @@ DxFbxImporter::~DxFbxImporter() {
 }
 
 bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiThreading) {
-	if (!LoadFbxScene(inFileName))
+	if (!LoadFbxScene(inFileName)) {
+		WErrln(L"Failed to load fbx scnene");
 		return false;
+	}
 
 	auto fbxRootNode = mFbxScene->GetRootNode();
 	LoadSkeletonHierarchy(fbxRootNode);
 
-	std::thread loadingBonesThread = std::thread([this](fbxsdk::FbxNode* inFbxRootNode) -> void {
+	bool loadingBonesStatus;
+	std::thread loadingBonesThread = std::thread([this](fbxsdk::FbxNode* inFbxRootNode, bool& inStatus) -> void {
 		for (size_t i = 0; i < inFbxRootNode->GetChildCount(); ++i) {
-			FbxNode* childNode = inFbxRootNode->GetChild((int)i);
-			if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
-				LoadBones(childNode);
+			FbxNode* childNode = inFbxRootNode->GetChild(static_cast<int>(i));
+			if (childNode->GetNodeAttribute() && 
+					(childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)) {
+				if (!LoadBones(childNode)) {
+					inStatus = false;
+					return;
+				}
+			}
 		}
-	}, fbxRootNode);
+		inStatus = true;
+	}, fbxRootNode, std::ref(loadingBonesStatus));
 
 	std::thread loadingMatsThread = std::thread([this](fbxsdk::FbxNode* inFbxRootNode) -> void {
 		for (size_t i = 0; i < inFbxRootNode->GetChildCount(); ++i) {
-			FbxNode* childNode = inFbxRootNode->GetChild((int)i);
+			FbxNode* childNode = inFbxRootNode->GetChild(static_cast<int>(i));
 			if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
 				LoadMaterials(childNode);
 		}
 	}, fbxRootNode);
 
 	loadingBonesThread.join();
-	loadingMatsThread.join();
+	if (!loadingBonesStatus) {
+		WErrln(L"Failed to load bones");
+		return false;
+	}
 
+	loadingMatsThread.join();
+	
 	MoveDataFromFbxAMatrixToDirectXMath();
 	NormalizeWeigths();
 
@@ -186,7 +200,7 @@ bool DxFbxImporter::LoadFbxScene(const std::string& inFileName) {
 		wsstream << "Failed to initialize FbxImporter" << std::endl;
 		wsstream << "File name: " << inFileName.c_str() << std::endl;
 		wsstream << "Error returned: " << fbxImporter->GetStatus().GetErrorString() << std::endl;
-		MessageBox(nullptr, wsstream.str().c_str(), L"DxFbxImporter", MB_OK);
+		WErrln({ wsstream.str().c_str() });
 		return false;
 	}
 
@@ -196,7 +210,7 @@ bool DxFbxImporter::LoadFbxScene(const std::string& inFileName) {
 		std::wstringstream wsstream;
 		wsstream << "Failed to import FbxImporter" << std::endl;
 		wsstream << "File name: " << inFileName.c_str() << std::endl;
-		MessageBox(nullptr, wsstream.str().c_str(), L"DxFbxImporter", MB_OK);
+		WErrln(wsstream.str().c_str());
 		return false;
 	}
 
@@ -370,7 +384,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
 
 		if (numPolygonVertices != 3) {
-			MessageBox(nullptr, L"Polygon vertex size for Fbx mesh is not matched 3", L"FbxImporter", MB_OK);
+			WErrln(L"Polygon vertex size for Fbx mesh is not matched 3");
 			return -1;
 		}
 
@@ -435,7 +449,7 @@ namespace {
 			if (!isOverlapped)
 				outUniqueVertexSet.push_back(vert);
 		}
-		ThreadUtil::Logln({ L"Distribution Loop-Count: ", std::to_wstring(counter) });
+		TWLogln(L"Distribution Loop-Count: ", std::to_wstring(counter));
 	}
 
 	void Composite(const std::vector<DxFbxVertex>& inOverlappedVertexSet, const std::vector<DxFbxVertex>& inUniqueVertexSet,
@@ -467,7 +481,7 @@ namespace {
 				}
 			}
 		}
-		ThreadUtil::Logln({ L"Composition Loop-Count: ", std::to_wstring(counter) });
+		TWLogln( L"Composition Loop-Count: ", std::to_wstring(counter));
 	}
 }
 
@@ -491,7 +505,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
 
 		if (numPolygonVertices != 3) {
-			MessageBox(nullptr, L"Polygon vertex size for Fbx mesh is not matched 3", L"FbxImporter", MB_OK);
+			WErrln(L"Polygon vertex size for Fbx mesh is not matched 3");
 			return -1;
 		}
 
@@ -530,7 +544,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 				eachPolygonCounts[i] = lineSize;
 			wsstream << L"Thread_" << i << " Line-Size:" << eachPolygonCounts[i] << std::endl;
 		}
-		ThreadUtil::Lognid(wsstream.str());
+		TWLogln(wsstream.str());
 	}
 	
 	std::vector<std::vector<DxFbxVertex>> overlappedVertexSets(numProcessors);
@@ -736,7 +750,7 @@ namespace {
 	}
 }
 
-void DxFbxImporter::LoadBones(FbxNode* inNode) {
+bool DxFbxImporter::LoadBones(FbxNode* inNode) {
 	auto currMesh = inNode->GetMesh();
 	std::string meshName = currMesh->GetName();
 
@@ -754,6 +768,10 @@ void DxFbxImporter::LoadBones(FbxNode* inNode) {
 		for (int i = 0; i < clusterCount; ++i) {
 			auto currCluster = currSkin->GetCluster(i);			
 			UINT clusterIndex = FindBoneIndexUsingName(currCluster->GetLink()->GetName());
+			if (clusterIndex == InvalidBoneIndex) {
+				WErrln(L"FindBoneIndexUsingName() returned invalid index");
+				return false;
+			}
 
 			BuildControlPointsWeigths(currCluster, clusterIndex, meshName);
 
@@ -771,6 +789,8 @@ void DxFbxImporter::LoadBones(FbxNode* inNode) {
 			BuildAnimations(inNode, currCluster, geometryTransform, clusterIndex, parentIndex);
 		}
 	}
+
+	return true;
 }
 
 void DxFbxImporter::NormalizeWeigths() {
@@ -914,9 +934,12 @@ UINT DxFbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
 	return { InvalidBoneIndex };
 }
 
-void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsdk::FbxAMatrix& inGeometryTransform,
-										UINT inClusterIndex, int inParentIndex,
-										const DxFbxSkeleton& inSkeleton, DxFbxBone& outBone) {
+void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, 
+									  const fbxsdk::FbxAMatrix& inGeometryTransform,										
+									  UINT inClusterIndex, 
+									  int inParentIndex,										
+									  const DxFbxSkeleton& inSkeleton,
+									  DxFbxBone& outBone) {
 	// For compability with other softwares... (usually identity matrix)
 	FbxAMatrix transformMatrix;
 	inCluster->GetTransformMatrix(transformMatrix);
@@ -925,8 +948,8 @@ void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsd
 	FbxAMatrix transformLinkMatrix;
 	inCluster->GetTransformLinkMatrix(transformLinkMatrix);
 	UnifyCoordinates(transformLinkMatrix);
-
-	if (inClusterIndex != 0) {
+	
+	if (inParentIndex != -1) {
 		FbxAMatrix transformParentLinkMatrix;
 		mClusters[inParentIndex]->GetTransformLinkMatrix(transformParentLinkMatrix);
 		UnifyCoordinates(transformParentLinkMatrix);
@@ -966,7 +989,7 @@ void DxFbxImporter::BuildAnimations(FbxNode* inNode, FbxCluster* inCluster, cons
 		for (int layerIdx = 0; layerIdx < layerCount; ++layerIdx) {
 			auto animLayer = FbxCast<FbxAnimLayer>(animStack->GetMember(layerIdx));
 			auto layerName = animLayer->GetName();
-
+			
 			auto takeInfo = mFbxScene->GetTakeInfo(layerName);
 
 			std::string layerNameStr(layerName);

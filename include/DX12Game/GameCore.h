@@ -10,6 +10,8 @@
 
 const int gNumFrameResources = 3;
 
+#define NOMINMAX
+
 #include <atomic>
 #include <cmath>
 #include <comdef.h>
@@ -65,22 +67,21 @@ public:
 };
 
 #ifndef ReturnIfFailed
-#define ReturnIfFailed(x)																			\
+	#define ReturnIfFailed(x)																		\
 	{																								\
 		HRESULT __hr = (x);																			\
 		if (FAILED(__hr)) {																			\
 			std::wstringstream __wsstream;															\
 			_com_error err(__hr);																	\
-			__wsstream << L#x << L" failed in" << __FILE__ <<										\
-				L"; line: " << __LINE__ << L"; message: " << err.ErrorMessage();					\
-			StringUtil::Logln(__wsstream.str());													\
+			__wsstream << L#x << L" failed;" << L"; message: " << err.ErrorMessage();				\
+			WErrln(__wsstream.str());																\
 			return DxResult(__hr, __wsstream.str());												\
 		}																							\
 	}
 #endif
 
 #ifndef CheckDxResult
-#define CheckDxResult(x)			\
+	#define CheckDxResult(x)		\
 	{								\
 		if (x.hr != S_OK)			\
 			return x;				\

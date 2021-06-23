@@ -33,7 +33,7 @@ struct InstanceData {
 	float4x4 TexTransform;
 	float TimePos;
 	uint MaterialIndex;
-	uint AnimClipIndex;
+	int AnimClipIndex;
 	uint InstPad0;
 };
 
@@ -45,7 +45,7 @@ struct MaterialData {
 	uint		DiffuseMapIndex;
 	uint		NormalMapIndex;
 	int			SpecularMapIndex;
-	uint		MatPad0;
+	int			DispMapIndex;
 };
 
 TextureCube gCubeMap							: register(t0);

@@ -38,7 +38,7 @@ public:
 	DirectX::XMFLOAT4X4 mTexTransform;
 	float mTimePos;
 	UINT mMaterialIndex;
-	UINT mAnimClipIndex;	
+	int mAnimClipIndex;	
 	UINT mRenderState;
 
 public:
@@ -47,7 +47,7 @@ public:
 		const DirectX::XMFLOAT4X4& inTexTransform	= MathHelper::Identity4x4(),
 		float inTimePos								= 0.0f, 
 		UINT inMaterialIndex						= 0, 
-		UINT inAnimClipIndex						= 0, 
+		int inAnimClipIndex							= -1, 
 		EInstanceRenderState inRenderState			= EInstanceRenderState::EID_Visible
 	);
 
@@ -126,7 +126,7 @@ struct MaterialData {
 	UINT mDiffuseMapIndex;
 	UINT mNormalMapIndex;
 	INT mSpecularMapIndex;
-	UINT mMaterialPad0;
+	INT mDispMapIndex;
 
 public:
 	MaterialData();

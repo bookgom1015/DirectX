@@ -21,7 +21,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 	try {
 		GameWorld game(hInstance);
 
-		DxResult result = game.Initialize();
+		DxResult result = game.Initialize(1600, 900);
 		if (result.hr != S_OK) {
 			MessageBox(nullptr, result.msg.c_str(), L"Failed", MB_OK);
 		}
@@ -65,7 +65,10 @@ GameWorld::GameWorld(HINSTANCE hInstance)
 
 GameWorld::~GameWorld() {}
 
-DxResult GameWorld::Initialize() {
+DxResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 */) {
+	mClientWidth = inWidth;
+	mClientHeight = inHeight;
+
 	CheckDxResult(InitMainWindow());
 	
 	CheckDxResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
@@ -86,7 +89,7 @@ DxResult GameWorld::Initialize() {
 	mMTActors.resize(numProcessors);
 	mMTPendingActors.resize(numProcessors);
 	bMTUpdatingActors.resize(numProcessors);
-#endif
+#endif 
 
 	return DxResult(S_OK, L"");
 }
@@ -142,7 +145,6 @@ bool GameWorld::LoadData() {
 	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
 		return false;
 	leoniMeshComp->SetClipName("Idle");
-	leoniMeshComp->SetSkeleletonVisible(false);
 
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
@@ -201,8 +203,10 @@ void GameWorld::UnloadData() {
 }
 
 int GameWorld::RunLoop() {
-	if (!LoadData())
+	if (!LoadData()) {
+		WErrln(L"LoadData() returned error code");
 		return -1;
+	}
 
 	OnResize();
 
@@ -362,8 +366,10 @@ Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool 
 		return iter->second.get();
 
 	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
-	if (!mesh->Load(inFileName, bMultiThreading))
+	if (!mesh->Load(inFileName, bMultiThreading)) {
+		WErrln(L"Failed to add mesh");
 		return nullptr;
+	}
 
 	auto meshptr = mesh.get();
 	mMeshes.emplace(inFileName, std::move(mesh));

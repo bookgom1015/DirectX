@@ -16,7 +16,7 @@
 //#define Ex6
 //#define Ex7
 //#define Ex8
-#define Ex9
+//#define Ex9
 
 const int gNumFrameResources = 3;
 

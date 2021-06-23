@@ -28,8 +28,8 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 		mClipIsChanged = false;
 	}
 
-	float timePose = mMesh->GetSkinnedData().GetTimePosition(mClipName, gt.TotalTime() - mLastTotalTime);
-	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePose, true);
+	float timePos = mMesh->GetSkinnedData().GetTimePosition(mClipName, gt.TotalTime() - mLastTotalTime);
+	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePos, true);
 }
 
 bool SkeletalMeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName, bool bMultiThreading) {

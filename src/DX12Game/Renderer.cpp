@@ -366,8 +366,10 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 			for (auto ritem : ritems) {
 				UINT index = mInstancesIndex[inRenderItemName];
 
-				ritem->mInstances[index].mAnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+				ritem->mInstances[index].mAnimClipIndex = inAnimClipIdx == -1 ? 
+					-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
 				ritem->mInstances[index].mTimePos = inTimePos;
+				ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
 			}
 		}
 	}
@@ -380,8 +382,10 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 			for (auto ritem : ritems) {
 				UINT index = mInstancesIndex[inRenderItemName];
 
-				ritem->mInstances[index].mAnimClipIndex = static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+				ritem->mInstances[index].mAnimClipIndex = inAnimClipIdx == -1 ?
+					-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
 				ritem->mInstances[index].mTimePos = inTimePos;
+				ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
 			}
 		}
 	}
@@ -692,15 +696,16 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 		if (iter != mMeshToRitem.end()) {
 			auto& ritems = iter->second;
 			for (auto ritem : ritems) {
-				ritem->mInstances.push_back({ 
+				mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->mInstances.size());
+
+				ritem->mInstances.emplace_back(
 					MathHelper::Identity4x4(),
 					MathHelper::Identity4x4(),
 					0.0f,
-					static_cast<UINT>(ritem->mMat->MatCBIndex), 
-					0
-				});
+					static_cast<UINT>(ritem->mMat->MatCBIndex)
+				);
+
 				mRefRitems[inRenderItemName].push_back(ritem);
-				mInstancesIndex[inRenderItemName] = static_cast<UINT>(ritem->mInstances.size() - 1);
 			}
 		}
 	}
@@ -722,13 +727,12 @@ void Renderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* in
 				}
 			}
 
-			ritem->mInstances.push_back({
-				MathHelper::Identity4x4(), 
+			ritem->mInstances.emplace_back(
+				MathHelper::Identity4x4(),
 				MathHelper::Identity4x4(),
 				0.0f,
-				static_cast<UINT>(ritem->mMat->MatCBIndex),
-				0 
-			});
+				static_cast<UINT>(ritem->mMat->MatCBIndex)
+			);
 			ritem->mGeo = mGeometries[inMesh->GetMeshName()].get();
 			ritem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 			ritem->mIndexCount = ritem->mGeo->DrawArgs[drawArgs[i]].IndexCount;
@@ -903,6 +907,8 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 			std::string name = inRenderItemName + "_skeleton";
 			auto& ritems = iter->second;			
 			for (auto ritem : ritems) {
+				mInstancesIndex[name] = static_cast<UINT>(ritem->mInstances.size());
+
 				ritem->mInstances.push_back({ 
 					MathHelper::Identity4x4(),
 					MathHelper::Identity4x4(), 
@@ -910,8 +916,8 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 					static_cast<UINT>(ritem->mMat->MatCBIndex),
 					0 
 				});
+
 				mRefRitems[name].push_back(ritem);
-				mInstancesIndex[name] = static_cast<UINT>(ritem->mInstances.size() - 1);
 			}
 		}
 	}
@@ -1199,8 +1205,10 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 				InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
 				(localSpaceFrustum.Contains(e->mAABB) != DirectX::DISJOINT)) {
 
+				UINT instIdx = index + iterIdx;
+
 				InstanceIdxData instIdxData;
-				instIdxData.mInstanceIdx = index + iterIdx;
+				instIdxData.mInstanceIdx = instIdx;
 
 				currInstIdxBuffer->CopyData(index + offset, instIdxData);
 
@@ -1214,7 +1222,7 @@ void Renderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 					instData.mAnimClipIndex = i.mAnimClipIndex;
 					instData.mMaterialIndex = i.mMaterialIndex;
 
-					currInstBuffer->CopyData(index + iterIdx, instData);
+					currInstBuffer->CopyData(instIdx, instData);
 
 					// Next FrameResource need to be updated too.
 					i.DecreaseNumFramesDirty();
@@ -1827,55 +1835,66 @@ void Renderer::BuildShadersAndInputLayout() {
 		NULL, NULL
 	};
 	
-	mShaders["standardVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Default.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["skinnedVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Default.hlsl", skinnedDefines, "VS", "vs_5_1");
-	mShaders["skeletonVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Skeleton.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["shadowVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Shadows.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["skinnedShadowVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Shadows.hlsl", skinnedDefines, "VS", "vs_5_1");
+	{
+		std::wstring defaulthlsl = ShaderFileNamePrefix + L"Default.hlsl";
+		mShaders["standardVS"]		= d3dUtil::CompileShader(defaulthlsl, nullptr,			"VS", "vs_5_1");
+		mShaders["opaquePS"]		= d3dUtil::CompileShader(defaulthlsl, alphaTestDefines, "PS", "ps_5_1");
+		mShaders["skinnedVS"]		= d3dUtil::CompileShader(defaulthlsl, skinnedDefines,	"VS", "vs_5_1");
+	}
 
-	mShaders["skeletonGS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Skeleton.hlsl", nullptr, "GS", "gs_5_1");
+	{
+		std::wstring skeletonhlsl = ShaderFileNamePrefix + L"Skeleton.hlsl";
+		mShaders["skeletonVS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "VS", "vs_5_1");
+		mShaders["skeletonGS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "GS", "gs_5_1");
+		mShaders["skeletonPS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "PS", "ps_5_1");
+	}
 
-	mShaders["opaquePS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Default.hlsl", alphaTestDefines, "PS", "ps_5_1");
-	mShaders["skeletonPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Skeleton.hlsl", nullptr, "PS", "ps_5_1");
-	mShaders["shadowOpaquePS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Shadows.hlsl", nullptr, "PS", "ps_5_1");
-	mShaders["shadowAlphaTestedPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Shadows.hlsl", alphaTestDefines, "PS", "ps_5_1");
+	{
+		std::wstring waveshlsl = ShaderFileNamePrefix + L"Waves.hlsl";
+		mShaders["wavesVS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "VS", "vs_5_1");
+		mShaders["wavesHS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "HS", "hs_5_1");
+		mShaders["wavesDS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "DS", "ds_5_1");
+		mShaders["wavesPS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "PS", "ps_5_1");
+	}
+
+	{
+		std::wstring shadowhlsl = ShaderFileNamePrefix + L"Shadows.hlsl";
+		mShaders["shadowVS"]			 = d3dUtil::CompileShader(shadowhlsl, nullptr,			"VS", "vs_5_1");
+		mShaders["skinnedShadowVS"]		 = d3dUtil::CompileShader(shadowhlsl, skinnedDefines,	"VS", "vs_5_1");
+		mShaders["shadowOpaquePS"]		 = d3dUtil::CompileShader(shadowhlsl, nullptr,			"PS", "ps_5_1");
+		mShaders["shadowAlphaTestedPS"]  = d3dUtil::CompileShader(shadowhlsl, alphaTestDefines, "PS", "ps_5_1");
+	}
 	
-	mShaders["debugVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"DrawDebug.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["debugPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"DrawDebug.hlsl", nullptr, "PS", "ps_5_1");
+	{
+		std::wstring drawdebughlsl = ShaderFileNamePrefix + L"DrawDebug.hlsl";
+		mShaders["debugVS"] = d3dUtil::CompileShader(drawdebughlsl, nullptr, "VS", "vs_5_1");
+		mShaders["debugPS"] = d3dUtil::CompileShader(drawdebughlsl, nullptr, "PS", "ps_5_1");
+	}
 	
-	mShaders["drawNormalsVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"DrawNormals.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["skinnedDrawNormalsVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"DrawNormals.hlsl", skinnedDefines, "VS", "vs_5_1");
-	mShaders["drawNormalsPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"DrawNormals.hlsl", nullptr, "PS", "ps_5_1");
+	{
+		std::wstring drawnormalhlsl = ShaderFileNamePrefix + L"DrawNormals.hlsl";
+		mShaders["drawNormalsVS"]		 = d3dUtil::CompileShader(drawnormalhlsl, nullptr,		  "VS", "vs_5_1");
+		mShaders["skinnedDrawNormalsVS"] = d3dUtil::CompileShader(drawnormalhlsl, skinnedDefines, "VS", "vs_5_1");
+		mShaders["drawNormalsPS"]		 = d3dUtil::CompileShader(drawnormalhlsl, nullptr,		  "PS", "ps_5_1");
+	}
 	
-	mShaders["ssaoVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Ssao.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["ssaoPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Ssao.hlsl", nullptr, "PS", "ps_5_1");
+	{
+		std::wstring ssaohlsl = ShaderFileNamePrefix + L"Ssao.hlsl";
+		mShaders["ssaoVS"] = d3dUtil::CompileShader(ssaohlsl, nullptr, "VS", "vs_5_1");
+		mShaders["ssaoPS"] = d3dUtil::CompileShader(ssaohlsl, nullptr, "PS", "ps_5_1");
+	}
 
-	mShaders["ssaoBlurVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"SsaoBlur.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["ssaoBlurPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"SsaoBlur.hlsl", nullptr, "PS", "ps_5_1");
+	{
+		std::wstring ssaoblurhlsl = ShaderFileNamePrefix + L"SsaoBlur.hlsl";
+		mShaders["ssaoBlurVS"] = d3dUtil::CompileShader(ssaoblurhlsl, nullptr, "VS", "vs_5_1");
+		mShaders["ssaoBlurPS"] = d3dUtil::CompileShader(ssaoblurhlsl, nullptr, "PS", "ps_5_1");
+	}
 
-	mShaders["skyVS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Sky.hlsl", nullptr, "VS", "vs_5_1");
-	mShaders["skyPS"] = d3dUtil::CompileShader(
-		ShaderFileNamePrefix + L"Sky.hlsl", nullptr, "PS", "ps_5_1");
+	{
+		std::wstring skyhlsl = ShaderFileNamePrefix + L"Sky.hlsl";
+		mShaders["skyVS"] = d3dUtil::CompileShader(skyhlsl, nullptr, "VS", "vs_5_1");
+		mShaders["skyPS"] = d3dUtil::CompileShader(skyhlsl, nullptr, "PS", "ps_5_1");
+	}
 	
 	mInputLayout = {
 		{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT,	0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -2102,6 +2121,7 @@ void Renderer::BuildBasicMaterials() {
 	defaultMat->DiffuseSrvHeapIndex = 0;
 	defaultMat->NormalSrvHeapIndex = 1;
 	defaultMat->SpecularSrvHeapIndex = -1;
+	defaultMat->DispSrvHeapIndex = -1;
 	defaultMat->DiffuseAlbedo = XMFLOAT4(0.5f, 0.5f, 0.5f, 0.5f);
 	defaultMat->FresnelR0 = XMFLOAT3(0.5f, 0.5f, 0.5f);
 	defaultMat->Roughness = 0.5f;
@@ -2110,6 +2130,9 @@ void Renderer::BuildBasicMaterials() {
 	skyMat->Name = "sky";
 	skyMat->MatCBIndex = mNumMatCB++;
 	skyMat->DiffuseSrvHeapIndex = mDescHeapIdx.mSkyTexHeapIndex;
+	defaultMat->NormalSrvHeapIndex = 1;
+	defaultMat->SpecularSrvHeapIndex = -1;
+	defaultMat->DispSrvHeapIndex = -1;
 	skyMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	skyMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	skyMat->Roughness = 1.0f;
@@ -2132,13 +2155,12 @@ void Renderer::BuildBasicRenderItems() {
 	skyRitem->mBaseVertexLocation = skyRitem->mGeo->DrawArgs["sphere"].BaseVertexLocation;
 	skyRitem->mAABB = skyRitem->mGeo->DrawArgs["sphere"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
-	skyRitem->mInstances.push_back({
+	skyRitem->mInstances.emplace_back(
 		world,
 		MathHelper::Identity4x4(),
 		0.0f, 
-		static_cast<UINT>(skyRitem->mMat->MatCBIndex), 
-		0 
-	});
+		static_cast<UINT>(skyRitem->mMat->MatCBIndex) 
+	);
 	mRitemLayer[RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
@@ -2152,13 +2174,12 @@ void Renderer::BuildBasicRenderItems() {
 	boxRitem->mBaseVertexLocation = boxRitem->mGeo->DrawArgs["box"].BaseVertexLocation;
 	boxRitem->mAABB = boxRitem->mGeo->DrawArgs["box"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	boxRitem->mInstances.push_back({
+	boxRitem->mInstances.emplace_back(
 		world,
 		MathHelper::Identity4x4(),
 		0.0f,
-		static_cast<UINT>(boxRitem->mMat->MatCBIndex),
-		0 
-	});
+		static_cast<UINT>(boxRitem->mMat->MatCBIndex)
+	);
 	mRitemLayer[RenderLayer::Opaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
@@ -2171,22 +2192,22 @@ void Renderer::BuildBasicRenderItems() {
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
-	quadRitem->mInstances.push_back({
+	quadRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(), 
 		0.0f, 
 		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		0,
+		-1,
 		EInstanceRenderState::EID_DrawAlways
-	});
-	quadRitem->mInstances.push_back({
+	);
+	quadRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(),
 		0.0f,
 		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		0,
+		-1,
 		EInstanceRenderState::EID_DrawAlways
-	});
+	);
 	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
@@ -2200,13 +2221,12 @@ void Renderer::BuildBasicRenderItems() {
 	gridRitem->mBaseVertexLocation = gridRitem->mGeo->DrawArgs["grid"].BaseVertexLocation;
 	gridRitem->mAABB = gridRitem->mGeo->DrawArgs["grid"].AABB;
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
-	gridRitem->mInstances.push_back({ 
+	gridRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(), 
 		tex, 
 		0.0f, 
-		static_cast<UINT>(gridRitem->mMat->MatCBIndex),
-		0 
-	});
+		static_cast<UINT>(gridRitem->mMat->MatCBIndex)
+	);
 	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 }
@@ -2274,8 +2294,8 @@ DxResult Renderer::BuildPSOs() {
 	// PSO for shadow map pass.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC smapPsoDesc = opaquePsoDesc;
-	smapPsoDesc.RasterizerState.DepthBias = 10000;
-	smapPsoDesc.RasterizerState.DepthBiasClamp = 0.1f;
+	smapPsoDesc.RasterizerState.DepthBias = 100000;
+	smapPsoDesc.RasterizerState.DepthBiasClamp = 0.001f;
 	smapPsoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
 	smapPsoDesc.pRootSignature = mRootSignature.Get();
 	smapPsoDesc.VS = {
@@ -2403,6 +2423,26 @@ DxResult Renderer::BuildPSOs() {
 		mShaders["skyPS"]->GetBufferSize()
 	};
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
+
+	//D3D12_GRAPHICS_PIPELINE_STATE_DESC wavesPsoDesc = opaquePsoDesc;
+	//wavesPsoDesc.VS = {
+	//	reinterpret_cast<BYTE*>(mShaders["wavesVS"]->GetBufferPointer()),
+	//	mShaders["wavesVS"]->GetBufferSize()
+	//};
+	//wavesPsoDesc.HS = {
+	//	reinterpret_cast<BYTE*>(mShaders["wavesHS"]->GetBufferPointer()),
+	//	mShaders["wavesHS"]->GetBufferSize()
+	//};
+	//wavesPsoDesc.DS = {
+	//	reinterpret_cast<BYTE*>(mShaders["wavesDS"]->GetBufferPointer()),
+	//	mShaders["wavesDS"]->GetBufferSize()
+	//};
+	//wavesPsoDesc.PS = {
+	//	reinterpret_cast<BYTE*>(mShaders["wavesPS"]->GetBufferPointer()),
+	//	mShaders["wavesPS"]->GetBufferSize()
+	//};
+	//wavesPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
+	//ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesPsoDesc, IID_PPV_ARGS(&mPSOs["waves"])));
 
 	return DxResult(S_OK);
 }

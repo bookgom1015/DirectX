@@ -20,6 +20,8 @@ public:
 	//* Set visibility for the mesh for this component.
 	virtual void SetVisible(bool inStatus);
 
+	std::string GetMeshName() const;
+
 protected:
 	Renderer* mRenderer;
 	Mesh* mMesh = nullptr;

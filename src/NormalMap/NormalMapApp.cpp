@@ -533,8 +533,8 @@ void NormalMapApp::LoadTextures() {
 #elif defined(Ex5)
 		L"./../../../../Assets/Textures/bricks99.dds",
 		L"./../../../../Assets/Textures/bricks99_normal.dds",
-		L"./../../../../Assets/Exercise Media/waves0.dds",
-		L"./../../../../Assets/Exercise Media/waves1.dds",
+		L"./../../../../Assets/Textures/waves0.dds",
+		L"./../../../../Assets/Textures/waves1.dds",
 		L"./../../../../Assets/Textures/waves0_disp.dds",
 		L"./../../../../Assets/Textures/waves1_disp.dds",
 		L"./../../../../Assets/Textures/white1x1.dds",

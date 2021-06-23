@@ -22,7 +22,7 @@ InstanceData::InstanceData(
 	const DirectX::XMFLOAT4X4& inTexTransform	/* = MathHelper::Identity4x4() */,
 	float inTimePos								/* = 0.0f */,
 	UINT inMaterialIndex						/* = 0 */, 
-	UINT inAnimClipIndex						/* = 0 */,
+	int inAnimClipIndex							/* = -1 */,
 	EInstanceRenderState inRenderState /* = EInstanceRenderState::EID_Visible */) {
 
 	mWorld = inWorld;
@@ -65,7 +65,7 @@ void InstanceData::SetNumFramesDirty(UINT inNum) {
 }
 
 void InstanceData::DecreaseNumFramesDirty() {
-	//mRenderState -= DecreaseOne;
+	mRenderState -= DecreaseOne;
 }
 
 PassConstants::PassConstants() {
@@ -104,6 +104,11 @@ MaterialData::MaterialData() {
 	mRoughness = 64.0f;
 
 	mMatTransform = MathHelper::Identity4x4();
+
+	mDiffuseMapIndex = 0;
+	mNormalMapIndex = 0;
+	mSpecularMapIndex = -1;
+	mDispMapIndex = -1;
 }
 
 Vertex::Vertex(

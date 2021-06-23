@@ -35,7 +35,7 @@ private:
 	GameWorld& operator=(GameWorld&& rhs) = delete;
 
 public:
-	DxResult Initialize();
+	DxResult Initialize(INT inWidth = 800, UINT inHeight = 600);
 	bool LoadData();
 	void UnloadData();
 	int RunLoop();
@@ -116,8 +116,8 @@ private:
 
 	std::wstring mMainWndCaption = L"D3D12 Game";
 	
-	UINT mClientWidth = 800;
-	UINT mClientHeight = 600;
+	UINT mClientWidth;
+	UINT mClientHeight;
 	UINT mPrimaryMonitorWidth = 0;
 	UINT mPrimaryMonitorHeight = 0;
 
