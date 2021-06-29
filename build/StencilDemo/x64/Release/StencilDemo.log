@@ -1,12 +1,14 @@
-﻿  FrameResource.cpp
-  StencilApp.cpp
-  GameTimer.cpp
-  MathHelper.cpp
-  d3dApp.cpp
+﻿  d3dApp.cpp
   d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  StencilApp.cpp
   Generating code
-  0 of 2489 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
+  2468 of 2489 functions (99.2%) were compiled, the rest were copied from previous compilation.
+    13 functions were new in current compilation
     0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  StencilDemo.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\StencilDemo\Release\StencilDemo.exe
+  StencilDemo.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\StencilDemo\Release\StencilDemo.exe

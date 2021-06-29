@@ -17,21 +17,21 @@ public:
 	virtual bool Load(const std::string& inFileName, bool bMultiThreading = false);
 
 	const std::string& GetMeshName() const;
-	const std::vector<std::string>& GetDrawArgs() const;
+	const GVector<std::string>& GetDrawArgs() const;
 
-	const std::vector<Vertex>& GetVertices() const;
-	const std::vector<SkinnedVertex>& GetSkinnedVertices() const;
-	const std::vector<std::uint32_t>& GetIndices() const;
+	const GVector<Vertex>& GetVertices() const;
+	const GVector<SkinnedVertex>& GetSkinnedVertices() const;
+	const GVector<std::uint32_t>& GetIndices() const;
 
-	const std::vector<std::pair<UINT, UINT>>& GetSubsets() const;
-	const std::unordered_map<std::string, MaterialIn>& GetMaterials() const;
+	const GVector<std::pair<UINT, UINT>>& GetSubsets() const;
+	const GUnorderedMap<std::string, MaterialIn>& GetMaterials() const;
 
 	const SkinnedData& GetSkinnedData() const;
 
 	bool GetIsSkeletal() const;
 
-	const std::vector<Vertex>& GetSkeletonVertices() const;
-	const std::vector<std::uint32_t> GetSkeletonIndices() const;
+	const GVector<Vertex>& GetSkeletonVertices() const;
+	const GVector<std::uint32_t> GetSkeletonIndices() const;
 
 	UINT GetClipIndex(const std::string& inClipName) const;
 
@@ -49,23 +49,23 @@ protected:
 	Renderer* mRenderer;
 
 	std::string mMeshName;
-	std::vector<std::string> mDrawArgs;
+	GVector<std::string> mDrawArgs;
 
-	std::vector<Vertex> mVertices;
-	std::vector<SkinnedVertex> mSkinnedVertices;
-	std::vector<std::uint32_t> mIndices;
+	GVector<Vertex> mVertices;
+	GVector<SkinnedVertex> mSkinnedVertices;
+	GVector<std::uint32_t> mIndices;
 
-	std::vector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
+	GVector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
 
-	std::unordered_map<std::string /* Geometry name */, MaterialIn> mMaterials;
+	GUnorderedMap<std::string /* Geometry name */, MaterialIn> mMaterials;
 
 	SkinnedData mSkinnedData;
 
 	bool mIsSkeletal;
 	bool mNeedToBeAligned;
 
-	std::vector<Vertex> mSkeletonVertices;
-	std::vector<std::uint32_t> mSkeletonIndices;
+	GVector<Vertex> mSkeletonVertices;
+	GVector<std::uint32_t> mSkeletonIndices;
 
-	std::unordered_map<std::string /* Clip name */, UINT /* Index */> mClipsIndex;
+	GUnorderedMap<std::string /* Clip name */, UINT /* Index */> mClipsIndex;
 };

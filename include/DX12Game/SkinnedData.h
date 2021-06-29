@@ -21,7 +21,7 @@ public:
 
 public:
 	// The bones in the skeleton.
-	std::vector<Bone> mBones;
+	GVector<Bone> mBones;
 };
 
 class Animation {
@@ -39,8 +39,7 @@ public:
 	// Duration of each frame in the animation.
 	float mFrameDuration;
 
-	//std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
-	std::vector<std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	GVector<GVector<DirectX::XMFLOAT4X4>> mCurves;
 };
 
 class SkinnedData {
@@ -54,5 +53,5 @@ public:
 public:
 	Skeleton mSkeleton;
 
-	std::unordered_map<std::string /* Clip name */, Animation> mAnimations;
+	GUnorderedMap<std::string /* Clip name */, Animation> mAnimations;
 };

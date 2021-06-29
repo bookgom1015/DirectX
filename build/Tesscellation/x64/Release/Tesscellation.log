@@ -1,7 +1,14 @@
-﻿  TesscellationApp.cpp
+﻿  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FrameResource.cpp
+  TesscellationApp.cpp
   Generating code
-  15 of 2427 functions ( 0.6%) were compiled, the rest were copied from previous compilation.
-    6 functions were new in current compilation
-    3 functions had inline decision re-evaluated but remain unchanged
+  2404 of 2424 functions (99.2%) were compiled, the rest were copied from previous compilation.
+    17 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  Tesscellation.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Tesscellation\Release\Tesscellation.exe
+  Tesscellation.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\Tesscellation\Release\Tesscellation.exe

@@ -1,13 +1,15 @@
 ﻿  CameraAndDynamicIndexingApp.cpp
   FrameResource.cpp
   Camera.cpp
-  GameTimer.cpp
-  MathHelper.cpp
   d3dApp.cpp
   d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
   Generating code
-  4 of 2796 functions ( 0.1%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    2 functions had inline decision re-evaluated but remain unchanged
+  2772 of 2796 functions (99.1%) were compiled, the rest were copied from previous compilation.
+    13 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  CameraAndDynamicIndexing.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\CameraAndDynamicIndexing\Release\CameraAndDynamicIndexing.exe
+  CameraAndDynamicIndexing.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\CameraAndDynamicIndexing\Release\CameraAndDynamicIndexing.exe

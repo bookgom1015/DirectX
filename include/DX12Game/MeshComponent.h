@@ -28,9 +28,5 @@ protected:
 
 	std::string mMeshName;
 
-	std::thread mMeshLoadThread;
-	std::promise<Mesh*> mMeshPromise;
-	std::future<Mesh*> mMeshFuture;
-
 	bool mIsSkeletal;
 };

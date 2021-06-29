@@ -1,14 +1,18 @@
-﻿  FbxImporter.cpp
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FbxImporter.cpp
+  class template optional is only available with C++17 or later.
   ThreadUtil.cpp
+  class template optional is only available with C++17 or later.
   FrameResource.cpp
   LoadM3d.cpp
   ShadowMap.cpp
   SkinnedData.cpp
   SkinnedMeshApp.cpp
   Ssao.cpp
-  Camera.cpp
-  GameTimer.cpp
-  MathHelper.cpp
-  d3dApp.cpp
-  d3dUtil.cpp
 LINK : fatal error LNK1104: cannot open file 'DirectXTK12.lib'

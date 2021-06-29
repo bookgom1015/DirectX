@@ -1,10 +1,10 @@
-﻿  InitDirect3D.cpp
-  GameTimer.cpp
-  d3dApp.cpp
+﻿  d3dApp.cpp
   d3dUtil.cpp
+  GameTimer.cpp
+  InitDirect3D.cpp
   Generating code
-  0 of 404 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+  396 of 404 functions (98.0%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
     0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  InitDirect3D.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\InitDirect3D\Release\InitDirect3D.exe
+  InitDirect3D.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\InitDirect3D\Release\InitDirect3D.exe

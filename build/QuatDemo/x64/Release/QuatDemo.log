@@ -1,20 +1,24 @@
-﻿  FbxImporter.cpp
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  FbxImporter.cpp
+  class template optional is only available with C++17 or later.
   ThreadUtil.cpp
+  class template optional is only available with C++17 or later.
   AnimationHelper.cpp
   FrameResource.cpp
   QuatApp.cpp
-f:\synologydrive\visual studio project\window projects\directx\src\quatdemo\quatapp.cpp(1101): error C2039: 'LoadFile': is not a member of 'DxFbxImporter'
-  f:\synologydrive\visual studio project\window projects\directx\include\dx12game\fbximporter.h(102): note: see declaration of 'DxFbxImporter'
-f:\synologydrive\visual studio project\window projects\directx\src\quatdemo\quatapp.cpp(1115): error C2039: 'Pos': is not a member of 'DxFbxVertex'
-  f:\synologydrive\visual studio project\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
-f:\synologydrive\visual studio project\window projects\directx\src\quatdemo\quatapp.cpp(1116): error C2039: 'Normal': is not a member of 'DxFbxVertex'
-  f:\synologydrive\visual studio project\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
-f:\synologydrive\visual studio project\window projects\directx\src\quatdemo\quatapp.cpp(1117): error C2039: 'TexC': is not a member of 'DxFbxVertex'
-  f:\synologydrive\visual studio project\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
+f:\visual studio projects\window projects\directx\src\quatdemo\quatapp.cpp(1101): error C2039: 'LoadFile': is not a member of 'DxFbxImporter'
+  f:\visual studio projects\window projects\directx\include\dx12game\fbximporter.h(102): note: see declaration of 'DxFbxImporter'
+f:\visual studio projects\window projects\directx\src\quatdemo\quatapp.cpp(1115): error C2039: 'Pos': is not a member of 'DxFbxVertex'
+  f:\visual studio projects\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
+f:\visual studio projects\window projects\directx\src\quatdemo\quatapp.cpp(1116): error C2039: 'Normal': is not a member of 'DxFbxVertex'
+  f:\visual studio projects\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
+f:\visual studio projects\window projects\directx\src\quatdemo\quatapp.cpp(1117): error C2039: 'TexC': is not a member of 'DxFbxVertex'
+  f:\visual studio projects\window projects\directx\include\dx12game\fbximporter.h(8): note: see declaration of 'DxFbxVertex'
   ShadowMap.cpp
   Ssao.cpp
-  Camera.cpp
-  GameTimer.cpp
-  MathHelper.cpp
-  d3dApp.cpp
-  d3dUtil.cpp

@@ -10,9 +10,9 @@ using namespace DirectX::PackedVector;
 namespace {
 	const std::string fileNamePrefix = "./../../../../Assets/Models/";
 
-	void LoadVertices(const DxFbxImporter& inImporter, std::vector<Vertex>& outVertices) {
+	void LoadVertices(const DxFbxImporter& inImporter, GVector<Vertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
-		std::vector<Vertex> vertices(fbxVertices.size());
+		GVector<Vertex> vertices(fbxVertices.size());
 
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
 			auto& vert = vertices[i];
@@ -29,9 +29,9 @@ namespace {
 		outVertices.swap(vertices);
 	}
 
-	void LoadSkinnedVertices(const DxFbxImporter& inImporter, std::vector<SkinnedVertex>& outVertices) {
+	void LoadSkinnedVertices(const DxFbxImporter& inImporter, GVector<SkinnedVertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
-		std::vector<SkinnedVertex> vertices(fbxVertices.size());
+		GVector<SkinnedVertex> vertices(fbxVertices.size());
 
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
 			vertices[i].mPos		= fbxVertices[i].mPos;
@@ -67,9 +67,9 @@ namespace {
 		outVertices.swap(vertices);
 	}
 
-	void LoadIndices(const DxFbxImporter& inImporter, std::vector<std::uint32_t>& outIndices) {
+	void LoadIndices(const DxFbxImporter& inImporter, GVector<std::uint32_t>& outIndices) {
 		const auto& fbxIndices = inImporter.GetIndices();
-		std::vector<std::uint32_t> indices(fbxIndices.size());
+		GVector<std::uint32_t> indices(fbxIndices.size());
 
 		for (UINT i = 0; i < fbxIndices.size(); i += 3) {
 			indices[i]		= fbxIndices[i + 2];
@@ -80,7 +80,7 @@ namespace {
 		outIndices.swap(indices);
 	}
 
-	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName, std::vector<std::string>& outDrawArgs) {
+	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName, GVector<std::string>& outDrawArgs) {
 		const auto& subsetNames = inImporter.GetSubsetNames();
 		for (const auto& subsetName : subsetNames) {
 			std::stringstream sstream;
@@ -89,7 +89,7 @@ namespace {
 		}
 	}
 
-	void LoadSubsets(const DxFbxImporter& inImporter, std::vector<std::pair<UINT, UINT>>& outSubsets) {
+	void LoadSubsets(const DxFbxImporter& inImporter, GVector<std::pair<UINT, UINT>>& outSubsets) {
 		const auto& subsets = inImporter.GetSubsets();
 		for (const auto& subset : subsets)
 			outSubsets.push_back(subset);
@@ -108,7 +108,7 @@ namespace {
 		}
 	}
 
-	void LoadAnimations(const DxFbxImporter& inImporter, std::unordered_map<std::string, Animation>& outAnimations) {
+	void LoadAnimations(const DxFbxImporter& inImporter, GUnorderedMap<std::string, Animation>& outAnimations) {
 		const auto& animations = inImporter.GetAnimations();
 		for (auto animIter = animations.cbegin(), animEnd = animations.cend(); animIter != animEnd; ++animIter) {
 			auto& anim = outAnimations[animIter->first];
@@ -126,7 +126,7 @@ namespace {
 	}
 
 	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inMeshName, 
-		std::unordered_map<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
+		GUnorderedMap<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
 
 		const auto& fbxMaterials = inImporter.GetMaterials();
 		if (!fbxMaterials.empty()) {
@@ -211,7 +211,7 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		vertThread = std::thread(LoadSkinnedVertices, std::ref(importer), std::ref(mSkinnedVertices));
 	else
 		vertThread = std::thread(LoadVertices, std::ref(importer), std::ref(mVertices));
-
+	
 	std::thread skeletonThread = std::thread(LoadSkeletons, std::ref(importer), std::ref(mSkinnedData.mSkeleton));
 	std::thread idxThread = std::thread(LoadIndices, std::ref(importer), std::ref(mIndices));
 	std::thread drawArgThread = std::thread(LoadDrawArgs, std::ref(importer), mMeshName, std::ref(mDrawArgs));
@@ -221,7 +221,7 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		mMeshName, std::ref(mMaterials), std::ref(mRenderer));
 
 	skeletonThread.join();
-
+	
 	std::thread genSkelDataThread = std::thread(&Mesh::GenerateSkeletonData, this);
 
 	vertThread.join();
@@ -257,27 +257,27 @@ const std::string& Mesh::GetMeshName() const {
 	return mMeshName;
 }
 
-const std::vector<std::string>& Mesh::GetDrawArgs() const {
+const GVector<std::string>& Mesh::GetDrawArgs() const {
 	return mDrawArgs;
 }
 
-const std::vector<Vertex>& Mesh::GetVertices() const {
+const GVector<Vertex>& Mesh::GetVertices() const {
 	return mVertices;
 }
 
-const std::vector<SkinnedVertex>& Mesh::GetSkinnedVertices() const {
+const GVector<SkinnedVertex>& Mesh::GetSkinnedVertices() const {
 	return mSkinnedVertices;
 }
 
-const std::vector<std::uint32_t>& Mesh::GetIndices() const {
+const GVector<std::uint32_t>& Mesh::GetIndices() const {
 	return mIndices;
 }
 
-const std::vector<std::pair<UINT, UINT>>& Mesh::GetSubsets() const {
+const GVector<std::pair<UINT, UINT>>& Mesh::GetSubsets() const {
 	return mSubsets;
 }
 
-const std::unordered_map<std::string, MaterialIn>& Mesh::GetMaterials() const {
+const GUnorderedMap<std::string, MaterialIn>& Mesh::GetMaterials() const {
 	return mMaterials;
 }
 
@@ -289,11 +289,11 @@ const SkinnedData& Mesh::GetSkinnedData() const {
 	return mSkinnedData;
 }
 
-const std::vector<Vertex>& Mesh::GetSkeletonVertices() const {
+const GVector<Vertex>& Mesh::GetSkeletonVertices() const {
 	return mSkeletonVertices;
 }
 
-const std::vector<std::uint32_t> Mesh::GetSkeletonIndices() const {
+const GVector<std::uint32_t> Mesh::GetSkeletonIndices() const {
 	return mSkeletonIndices;
 }
 

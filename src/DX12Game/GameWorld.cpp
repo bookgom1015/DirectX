@@ -23,25 +23,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		DxResult result = game.Initialize(1600, 900);
 		if (result.hr != S_OK) {
-			MessageBox(nullptr, result.msg.c_str(), L"Failed", MB_OK);
+			WLogln(result.msg.c_str());
+			return static_cast<int>(result.hr);
 		}
 
 		int status = game.RunLoop();
 
 		return status;
 	}
-	catch (DxException& e) {
-		std::wstringstream wsstream;
-		wsstream << L"Error Code: 0x" << std::hex << e.ErrorCode << std::endl << e.ToString();
-		std::wstring wstr = wsstream.str();
-		MessageBox(nullptr, wstr.c_str(), L"HR Failed", MB_OK);
-		return 0;
-	}
 	catch (std::exception& e) {
 		std::wstringstream wsstream;
 		wsstream << e.what();
-		MessageBox(nullptr, wsstream.str().c_str(), L"HR Failed", MB_OK);
-		return 0;
+		WErrln(wsstream.str());
+		return -1;
 	}
 }
 
@@ -68,17 +62,17 @@ GameWorld::~GameWorld() {}
 DxResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 */) {
 	mClientWidth = inWidth;
 	mClientHeight = inHeight;
-
+	
 	CheckDxResult(InitMainWindow());
 	
 	CheckDxResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
 	
 	if (!mAudioSystem->Initialize())
-		return DxResult(S_FALSE, L"");
+		ReturnDxResult(S_FALSE, L"Failed to initialize AudioSystem");
 	mAudioSystem->SetBusVolume("bus:/", 0.0f);
 
 	if (!mInputSystem->Initialize(mhMainWnd))
-		return DxResult(S_FALSE, L"");
+		ReturnDxResult(S_FALSE, L"Failed to initialize InputSystem");
 
 	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
@@ -91,7 +85,7 @@ DxResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 *
 	bMTUpdatingActors.resize(numProcessors);
 #endif 
 
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
 bool GameWorld::LoadData() {
@@ -115,7 +109,7 @@ bool GameWorld::LoadData() {
 	MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
 	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
 		return false;
-	
+
 	monkeyActor = new Actor();
 	monkeyActor->SetQuaternion(rotateYPi);
 	monkeyMeshComp = new MeshComponent(monkeyActor);
@@ -145,6 +139,7 @@ bool GameWorld::LoadData() {
 	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
 		return false;
 	leoniMeshComp->SetClipName("Idle");
+	leoniMeshComp->SetSkeleletonVisible(false);
 
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
@@ -315,8 +310,9 @@ int GameWorld::MTGameLoop() {
 
 	barrier.WakeUp();
 
-	for (UINT i = 0, end = numProcessors - 1; i < end; ++i)
+	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
 		mThreads[i].join();
+	}
 
 	return static_cast<int>(msg.wParam);
 }
@@ -447,7 +443,7 @@ void GameWorld::UpdateGame(const GameTimer& gt) {
 		mPendingActors.clear();
 
 		// Add any dead actors to a temp vector.
-		std::vector<Actor*> deadActors;
+		GVector<Actor*> deadActors;
 		for (auto actor : mActors) {
 			if (actor->GetState() == Actor::ActorState::EDead)
 				deadActors.push_back(actor);
@@ -500,7 +496,7 @@ void GameWorld::MTUpdateGame(const GameTimer& gt, UINT tid, ThreadBarrier& inBar
 		pendingActors.clear();
 
 		// Add any dead actors to a temp vector.
-		std::vector<Actor*> deadActors;
+		GVector<Actor*> deadActors;
 		for (auto actor : actors) {
 			if (actor->GetState() == Actor::ActorState::EDead)
 				deadActors.push_back(actor);
@@ -538,7 +534,7 @@ DxResult GameWorld::InitMainWindow() {
 	wc.lpszClassName = L"MainWnd";
 
 	if (!RegisterClass(&wc))
-		return DxResult(S_FALSE, L"RegisterClass Failed");
+		ReturnDxResult(S_FALSE, L"RegisterClass Failed");
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
 	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
@@ -555,12 +551,12 @@ DxResult GameWorld::InitMainWindow() {
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
 		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
 	if (!mhMainWnd)
-		return DxResult(S_FALSE, L"CreateWindow Failed");
+		ReturnDxResult(S_FALSE, L"CreateWindow Failed");
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
 
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
 LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {

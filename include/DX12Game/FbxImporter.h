@@ -65,13 +65,13 @@ public:
 	virtual ~DxFbxSkeleton() = default;
 
 public:
-	const std::vector<DxFbxBone>& GetBones() const;
+	const GVector<DxFbxBone>& GetBones() const;
 	size_t GetNumBones() const;
 
 private:
 	friend class DxFbxImporter;
 
-	std::vector<DxFbxBone> mBones;
+	GVector<DxFbxBone> mBones;
 };
 
 class DxFbxAnimation {
@@ -83,7 +83,7 @@ public:
 	size_t GetNumFrames() const;
 	float GetDuration() const;
 	float GetFrameDuration() const;
-	const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& GetCurves() const;
+	const GUnorderedMap<UINT, GVector<DirectX::XMFLOAT4X4>>& GetCurves() const;
 
 private:
 	friend class DxFbxImporter;
@@ -95,8 +95,8 @@ private:
 	// Duration of each frame in the animation
 	float mFrameDuration = 0.0f;
 
-	std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
-	std::unordered_map<int /* Parent Bone index */, std::vector<fbxsdk::FbxAMatrix>> mParentGlobalTransforms;
+	GUnorderedMap<UINT /* Bone index */, GVector<DirectX::XMFLOAT4X4>> mCurves;
+	GUnorderedMap<int /* Parent Bone index */, GVector<fbxsdk::FbxAMatrix>> mParentGlobalTransforms;
 };
 
 class DxFbxImporter {
@@ -123,13 +123,13 @@ private:
 public:
 	bool LoadDataFromFile(const std::string& inFileName, bool bMultiThreading = false);
 
-	const std::vector<DxFbxVertex>& GetVertices() const;
-	const std::vector<std::uint32_t>& GetIndices() const;
-	const std::vector<std::string>& GetSubsetNames() const;
-	const std::vector<std::pair<UINT, UINT>>& GetSubsets() const;
-	const std::unordered_map<std::string, DxFbxMaterial>& GetMaterials() const;
+	const GVector<DxFbxVertex>& GetVertices() const;
+	const GVector<std::uint32_t>& GetIndices() const;
+	const GVector<std::string>& GetSubsetNames() const;
+	const GVector<std::pair<UINT, UINT>>& GetSubsets() const;
+	const GUnorderedMap<std::string, DxFbxMaterial>& GetMaterials() const;
 	const DxFbxSkeleton& GetSkeleton() const;
-	const std::unordered_map<std::string, DxFbxAnimation>& GetAnimations() const;
+	const GUnorderedMap<std::string, DxFbxAnimation>& GetAnimations() const;
 
 private:
 	//* Initializes fbx sdk(The app crashes when triangulating geometry).
@@ -184,22 +184,22 @@ private:
 	fbxsdk::FbxIOSettings* mFbxIos;
 	fbxsdk::FbxScene* mFbxScene;
 
-	std::vector<DxFbxVertex> mVertices;
-	std::vector<std::uint32_t> mIndices;
+	GVector<DxFbxVertex> mVertices;
+	GVector<std::uint32_t> mIndices;
 
-	std::vector<std::string> mSubsetNames;
-	std::vector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
+	GVector<std::string> mSubsetNames;
+	GVector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
 
-	std::unordered_map<std::string /* Submesh name */, DxFbxMaterial> mMaterials;
+	GUnorderedMap<std::string /* Submesh name */, DxFbxMaterial> mMaterials;
 
 	DxFbxSkeleton mSkeleton;
 
-	std::unordered_map<std::string /* Submesh name */,	
-		std::unordered_map<int /* Control point index */,
-		std::vector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
+	GUnorderedMap<std::string /* Submesh name */,
+		GUnorderedMap<int /* Control point index */,
+		GVector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
 
-	std::unordered_map<std::string /* Clip name */, DxFbxAnimation> mAnimations;
+	GUnorderedMap<std::string /* Clip name */, DxFbxAnimation> mAnimations;
 
-	std::unordered_map<UINT /* Bone index */, fbxsdk::FbxCluster*> mClusters;
-	std::vector<UINT /* BOne index */> mNestedClusters;
+	GUnorderedMap<UINT /* Bone index */, fbxsdk::FbxCluster*> mClusters;
+	GVector<UINT /* BOne index */> mNestedClusters;
 };

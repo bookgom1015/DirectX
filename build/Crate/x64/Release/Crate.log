@@ -1,12 +1,14 @@
-﻿  CrateApp.cpp
-  FrameResource.cpp
-  GameTimer.cpp
-  MathHelper.cpp
-  d3dApp.cpp
+﻿  d3dApp.cpp
   d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  CrateApp.cpp
+  FrameResource.cpp
   Generating code
-  5 of 2493 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    2 functions had inline decision re-evaluated but remain unchanged
+  2471 of 2493 functions (99.1%) were compiled, the rest were copied from previous compilation.
+    13 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
-  Crate.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\Crate\Release\Crate.exe
+  Crate.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\Crate\Release\Crate.exe

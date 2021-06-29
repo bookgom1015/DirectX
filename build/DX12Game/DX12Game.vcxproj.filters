@@ -70,6 +70,12 @@
     <Filter Include="Inline Files">
       <UniqueIdentifier>{aaa774d8-3eb3-47eb-b9ad-c855b26650aa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Util\Shading">
+      <UniqueIdentifier>{fe58f1e6-2c7a-4059-b42c-4b26ad17818a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util\Shading">
+      <UniqueIdentifier>{6e21acd3-55fe-49eb-a68b-35d36de870bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp">
@@ -111,12 +117,6 @@
     <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\ShadowMap.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\Ssao.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\SoundEvent.cpp">
       <Filter>Source Files\Audio</Filter>
     </ClCompile>
@@ -153,11 +153,17 @@
     <ClCompile Include="..\..\src\DX12Game\CameraComponent.cpp">
       <Filter>Source Files\Component</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\Ssao.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\ShadowMap.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -203,16 +209,10 @@
     <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h">
       <Filter>Header Files\Mesh</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\Ssao.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\ThreadUtil.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\SkinnedData.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\ShadowMap.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\SoundEvent.h">
@@ -257,8 +257,17 @@
     <ClInclude Include="..\..\include\DX12Game\CameraComponent.h">
       <Filter>Header Files\Component</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\AnimationsMap.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\Ssao.h">
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\ShadowMap.h">
+      <Filter>Header Files\Util\Shading</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -266,10 +275,8 @@
     <None Include="..\..\include\DX12Game\StringUtil.inl">
       <Filter>Inline Files</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\Waves.hlsl">
-      <Filter>Shader Files</Filter>
-    </FxCompile>
+    <None Include="..\..\include\DX12Game\ContainerUtil.inl">
+      <Filter>Inline Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

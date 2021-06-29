@@ -140,7 +140,5 @@ bool TpsActor::OnLoadingData() {
 		return false;
 	mSkeletalMeshComponent->SetSkeleletonVisible(true);
 
-	Logln(mSkeletalMeshComponent->GetMeshName());
-
 	return true;
 }

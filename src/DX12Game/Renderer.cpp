@@ -56,12 +56,12 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 		md3dDevice.Get(),
 		mCommandList.Get(),
 		mClientWidth, mClientHeight
-	);
+		);
 	CheckDxResult(mSsao->Initialize());
 
 	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get(), mCommandList.Get());
 	CheckDxResult(mAnimsMap->Initialize());
-	
+
 	CheckDxResult(LoadBasicTextures());
 	CheckDxResult(BuildRootSignature());
 	CheckDxResult(BuildSsaoRootSignature());
@@ -81,7 +81,7 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	//
 	// Initializes the things for drawing text.
@@ -97,7 +97,7 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 		(FontFileNamePrefix + L"D2Coding.spritefont").c_str(),
 		GetCpuSrv(mDescHeapIdx.mDefaultFontIndex),
 		GetGpuSrv(mDescHeapIdx.mDefaultFontIndex)
-	);
+		);
 
 	RenderTargetState rtState(mBackBufferFormat, mDepthStencilFormat);
 	SpriteBatchPipelineStateDescription pd(rtState);
@@ -109,7 +109,7 @@ DxResult Renderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	// After uploadResourcesFinished.wait() returned.
 	mSpriteBatch->SetViewport(mScreenViewport);
 
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
 DxResult Renderer::Update(const GameTimer& gt) {
@@ -134,7 +134,7 @@ DxResult Renderer::Update(const GameTimer& gt) {
 	UpdateShadowPassCB(gt);
 	UpdateSsaoCB(gt);
 
-	std::vector<std::string> textsToRemove;
+	GVector<std::string> textsToRemove;
 	for (auto& text : mOutputTexts) {
 		float& lifeTime = text.second.second.w;
 
@@ -310,8 +310,8 @@ DxResult Renderer::Draw(const GameTimer& gt) {
 	return DxResult(S_OK);
 }
 
-void Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
-	LowRenderer::OnResize(inClientWidth, inClientHeight);
+DxResult Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
+	CheckDxResult(LowRenderer::OnResize(inClientWidth, inClientHeight));
 
 	if (mMainCamera != nullptr)
 		mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
@@ -325,6 +325,8 @@ void Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 	if (mMainCamera != nullptr)
 		BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
+
+	return DxResult(S_OK);
 }
 
 void Renderer::UpdateWorldTransform(const std::string& inRenderItemName, 
@@ -334,10 +336,10 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 		{
 			auto& ritems = iter->second;
 			for (auto ritem : ritems) {
-				UINT index = mInstancesIndex[inRenderItemName];
+				auto& inst = ritem->mInstances[mInstancesIndex[inRenderItemName]];
 
-				XMStoreFloat4x4(&ritem->mInstances[index].mWorld, inTransform);
-				ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
+				XMStoreFloat4x4(&inst.mWorld, inTransform);
+				inst.SetNumFramesDirty(gNumFrameResources);
 			}
 		}
 	
@@ -347,10 +349,10 @@ void Renderer::UpdateWorldTransform(const std::string& inRenderItemName,
 			if (skelIter != mRefRitems.cend()) {
 				auto& ritems = skelIter->second;
 				for (auto ritem : ritems) {
-					UINT index = mInstancesIndex[name];
+					auto& inst = ritem->mInstances[mInstancesIndex[name]];
 
-					XMStoreFloat4x4(&ritem->mInstances[index].mWorld, inTransform);
-					ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
+					XMStoreFloat4x4(&inst.mWorld, inTransform);
+					inst.SetNumFramesDirty(gNumFrameResources);
 				}
 			}
 		}
@@ -364,12 +366,12 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 		if (iter != mRefRitems.end()) {
 			auto& ritems = iter->second;
 			for (auto ritem : ritems) {
-				UINT index = mInstancesIndex[inRenderItemName];
+				auto& inst = ritem->mInstances[mInstancesIndex[inRenderItemName]];
 
-				ritem->mInstances[index].mAnimClipIndex = inAnimClipIdx == -1 ? 
+				inst.mAnimClipIndex = inAnimClipIdx == -1 ?
 					-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
-				ritem->mInstances[index].mTimePos = inTimePos;
-				ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
+				inst.mTimePos = inTimePos;
+				inst.SetNumFramesDirty(gNumFrameResources);
 			}
 		}
 	}
@@ -380,12 +382,12 @@ void Renderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
 		if (iter != mRefRitems.end()) {
 			auto& ritems = iter->second;
 			for (auto ritem : ritems) {
-				UINT index = mInstancesIndex[inRenderItemName];
+				auto& inst = ritem->mInstances[mInstancesIndex[name]];
 
-				ritem->mInstances[index].mAnimClipIndex = inAnimClipIdx == -1 ?
+				inst.mAnimClipIndex = inAnimClipIdx == -1 ?
 					-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
-				ritem->mInstances[index].mTimePos = inTimePos;
-				ritem->mInstances[index].SetNumFramesDirty(gNumFrameResources);
+				inst.mTimePos = inTimePos;
+				inst.SetNumFramesDirty(gNumFrameResources);
 			}
 		}
 	}
@@ -396,12 +398,12 @@ void Renderer::SetVisible(const std::string& inRenderItemName, bool inState) {
 	if (iter != mRefRitems.cend()) {
 		auto& ritems = iter->second;
 		for (auto ritem : ritems) {
-			UINT index = mInstancesIndex[inRenderItemName];
+			auto& inst = ritem->mInstances[mInstancesIndex[inRenderItemName]];
 
 			if (inState)
-				InstanceData::SetRenderState(ritem->mInstances[index].mRenderState, EInstanceRenderState::EID_Visible);
+				InstanceData::SetRenderState(inst.mRenderState, EInstanceRenderState::EID_Visible);
 			else
-				InstanceData::UnsetRenderState(ritem->mInstances[index].mRenderState, EInstanceRenderState::EID_Visible);
+				InstanceData::UnsetRenderState(inst.mRenderState, EInstanceRenderState::EID_Visible);
 		}
 	}
 }
@@ -412,12 +414,12 @@ void Renderer::SetSkeletonVisible(const std::string& inRenderItemName, bool inSt
 	if (iter != mRefRitems.cend()) {
 		auto& ritems = iter->second;
 		for (auto ritem : ritems) {
-			UINT index = mInstancesIndex[name];
+			auto& inst = ritem->mInstances[mInstancesIndex[name]];
 
 			if (inState)
-				InstanceData::SetRenderState(ritem->mInstances[index].mRenderState, EInstanceRenderState::EID_Visible);
+				InstanceData::SetRenderState(inst.mRenderState, EInstanceRenderState::EID_Visible);
 			else
-				InstanceData::UnsetRenderState(ritem->mInstances[index].mRenderState, EInstanceRenderState::EID_Visible);
+				InstanceData::UnsetRenderState(inst.mRenderState, EInstanceRenderState::EID_Visible);
 		}
 	}
 }
@@ -429,7 +431,7 @@ DxResult Renderer::AddGeometry(const Mesh* inMesh) {
 	if (iter != mGeometries.cend())
 		return DxResult(S_OK);
 
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
@@ -470,7 +472,7 @@ DxResult Renderer::AddGeometry(const Mesh* inMesh) {
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	if (!inMesh->GetMaterials().empty())
 		AddMaterials(inMesh->GetMaterials());
@@ -574,7 +576,7 @@ void Renderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) 
 		AddSkeletonRenderItem(ioRenderItemName, inMesh, isNested);
 }
 
-DxResult Renderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
+DxResult Renderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
 	CheckDxResult(AddTextures(inMaterials));
 	CheckDxResult(AddDescriptors(inMaterials));
 	
@@ -604,7 +606,7 @@ DxResult Renderer::AddMaterials(const std::unordered_map<std::string, MaterialIn
 }
 
 UINT Renderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
-	std::vector<std::vector<XMFLOAT4>> data;
+	GVector<GVector<XMFLOAT4>> data;
 	data.resize(inAnim.mNumFrames);
 
 	for (size_t frame = 0; frame < inAnim.mNumFrames; ++frame) {
@@ -634,7 +636,7 @@ DxResult Renderer::UpdateAnimationsMap() {
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	return DxResult(S_OK);
 }
@@ -948,8 +950,8 @@ void Renderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const 
 	}
 }
 
-DxResult Renderer::AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
-	FlushCommandQueue();
+DxResult Renderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+	CheckDxResult(FlushCommandQueue());
 
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
@@ -1056,13 +1058,13 @@ DxResult Renderer::AddTextures(const std::unordered_map<std::string, MaterialIn>
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	return DxResult(S_OK);
 }
 
-DxResult Renderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
-	FlushCommandQueue();
+DxResult Renderer::AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+	CheckDxResult(FlushCommandQueue());
 
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
@@ -1166,7 +1168,7 @@ DxResult Renderer::AddDescriptors(const std::unordered_map<std::string, Material
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	return DxResult(S_OK);
 }
@@ -1443,14 +1445,14 @@ void Renderer::UpdateSsaoCB(const GameTimer& gt) {
 }
 
 DxResult Renderer::LoadBasicTextures() {
-	std::vector<std::string> texNames = {
+	GVector<std::string> texNames = {
 		"defaultDiffuseMap",
 		"defaultNormalMap",
 		"skyCubeMap",
 		"blurSkyCubeMap"
 	};
 
-	std::vector<std::wstring> texFileNames = {
+	GVector<std::wstring> texFileNames = {
 		TextureFileNamePrefix + L"white1x1.dds",
 		TextureFileNamePrefix + L"default_nmap.dds",
 		TextureFileNamePrefix + L"skycube.dds",
@@ -1474,7 +1476,7 @@ DxResult Renderer::LoadBasicTextures() {
 		mTextures[texMap->Name] = std::move(texMap);
 	}
 	
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
 namespace {
@@ -1727,7 +1729,7 @@ DxResult Renderer::BuildDescriptorHeaps() {
 	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	std::vector<ComPtr<ID3D12Resource>> tex2DList = {
+	GVector<ComPtr<ID3D12Resource>> tex2DList = {
 		mTextures["defaultDiffuseMap"]->Resource,
 		mTextures["defaultNormalMap"]->Resource
 	};
@@ -1979,7 +1981,7 @@ DxResult Renderer::BuildBasicGeometry() {
 		cylinder.Vertices.size() +
 		quad.Vertices.size();
 
-	std::vector<Vertex> vertices(totalVertexCount);
+	GVector<Vertex> vertices(totalVertexCount);
 
 	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
 	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
@@ -2073,7 +2075,7 @@ DxResult Renderer::BuildBasicGeometry() {
 	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
 	quadSubmesh.AABB = bound;
 
-	std::vector<std::uint16_t> indices;
+	GVector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -2442,7 +2444,7 @@ DxResult Renderer::BuildPSOs() {
 	//	mShaders["wavesPS"]->GetBufferSize()
 	//};
 	//wavesPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	//ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesPsoDesc, IID_PPV_ARGS(&mPSOs["waves"])));
+	//ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesPsoDesc, IID_PPV_ARGS(&mPSOs["waves"])));
 
 	return DxResult(S_OK);
 }
@@ -2458,7 +2460,7 @@ DxResult Renderer::BuildFrameResources() {
 	return DxResult(S_OK);
 }
 
-void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std::vector<RenderItem*>& inRitems) {
+void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems) {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB->Resource();
@@ -2473,8 +2475,8 @@ void Renderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std:
 
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->mObjCBIndex * objCBByteSize;
 		outCmdList->SetGraphicsRootConstantBufferView(mRootParams.mObjectCBIndex, objCBAddress);
-		
-		outCmdList->DrawIndexedInstanced(ri->mIndexCount, ri->mNumInstancesToDraw, 
+
+		outCmdList->DrawIndexedInstanced(ri->mIndexCount, ri->mNumInstancesToDraw,
 			ri->mStartIndexLocation, ri->mBaseVertexLocation, 0);
 	}
 }

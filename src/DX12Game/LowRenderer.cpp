@@ -35,12 +35,12 @@ DxResult LowRenderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 	CheckDxResult(InitDirect3D());
 
 	// Do the initial resize case
-	OnResize(inWidth, inHeight);
+	CheckDxResult(OnResize(inWidth, inHeight));
 
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
-void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
+DxResult LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	assert(md3dDevice);
 	assert(mSwapChain);
 	assert(mDirectCmdListAlloc);
@@ -51,21 +51,21 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	// Flush before chaing any resources
 	FlushCommandQueue();
 
-	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 	// Resize the previous resources we will be creating
 	for (int i = 0; i < SwapChainBufferCount; ++i)
 		mSwapChainBuffer[i].Reset();
 
 	// Resize the swap chain
-	ThrowIfFailed(mSwapChain->ResizeBuffers(SwapChainBufferCount, mClientWidth, mClientHeight,
+	ReturnIfFailed(mSwapChain->ResizeBuffers(SwapChainBufferCount, mClientWidth, mClientHeight,
 		mBackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 	mCurrBackBuffer = 0;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < SwapChainBufferCount; i++) {
-		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+		ReturnIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
 		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
 		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
 	}
@@ -88,7 +88,7 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	optClear.Format = mDepthStencilFormat;
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
 		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
@@ -102,12 +102,12 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Execute the resize commands
-	ThrowIfFailed(mCommandList->Close());
+	ReturnIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
 	// Wait until resize is complete
-	FlushCommandQueue();
+	CheckDxResult(FlushCommandQueue());
 
 	// Update the viewport
 	mScreenViewport.TopLeftX = 0;
@@ -118,6 +118,8 @@ void LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	mScreenViewport.MaxDepth = 1.0f;
 
 	mScissorRect = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
+
+	return DxResult(S_OK);
 }
 
 DxResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
@@ -138,26 +140,28 @@ DxResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	return DxResult(S_OK);
 }
 
-void LowRenderer::FlushCommandQueue() {
+DxResult LowRenderer::FlushCommandQueue() {
 	// Advance the fence value to mark commands up to this fence point
 	++mCurrentFence;
 
 	// Add an instruction to the command queue to set a new fence point
 	// Because we are on the GPU timeline, the new fence point won't be set until the GPU finishes
 	// processing all the commands prior to this Signal()
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCurrentFence));
+	ReturnIfFailed(mCommandQueue->Signal(mFence.Get(), mCurrentFence));
 
 	// Wait until the GPU has compledted commands up to this fence point
 	if (mFence->GetCompletedValue() < mCurrentFence) {
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
 		// Fire event when GPU hits current fence
-		ThrowIfFailed(mFence->SetEventOnCompletion(mCurrentFence, eventHandle));
+		ReturnIfFailed(mFence->SetEventOnCompletion(mCurrentFence, eventHandle));
 
 		// Wait until the GPU hits current fence
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+
+	return DxResult(S_OK);
 }
 
 ID3D12Resource* LowRenderer::CurrentBackBuffer() const {
@@ -177,7 +181,7 @@ DxResult LowRenderer::InitDirect3D() {
 	// Enable the D3D12 debug layer
 	{
 		ComPtr<ID3D12Debug> debugController;
-		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+		ReturnIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 		debugController->EnableDebugLayer();
 	}
 #endif
@@ -218,24 +222,24 @@ DxResult LowRenderer::InitDirect3D() {
 	LogAdapters();
 #endif
 
-	CreateCommandObjects();
-	CreateSwapChain();
-	CreateRtvAndDsvDescriptorHeaps();
+	CheckDxResult(CreateCommandObjects());
+	CheckDxResult(CreateSwapChain());
+	CheckDxResult(CreateRtvAndDsvDescriptorHeaps());
 
-	return DxResult(S_OK, L"");
+	return DxResult(S_OK);
 }
 
-void LowRenderer::CreateCommandObjects() {
+DxResult LowRenderer::CreateCommandObjects() {
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
+	ReturnIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
 
-	ThrowIfFailed(md3dDevice->CreateCommandAllocator(
+	ReturnIfFailed(md3dDevice->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())
 	));
 
-	ThrowIfFailed(md3dDevice->CreateCommandList(
+	ReturnIfFailed(md3dDevice->CreateCommandList(
 		0, D3D12_COMMAND_LIST_TYPE_DIRECT,
 		mDirectCmdListAlloc.Get(), // Associated command allocator
 		nullptr, // Initial PipelineStateObject
@@ -246,9 +250,11 @@ void LowRenderer::CreateCommandObjects() {
 	// to the command list we will Reset it, and it needs to be closed before
 	// calling Reset.
 	mCommandList->Close();
+
+	return DxResult(S_OK);
 }
 
-void LowRenderer::CreateSwapChain() {
+DxResult LowRenderer::CreateSwapChain() {
 	// Release the previous swapchain we will be recreating
 	mSwapChain.Reset();
 
@@ -270,7 +276,9 @@ void LowRenderer::CreateSwapChain() {
 	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	// Note: Swap chain uses queue to perfrom flush
-	ThrowIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
+	ReturnIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
+
+	return DxResult(S_OK);
 }
 
 void LowRenderer::LogAdapters() {

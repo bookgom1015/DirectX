@@ -26,11 +26,11 @@ protected:
 	virtual DxResult Update(const GameTimer& gt) = 0;
 	virtual DxResult Draw(const GameTimer& gt) = 0;
 
-	virtual void OnResize(UINT inClientWidth, UINT inClientHeight);
+	virtual DxResult OnResize(UINT inClientWidth, UINT inClientHeight);
 
 	virtual DxResult CreateRtvAndDsvDescriptorHeaps();
 
-	void FlushCommandQueue();
+	DxResult FlushCommandQueue();
 
 	ID3D12Resource* CurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
@@ -38,8 +38,8 @@ protected:
 
 private:
 	DxResult InitDirect3D();
-	void CreateCommandObjects();
-	void CreateSwapChain();
+	DxResult CreateCommandObjects();
+	DxResult CreateSwapChain();
 
 	void LogAdapters();
 	void LogAdapterOutputs(IDXGIAdapter* inAdapter);

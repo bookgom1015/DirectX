@@ -22,8 +22,7 @@ DxResult AnimationsMap::Initialize() {
 	return DxResult(S_OK);
 }
 
-UINT AnimationsMap::AddAnimation(const std::string& inClipName, 
-		const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves) {
+UINT AnimationsMap::AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves) {
 	size_t numFrames = inAnimCurves.size();
 	UINT ret = mCurrIndex;
 	
@@ -80,7 +79,7 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMap::AnimationsMapSrv() const {
 }
 
 UINT AnimationsMap::GetLineSize() const {
-	return LineSize;
+	return static_cast<UINT>(LineSize);
 }
 
 double AnimationsMap::GetInvLineSize() const {

@@ -10,7 +10,7 @@ public:
 public:
 	DxResult Initialize();
 
-	UINT AddAnimation(const std::string& inClipName, const std::vector<std::vector<DirectX::XMFLOAT4>>& inAnimCurves);
+	UINT AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves);
 
 	void BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,

@@ -127,21 +127,21 @@ private:
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
 #if defined(MT_World)
-	std::vector<std::thread> mThreads;
-	std::vector<std::vector<Actor*>> mMTActors;
-	std::vector<std::vector<Actor*>> mMTPendingActors;
+	GVector<std::thread> mThreads;
+	GVector<GVector<Actor*>> mMTActors;
+	GVector<GVector<Actor*>> mMTPendingActors;
 
-	std::vector<bool> bMTUpdatingActors;
+	GVector<bool> bMTUpdatingActors;
 	UINT mNextThreadId = 0;
 
 	std::mutex mAddingActorMutex;
 #else
-	std::vector<Actor*> mActors;
-	std::vector<Actor*> mPendingActors;
+	GVector<Actor*> mActors;
+	GVector<Actor*> mPendingActors;
 	bool bUpdatingActors = false;
 #endif
 
-	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
+	GUnorderedMap<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 	SoundEvent mMusicEvent;
 	float mPrevBusVolume = 0.0f;

@@ -43,7 +43,7 @@ private:
 		DirectX::BoundingOrientedBox mOBB;
 		DirectX::BoundingSphere mSphere;
 
-		std::vector<InstanceData> mInstances;
+		GVector<InstanceData> mInstances;
 
 		// DrawIndexedInstanced parameters.
 		UINT mIndexCount = 0;
@@ -129,7 +129,7 @@ public:
 	virtual DxResult Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) override;
 	virtual DxResult Update(const GameTimer& gt) override;
 	virtual DxResult Draw(const GameTimer& gt) override;
-	virtual void OnResize(UINT inClientWidth, UINT inClientHeight) override;
+	virtual DxResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
 	void UpdateWorldTransform(const std::string& inRenderItemName, 
 		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false);
@@ -141,7 +141,7 @@ public:
 
 	DxResult AddGeometry(const Mesh* inMesh);
 	void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh);
-	DxResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	DxResult AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
 	UINT AddAnimations(const std::string& inClipName, const Animation& inAnim);
 	DxResult UpdateAnimationsMap();
@@ -170,8 +170,8 @@ private:
 	DxResult AddSkeletonGeometry(const Mesh* inMesh);
 	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
-	DxResult AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
-	DxResult AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	DxResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
+	DxResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
 	void AnimateMaterials(const GameTimer& gt);
 	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
@@ -192,7 +192,7 @@ private:
 	DxResult BuildPSOs();
 	DxResult BuildFrameResources();
 
-	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const std::vector<RenderItem*>& inRitems);
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
 
 	//* Builds draw command list for rendering shadow map(depth buffer texture).
 	void DrawSceneToShadowMap();
@@ -205,7 +205,7 @@ private:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int inIndex) const;
 
 private:
-	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
+	GVector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
 
@@ -214,27 +214,27 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
-	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
-	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
+	GUnorderedMap<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
+	GUnorderedMap<std::string, std::unique_ptr<Material>> mMaterials;
+	GUnorderedMap<std::string, std::unique_ptr<Texture>> mTextures;
+	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
+	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
 
 	// List of all the render items.
-	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
+	GVector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
+	GVector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
-	std::unordered_map<std::string, UINT> mDiffuseSrvHeapIndices;
-	std::unordered_map<std::string, UINT> mNormalSrvHeapIndices;
-	std::unordered_map<std::string, UINT> mSpecularSrvHeapIndices;
-	std::vector<std::string> mBuiltDiffuseTexDescriptors;
-	std::vector<std::string> mBuiltNormalTexDescriptors;
-	std::vector<std::string> mBuiltSpecularTexDescriptors;
+	GUnorderedMap<std::string, UINT> mDiffuseSrvHeapIndices;
+	GUnorderedMap<std::string, UINT> mNormalSrvHeapIndices;
+	GUnorderedMap<std::string, UINT> mSpecularSrvHeapIndices;
+	GVector<std::string> mBuiltDiffuseTexDescriptors;
+	GVector<std::string> mBuiltNormalTexDescriptors;
+	GVector<std::string> mBuiltSpecularTexDescriptors;
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
@@ -256,11 +256,11 @@ private:
 	DirectX::BoundingFrustum mCamFrustum;
 	DirectX::BoundingSphere mSceneBounds;
 
-	std::vector<const Mesh*> mNestedMeshes;
-	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
-	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
-	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
-	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
+	GVector<const Mesh*> mNestedMeshes;
+	GUnorderedMap<std::string /* Render-item name */, GVector<RenderItem*> /* Draw args */> mRefRitems;
+	GUnorderedMap<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
+	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToRitem;
+	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToSkeletonRitem;
 
 	std::unique_ptr<AnimationsMap> mAnimsMap;
 
@@ -268,8 +268,8 @@ private:
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
-	std::unordered_map<std::string /* Name id */, 
+	GUnorderedMap<std::string /* Name id */, 
 		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector4>> mOutputTexts;
 
-	std::vector<float> mConstantSettings;
+	GVector<float> mConstantSettings;
 };

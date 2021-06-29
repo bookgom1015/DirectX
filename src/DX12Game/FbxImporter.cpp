@@ -56,7 +56,7 @@ DxFbxBone::DxFbxBone() {
 	mGlobalInvBindPose = MathHelper::Identity4x4();
 }
 
-const std::vector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
+const GVector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
 	return mBones;
 }
 
@@ -76,7 +76,7 @@ float DxFbxAnimation::GetFrameDuration() const {
 	return mFrameDuration;
 }
 
-const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& DxFbxAnimation::GetCurves() const {
+const GUnorderedMap<UINT, GVector<DirectX::XMFLOAT4X4>>& DxFbxAnimation::GetCurves() const {
 	return mCurves;
 }
 
@@ -157,23 +157,23 @@ bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiT
 	return true;
 }
 
-const std::vector<DxFbxVertex>& DxFbxImporter::GetVertices() const {
+const GVector<DxFbxVertex>& DxFbxImporter::GetVertices() const {
 	return mVertices;
 }
 
-const std::vector<std::uint32_t>& DxFbxImporter::GetIndices() const {
+const GVector<std::uint32_t>& DxFbxImporter::GetIndices() const {
 	return mIndices;
 }
 
-const std::vector<std::string>& DxFbxImporter::GetSubsetNames() const {
+const GVector<std::string>& DxFbxImporter::GetSubsetNames() const {
 	return mSubsetNames;
 }
 
-const std::vector<std::pair<UINT, UINT>>& DxFbxImporter::GetSubsets() const {
+const GVector<std::pair<UINT, UINT>>& DxFbxImporter::GetSubsets() const {
 	return mSubsets;
 }
 
-const std::unordered_map<std::string, DxFbxMaterial>& DxFbxImporter::GetMaterials() const {
+const GUnorderedMap<std::string, DxFbxMaterial>& DxFbxImporter::GetMaterials() const {
 	return mMaterials;
 }
 
@@ -181,7 +181,7 @@ const DxFbxSkeleton& DxFbxImporter::GetSkeleton() const {
 	return mSkeleton;
 }
 
-const std::unordered_map<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimations() const {
+const GUnorderedMap<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimations() const {
 	return mAnimations;
 }
 
@@ -369,7 +369,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	std::string meshName = fbxMesh->GetName();
 
 	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	std::vector<XMFLOAT3> controlPoints(controlPointCount);
+	GVector<XMFLOAT3> controlPoints(controlPointCount);
 
 	for (int i = 0; i < controlPointCount; ++i) {
 		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
@@ -424,8 +424,8 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 }
 
 namespace {
-	void Distribute(size_t inEachVertexCount, size_t inOffset, const std::vector<DxFbxVertex>& inPolygonVertices,
-			const std::vector<DxFbxVertex>& inOverlappedVertexSet, std::vector<DxFbxVertex>& outUniqueVertexSet) {
+	void Distribute(size_t inEachVertexCount, size_t inOffset, const GVector<DxFbxVertex>& inPolygonVertices,
+			const GVector<DxFbxVertex>& inOverlappedVertexSet, GVector<DxFbxVertex>& outUniqueVertexSet) {
 		std::uint32_t counter = 0;
 		for (auto vertIter = inOverlappedVertexSet.cbegin(), iterEnd = inOverlappedVertexSet.cend(); 
 				vertIter != iterEnd; ++vertIter) {
@@ -452,9 +452,8 @@ namespace {
 		TWLogln(L"Distribution Loop-Count: ", std::to_wstring(counter));
 	}
 
-	void Composite(const std::vector<DxFbxVertex>& inOverlappedVertexSet, const std::vector<DxFbxVertex>& inUniqueVertexSet,
-						std::vector<std::uint32_t>& outIndexSet,
-						const std::vector<std::vector<DxFbxVertex>>& inFrontUniqueVertexSets) {
+	void Composite(const GVector<DxFbxVertex>& inOverlappedVertexSet, const GVector<DxFbxVertex>& inUniqueVertexSet,
+			GVector<std::uint32_t>& outIndexSet, const GVector<GVector<DxFbxVertex>>& inFrontUniqueVertexSets) {
 		std::uint32_t counter = 0;
 		size_t frontSize = 0;
 		for (const auto& vertexSet : inFrontUniqueVertexSets)
@@ -490,7 +489,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	std::string meshName = fbxMesh->GetName();
 
 	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	std::vector<XMFLOAT3> controlPoints(controlPointCount);
+	GVector<XMFLOAT3> controlPoints(controlPointCount);
 	for (int i = 0; i < controlPointCount; ++i) {
 		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
 		controlPoints[i].y = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[1]);
@@ -499,7 +498,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 
 	const UINT polygonCount = fbxMesh->GetPolygonCount();
 	UINT vertexCounter = 0;
-	std::vector<DxFbxVertex> polygonVertices;
+	GVector<DxFbxVertex> polygonVertices;
 
 	for (UINT polygonIdx = 0; polygonIdx < polygonCount; ++polygonIdx) {
 		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
@@ -532,7 +531,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 
 	UINT numProcessors = static_cast<UINT>(ThreadUtil::GetNumberOfProcessors());
 
-	std::vector<UINT> eachPolygonCounts(numProcessors);	
+	GVector<UINT> eachPolygonCounts(numProcessors);	
 	const UINT lineSize = vertexCounter / numProcessors;
 	const UINT remaining = vertexCounter % numProcessors;
 	{
@@ -547,7 +546,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		TWLogln(wsstream.str());
 	}
 	
-	std::vector<std::vector<DxFbxVertex>> overlappedVertexSets(numProcessors);
+	GVector<GVector<DxFbxVertex>> overlappedVertexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (size_t i = 0; i < numProcessors; ++i) {
@@ -558,7 +557,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	std::vector<std::vector<DxFbxVertex>> uniqueVertexSets(numProcessors);
+	GVector<GVector<DxFbxVertex>> uniqueVertexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (auto& vertexSet : uniqueVertexSets) {
@@ -566,7 +565,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 	
-	std::vector<std::thread> threads(numProcessors);
+	GVector<std::thread> threads(numProcessors);
 	{
 		size_t offset = 0;
 		for (size_t i = 0; i < numProcessors; ++i) {
@@ -580,7 +579,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	for (auto& thread : threads)
 		thread.join();
 
-	std::vector<std::vector<std::uint32_t>> indexSets(numProcessors);
+	GVector<GVector<std::uint32_t>> indexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (auto& indexSet : indexSets) {
@@ -588,7 +587,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	std::vector<std::vector<DxFbxVertex>> frontUniqueVertexSets;
+	GVector<GVector<DxFbxVertex>> frontUniqueVertexSets;
 	for (size_t i = 0; i < numProcessors; ++i) {
 		threads[i] = std::thread(Composite, 
 			overlappedVertexSets[i], uniqueVertexSets[i], 
@@ -710,7 +709,7 @@ namespace {
 	FbxAMatrix GetGeometryTransformation(FbxNode* inNode) {
 		if (inNode == nullptr) {
 			std::stringstream sstream;
-			sstream << __FILE__ << ' ' << __LINE__ << ": Mesh geometry is invalid" << std::endl;
+			sstream << FileLineStr << "Mesh geometry is invalid" << std::endl;
 			throw std::invalid_argument(sstream.str().c_str());
 		}
 

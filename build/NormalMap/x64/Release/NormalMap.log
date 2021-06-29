@@ -1,3 +1,16 @@
-﻿F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\Assets\Shaders\Waves.hlsl(41,86-95): error X3004: undeclared identifier 'instanceID'
-  
-  compilation failed; no code produced
+﻿  Camera.cpp
+  d3dApp.cpp
+  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GameTimer.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  CubeRenderTarget.cpp
+  FrameResource.cpp
+  NormalMapApp.cpp
+  Generating code
+  3058 of 3087 functions (99.1%) were compiled, the rest were copied from previous compilation.
+    13 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  NormalMap.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\NormalMap\Release\NormalMap.exe

@@ -16,7 +16,6 @@ const int gNumFrameResources = 3;
 #include <cmath>
 #include <comdef.h>
 #include <cstdint>
-#include <ctgmath>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 #include <float.h>
@@ -25,18 +24,15 @@ const int gNumFrameResources = 3;
 #include <initializer_list>
 #include <iomanip>
 #include <mutex>
-#include <queue>
-#include <deque>
 #include <string>
 #include <sstream>
 #include <thread>
-#include <unordered_map>
-#include <vector>
 #include <Windows.h>
 #include <windowsx.h>
 
 #include "common/MathHelper.h"
 #include "common/d3dUtil.h"
+#include "DX12Game/ContainerUtil.h"
 #include "DX12Game/GameTimer.h"
 #include "DX12Game/StringUtil.h"
 #include "DX12Game/ThreadUtil.h"
@@ -66,24 +62,32 @@ public:
 	}
 };
 
+#ifndef ReturnDxResult
+	#define ReturnDxResult(__status, __message)															\
+	{																									\
+		std::wstringstream __wsstream;																	\
+		__wsstream << __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;			\
+		return DxResult(__status, __wsstream.str());													\
+	}
+#endif
+
 #ifndef ReturnIfFailed
-	#define ReturnIfFailed(x)																		\
+	#define ReturnIfFailed(__statement)																\
 	{																								\
-		HRESULT __hr = (x);																			\
+		HRESULT __hr = (__statement);																\
 		if (FAILED(__hr)) {																			\
 			std::wstringstream __wsstream;															\
 			_com_error err(__hr);																	\
-			__wsstream << L#x << L" failed;" << L"; message: " << err.ErrorMessage();				\
-			WErrln(__wsstream.str());																\
-			return DxResult(__hr, __wsstream.str());												\
+			__wsstream << L#__statement << L" failed;" << L"; message: " << err.ErrorMessage();		\
+			ReturnDxResult(__hr, __wsstream.str());													\
 		}																							\
 	}
 #endif
 
 #ifndef CheckDxResult
-	#define CheckDxResult(x)		\
-	{								\
-		if (x.hr != S_OK)			\
-			return x;				\
+	#define CheckDxResult(__dxresult)	\
+	{									\
+		if (__dxresult.hr != S_OK)		\
+			return __dxresult;			\
 	}
 #endif

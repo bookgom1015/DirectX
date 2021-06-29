@@ -82,6 +82,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
@@ -133,6 +134,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -159,6 +161,7 @@
     <ClCompile Include="..\..\src\DX12Game\TpsActor.cpp" />
     <ClInclude Include="..\..\include\DX12Game\AnimationsMap.h" />
     <ClInclude Include="..\..\include\DX12Game\Camera.h" />
+    <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h" />
     <ClInclude Include="..\..\include\DX12Game\GameCamera.h" />
     <ClInclude Include="..\..\include\DX12Game\CameraComponent.h" />
@@ -216,18 +219,9 @@
     <ClInclude Include="..\..\include\DX12Game\Ssao.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\include\DX12Game\ContainerUtil.inl" />
     <None Include="..\..\include\DX12Game\StringUtil.inl" />
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\Waves.hlsl">
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
-    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

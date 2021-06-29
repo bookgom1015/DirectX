@@ -1,112 +1,122 @@
 #pragma once
 
+#ifndef FileLineStr
+	#define FileLineStr __FILE__ << "; line: " << __LINE__ << "; "
+#endif
+
+#ifndef FileLineWStr
+	#define FileLineWStr __FILE__ << L"; line: " << __LINE__ << L"; "
+#endif
+
 #ifndef Log
-	#define Log(x, ...)																	\
-	{																					\
-		std::vector<std::string> texts = { x, __VA_ARGS__ };							\
-		std::stringstream _sstream;														\
-																						\
-		for (const auto& text : texts)													\
-			_sstream << text << ' ';													\
-																						\
-		StringUtil::LogFunc(_sstream.str());											\
+	#define Log(x, ...)											\
+	{															\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };	\
+		std::stringstream _sstream;								\
+																\
+		for (const auto& text : texts)							\
+			_sstream << text << ' ';							\
+																\
+		StringUtil::LogFunc(_sstream.str());					\
 	}
 #endif
 
 #ifndef Logln
-	#define Logln(x, ...)																\
-	{																					\
-		std::vector<std::string> texts = { x, __VA_ARGS__ };							\
-		std::stringstream _sstream;														\
-																						\
-		for (const auto& text : texts)													\
-			_sstream << text << ' ';													\
-		_sstream << '\n';																\
-																						\
-		StringUtil::LogFunc(_sstream.str());											\
+	#define Logln(x, ...)										\
+	{															\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };	\
+		std::stringstream _sstream;								\
+																\
+		for (const auto& text : texts)							\
+			_sstream << text << ' ';							\
+		_sstream << '\n';										\
+																\
+		StringUtil::LogFunc(_sstream.str());					\
 	}
 #endif
 
 #ifndef WLog
-	#define WLog(x, ...)																\
-	{																					\
-		std::vector<std::wstring> texts = { x, __VA_ARGS__ };							\
-		std::wstringstream _wsstream;													\
-																						\
-		for (const auto& text : texts)													\
-			_wsstream << text << L' ';													\
-																						\
-		StringUtil::LogFunc(_wsstream.str());											\
+	#define WLog(x, ...)										\
+	{															\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };	\
+		std::wstringstream _wsstream;							\
+																\
+		for (const auto& text : texts)							\
+			_wsstream << text << L' ';							\
+																\
+		StringUtil::LogFunc(_wsstream.str());					\
 	}
 #endif
 
 #ifndef WLogln
-	#define WLogln(x, ...)																\
-	{																					\
-		std::vector<std::wstring> texts = { x, __VA_ARGS__ };							\
-		std::wstringstream _wsstream;													\
-																						\
-		for (const auto& text : texts)													\
-			_wsstream << text << L' ';													\
-		_wsstream << L'\n';																\
-																						\
-		StringUtil::LogFunc(_wsstream.str());											\
+	#define WLogln(x, ...)										\
+	{															\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };	\
+		std::wstringstream _wsstream;							\
+																\
+		for (const auto& text : texts)							\
+			_wsstream << text << L' ';							\
+		_wsstream << L'\n';										\
+																\
+		StringUtil::LogFunc(_wsstream.str());					\
 	}
 #endif
 
 #ifndef Err
-	#define Err(x, ...)																		\
-	{																						\
-		std::vector<std::string> texts = { x, __VA_ARGS__ };								\
-		std::stringstream _sstream;															\
-																							\
-		_sstream << "[Error] " << __FILE__ << "; line: " << __LINE__ << "; ";				\
-		for (const auto& text : texts)														\
-			_sstream << text << ' ';														\
-																							\
-		StringUtil::LogFunc(_sstream.str());												\
+	#define Err(x, ...)											\
+	{															\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };	\
+		std::stringstream _sstream;								\
+																\
+		_sstream << "[Error] " << FileLineStr;					\
+		for (const auto& text : texts)							\
+			_sstream << text << ' ';							\
+																\
+		StringUtil::LogFunc(_sstream.str());					\
 	}
 #endif
 
 #ifndef WErr
-	#define WErr(x, ...)																	\
-	{																						\
-		std::vector<std::wstring> texts = { x, __VA_ARGS__ };								\
-		std::wstringstream _wsstream;														\
-																							\
-		_wsstream << L"[Error] " << __FILE__ << L"; line: " << __LINE__ << L"; ";			\
-		for (const auto& text : texts)														\
-			_wsstream << text << L' ';														\
-																							\
-		StringUtil::LogFunc(_wsstream.str());												\
+	#define WErr(x, ...)										\
+	{															\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };	\
+		std::wstringstream _wsstream;							\
+																\
+		_wsstream << L"[Error] " << FileLineWStr;				\
+		for (const auto& text : texts)							\
+			_wsstream << text << L' ';							\
+																\
+		StringUtil::LogFunc(_wsstream.str());					\
 	}
 #endif
 
 #ifndef Errln
-	#define Errln(x, ...)																	\
-	{																						\
-		std::vector<std::string> texts = { x, __VA_ARGS__ };								\
-		std::stringstream _sstream;															\
-																							\
-		_sstream << "[Error] " << __FILE__ << "; line: " << __LINE__ << "; ";				\
-		for (const auto& text : texts)														\
-			_sstream << text << ' ';														\
-																							\
-		StringUtil::LogFunc(_sstream.str());												\
+	#define Errln(x, ...)										\
+	{															\
+		std::vector<std::string> texts = { x, __VA_ARGS__ };	\
+		std::stringstream _sstream;								\
+																\
+		_sstream << "[Error] " << FileLineStr;					\
+		for (const auto& text : texts)							\
+			_sstream << text << ' ';							\
+		_sstream << '\n';										\
+																\
+		StringUtil::LogFunc(_sstream.str());					\
 	}
 #endif
 
 #ifndef WErrln
-	#define WErrln(x, ...)																	\
-	{																						\
-		std::vector<std::wstring> texts = { x, __VA_ARGS__ };								\
-		std::wstringstream _wsstream;														\
-																							\
-		_wsstream << L"[Error] " << __FILE__ << L"; line: " << __LINE__ << L"; ";			\
-		for (const auto& text : texts)														\
-			_wsstream << text << L' ';														\
-																							\
-		StringUtil::LogFunc(_wsstream.str());												\
+	#define WErrln(x, ...)										\
+	{															\
+		std::vector<std::wstring> texts = { x, __VA_ARGS__ };	\
+		std::wstringstream _wsstream;							\
+																\
+		_wsstream << L"[Error] " << FileLineWStr;				\
+		for (const auto& text : texts)							\
+			_wsstream << text << L' ';							\
+		_wsstream << L'\n';										\
+																\
+		StringUtil::LogFunc(_wsstream.str());					\
 	}
 #endif
 
