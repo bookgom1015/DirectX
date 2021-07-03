@@ -34,7 +34,7 @@ DxResult LowRenderer::Initialize(HWND hMainWnd, UINT inWidth, UINT inHeight) {
 
 	CheckDxResult(InitDirect3D());
 
-	// Do the initial resize case
+	// Do the initial resize case.
 	CheckDxResult(OnResize(inWidth, inHeight));
 
 	return DxResult(S_OK);
@@ -48,29 +48,29 @@ DxResult LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	mClientWidth = inClientWidth;
 	mClientHeight = inClientHeight;
 
-	// Flush before chaing any resources
+	// Flush before changing any resources.
 	FlushCommandQueue();
 
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	// Resize the previous resources we will be creating
+	// Resize the previous resources we will be creating.
 	for (int i = 0; i < SwapChainBufferCount; ++i)
 		mSwapChainBuffer[i].Reset();
 
-	// Resize the swap chain
+	// Resize the swap chain.
 	ReturnIfFailed(mSwapChain->ResizeBuffers(SwapChainBufferCount, mClientWidth, mClientHeight,
 		mBackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 	mCurrBackBuffer = 0;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < SwapChainBufferCount; i++) {
+	for (UINT i = 0; i < SwapChainBufferCount; ++i) {
 		ReturnIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
 		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
 		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
 	}
 
-	// Create the depth/stencil buffer and view
+	// Create the depth/stencil buffer and view.
 	D3D12_RESOURCE_DESC depthStencilDesc;
 	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthStencilDesc.Alignment = 0;
@@ -94,19 +94,19 @@ DxResult LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
 	));
 
-	// Create descriptor to mip level 0 of entire resource using the format of the resource
+	// Create descriptor to mip level 0 of entire resource using the format of the resource.
 	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
 
-	// Transition the resource from its initial state to be used as a depth buffer
+	// Transition the resource from its initial state to be used as a depth buffer.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
-	// Execute the resize commands
+	// Execute the resize commands.
 	ReturnIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
 
-	// Wait until resize is complete
+	// Wait until resize is complete.
 	CheckDxResult(FlushCommandQueue());
 
 	// Update the viewport
@@ -141,22 +141,22 @@ DxResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 }
 
 DxResult LowRenderer::FlushCommandQueue() {
-	// Advance the fence value to mark commands up to this fence point
+	// Advance the fence value to mark commands up to this fence point.
 	++mCurrentFence;
 
-	// Add an instruction to the command queue to set a new fence point
+	// Add an instruction to the command queue to set a new fence point.
 	// Because we are on the GPU timeline, the new fence point won't be set until the GPU finishes
-	// processing all the commands prior to this Signal()
+	// processing all the commands prior to this Signal().
 	ReturnIfFailed(mCommandQueue->Signal(mFence.Get(), mCurrentFence));
 
-	// Wait until the GPU has compledted commands up to this fence point
+	// Wait until the GPU has compledted commands up to this fence point.
 	if (mFence->GetCompletedValue() < mCurrentFence) {
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
-		// Fire event when GPU hits current fence
+		// Fire event when GPU hits current fence.
 		ReturnIfFailed(mFence->SetEventOnCompletion(mCurrentFence, eventHandle));
 
-		// Wait until the GPU hits current fence
+		// Wait until the GPU hits current fence.
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
@@ -178,7 +178,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE LowRenderer::DepthStencilView() const {
 
 DxResult LowRenderer::InitDirect3D() {
 #if defined(_DEBUG) 
-	// Enable the D3D12 debug layer
+	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
 		ReturnIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
@@ -188,10 +188,10 @@ DxResult LowRenderer::InitDirect3D() {
 
 	ReturnIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
 
-	// Try to create hardware device
+	// Try to create hardware device.
 	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));
 
-	// Fallback to WARP device
+	// Fallback to WARP device.
 	if (FAILED(hardwareResult)) {
 		ComPtr<IDXGIAdapter> pWarpAdapter;
 		ReturnIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
@@ -204,9 +204,9 @@ DxResult LowRenderer::InitDirect3D() {
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// Check 4X MSAA quality support for our back buffer format
-	// All Direct3D 11 capable devices support 4X MSAA for all render 
-	// target formats, so we only need to check quality support
+	// Check 4X MSAA quality support for our back buffer format.
+	// All Direct3D 11 capable devices support 4X MSAA for all render
+	// target formats, so we only need to check quality support.
 	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
 	msQualityLevels.Format = mBackBufferFormat;
 	msQualityLevels.SampleCount = 4;
@@ -241,8 +241,8 @@ DxResult LowRenderer::CreateCommandObjects() {
 
 	ReturnIfFailed(md3dDevice->CreateCommandList(
 		0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-		mDirectCmdListAlloc.Get(), // Associated command allocator
-		nullptr, // Initial PipelineStateObject
+		mDirectCmdListAlloc.Get(),	// Associated command allocator
+		nullptr,					// Initial PipelineStateObject
 		IID_PPV_ARGS(mCommandList.GetAddressOf())
 	));
 
@@ -255,7 +255,7 @@ DxResult LowRenderer::CreateCommandObjects() {
 }
 
 DxResult LowRenderer::CreateSwapChain() {
-	// Release the previous swapchain we will be recreating
+	// Release the previous swapchain we will be recreating.
 	mSwapChain.Reset();
 
 	DXGI_SWAP_CHAIN_DESC sd;
@@ -275,7 +275,7 @@ DxResult LowRenderer::CreateSwapChain() {
 	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-	// Note: Swap chain uses queue to perfrom flush
+	// Note: Swap chain uses queue to perfrom flush.
 	ReturnIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
 
 	return DxResult(S_OK);
@@ -289,10 +289,9 @@ void LowRenderer::LogAdapters() {
 		DXGI_ADAPTER_DESC desc;
 		adapter->GetDesc(&desc);
 
-		std::wstring text = L"***Adapter: ";
-		text += desc.Description;
-		text += L"\n";
-		OutputDebugString(text.c_str());
+		std::wstring text = L"***Adapter:\n";
+		text += L'\t' + desc.Description + L'\n';
+		WLogln(text.c_str());
 
 		adapterList.push_back(adapter);
 		++i;
@@ -311,9 +310,10 @@ void LowRenderer::LogAdapterOutputs(IDXGIAdapter* inAdapter) {
 		DXGI_OUTPUT_DESC desc;
 		output->GetDesc(&desc);
 
-		std::wstring text = L"***Output: ";
-		text += desc.DeviceName;
-		text += L"\n";
+		std::wstring text = L"***Output:\n";
+		text += L'\t' + desc.DeviceName + L'\n';
+		WLogln(text);
+
 		LogOutputDisplayModes(output, mBackBufferFormat);
 
 		ReleaseCom(output);
@@ -325,7 +325,7 @@ void LowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFor
 	UINT count = 0;
 	UINT flags = 0;
 
-	// Call with nullptr to get list count
+	// Call with nullptr to get list count.
 	inOutput->GetDisplayModeList(inFormat, flags, &count, nullptr);
 
 	std::vector<DXGI_MODE_DESC> modelList(count);
@@ -335,11 +335,10 @@ void LowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFor
 		UINT n = x.RefreshRate.Numerator;
 		UINT d = x.RefreshRate.Denominator;
 		std::wstring text =
-			L"Width = " + std::to_wstring(x.Width) + L" " +
-			L"Height = " + std::to_wstring(x.Height) + L" " +
-			L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
+			L"Width = " + std::to_wstring(x.Width) + L' ' +
+			L"Height = " + std::to_wstring(x.Height) + L' ' +
+			L"Refresh = " + std::to_wstring(n) + L'/' + std::to_wstring(d) +
 			L"\n";
-
-		::OutputDebugString(text.c_str());
+		WLogln(text);
 	}
 }

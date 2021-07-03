@@ -1,4 +1,4 @@
-#include "DX12Game/GameCore.h"
+#include "DX12Game/StringUtil.h"
 
 HANDLE StringUtil::StringUtilHelper::ghLogFile = CreateFile(
 	L"./log.txt",

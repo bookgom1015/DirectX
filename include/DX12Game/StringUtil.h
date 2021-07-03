@@ -1,5 +1,9 @@
 #pragma once
 
+#include <mutex>
+#include <sstream>
+#include <Windows.h>
+
 #ifndef FileLineStr
 	#define FileLineStr __FILE__ << "; line: " << __LINE__ << "; "
 #endif

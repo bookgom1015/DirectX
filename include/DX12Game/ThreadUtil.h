@@ -1,5 +1,11 @@
 #pragma once
 
+#include <atomic>
+#include <mutex>
+#include <queue>
+#include <sstream>
+#include <Windows.h>
+
 #ifndef TLog
 	#define TLog(x, ...)												\
 	{																	\

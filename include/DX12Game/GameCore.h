@@ -12,22 +12,13 @@ const int gNumFrameResources = 3;
 
 #define NOMINMAX
 
-#include <atomic>
-#include <cmath>
 #include <comdef.h>
-#include <cstdint>
-#include <DirectXMath.h>
-#include <DirectXPackedVector.h>
 #include <float.h>
 #include <functional>
 #include <future>
 #include <initializer_list>
 #include <iomanip>
-#include <mutex>
-#include <string>
-#include <sstream>
 #include <thread>
-#include <Windows.h>
 #include <windowsx.h>
 
 #include "common/MathHelper.h"

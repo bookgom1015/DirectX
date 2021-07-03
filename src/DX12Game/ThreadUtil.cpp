@@ -1,4 +1,4 @@
-#include "DX12Game/GameCore.h"
+#include "DX12Game/ThreadUtil.h"
 
 HANDLE ThreadUtil::mhLogFile = CreateFile(L"./tlog.txt", 
 	GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
