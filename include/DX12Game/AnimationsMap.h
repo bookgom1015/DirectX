@@ -8,7 +8,7 @@ public:
 	virtual ~AnimationsMap() = default;
 
 public:
-	DxResult Initialize();
+	GameResult Initialize();
 
 	UINT AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves);
 
@@ -25,7 +25,7 @@ public:
 	double GetInvLineSize() const;
 
 private:
-	DxResult BuildResource();
+	GameResult BuildResource();
 	void BuildDescriptors();
 
 public:

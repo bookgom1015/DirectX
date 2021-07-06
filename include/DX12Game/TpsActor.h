@@ -1,9 +1,9 @@
 #pragma once
 
 #include "DX12Game/Actor.h"
-#include "DX12Game/CameraComponent.h"
 
 class SkeletalMeshComponent;
+class CameraComponent;
 
 class TpsActor : public Actor {
 public:

@@ -1,12 +1,16 @@
 #pragma once
 
-#define MT_World
+//#define MT_World
+#define UsingVulkan
 
-// Link necessary d3d12 libraries
+// Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "DirectXTK12.lib")
+// Link necessary vulkan libraries.
+#pragma comment(lib, "glfw3.lib")
+#pragma comment(lib, "vulkan-1.lib")
 
 const int gNumFrameResources = 3;
 
@@ -18,8 +22,16 @@ const int gNumFrameResources = 3;
 #include <future>
 #include <initializer_list>
 #include <iomanip>
+#include <SimpleMath.h>
 #include <thread>
+#include <utility>
 #include <windowsx.h>
+
+#define VK_USE_PLATFORM_WIN32_KHR
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #include "common/MathHelper.h"
 #include "common/d3dUtil.h"
@@ -28,23 +40,23 @@ const int gNumFrameResources = 3;
 #include "DX12Game/StringUtil.h"
 #include "DX12Game/ThreadUtil.h"
 
-struct DxResult {
+struct GameResult {
 public:
 	HRESULT hr;
 	std::wstring msg;
 
 public:
-	DxResult(HRESULT _hr, std::wstring _msg = L"") {
+	GameResult(HRESULT _hr, std::wstring _msg = L"") {
 		hr = _hr;
 		msg = _msg;
 	}
 
-	DxResult(const DxResult& src) {
+	GameResult(const GameResult& src) {
 		hr = src.hr;
 		msg = src.msg;
 	}
 
-	DxResult(DxResult&& src) {
+	GameResult(GameResult&& src) {
 		if (this == &src)
 			return;
 
@@ -53,12 +65,20 @@ public:
 	}
 };
 
-#ifndef ReturnDxResult
-	#define ReturnDxResult(__status, __message)															\
-	{																									\
-		std::wstringstream __wsstream;																	\
-		__wsstream << __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;			\
-		return DxResult(__status, __wsstream.str());													\
+#ifndef ReturnGameResult
+	#define ReturnGameResult(__status, __message)													\
+	{																								\
+		std::wstringstream __wsstream_RGR;															\
+		__wsstream_RGR << __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;	\
+		return GameResult(__status, __wsstream_RGR.str());											\
+	}
+#endif
+
+#ifndef CheckGameResult
+#define CheckGameResult(__result)		\
+	{									\
+		if (__result.hr != S_OK)		\
+			return __result;			\
 	}
 #endif
 
@@ -67,18 +87,10 @@ public:
 	{																								\
 		HRESULT __hr = (__statement);																\
 		if (FAILED(__hr)) {																			\
-			std::wstringstream __wsstream;															\
+			std::wstringstream __wsstream_RIF;														\
 			_com_error err(__hr);																	\
-			__wsstream << L#__statement << L" failed;" << L"; message: " << err.ErrorMessage();		\
-			ReturnDxResult(__hr, __wsstream.str());													\
+			__wsstream_RIF << L#__statement << L" failed;" << L"; message: " << err.ErrorMessage();	\
+			ReturnGameResult(__hr, __wsstream_RIF.str());											\
 		}																							\
-	}
-#endif
-
-#ifndef CheckDxResult
-	#define CheckDxResult(__dxresult)	\
-	{									\
-		if (__dxresult.hr != S_OK)		\
-			return __dxresult;			\
 	}
 #endif

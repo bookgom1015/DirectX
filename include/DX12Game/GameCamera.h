@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DX12Game/GameCore.h"
+
 class GameCamera {
 public:
 	GameCamera();

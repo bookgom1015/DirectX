@@ -81,11 +81,11 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib\;$(SolutionDir)lib\$(Configuration)\;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
@@ -133,13 +133,13 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib\;$(SolutionDir)lib\$(Configuration)\;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
@@ -152,6 +152,8 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Camera.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp" />
@@ -159,9 +161,13 @@
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
     <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
     <ClCompile Include="..\..\src\DX12Game\TpsActor.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp" />
     <ClInclude Include="..\..\include\DX12Game\AnimationsMap.h" />
     <ClInclude Include="..\..\include\DX12Game\Camera.h" />
     <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h" />
+    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\Renderer.h" />
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h" />
     <ClInclude Include="..\..\include\DX12Game\GameCamera.h" />
     <ClInclude Include="..\..\include\DX12Game\CameraComponent.h" />
@@ -181,10 +187,10 @@
     <ClCompile Include="..\..\src\DX12Game\FrameResource.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp" />
     <ClCompile Include="..\..\src\DX12Game\InputSystem.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\DxLowRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Mesh.cpp" />
     <ClCompile Include="..\..\src\DX12Game\MeshComponent.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\DxRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\ShadowMap.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SoundEvent.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Ssao.cpp" />
@@ -195,6 +201,8 @@
     <ClInclude Include="..\..\include\DX12Game\StringUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\ThreadUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\TpsActor.h" />
+    <ClInclude Include="..\..\include\DX12Game\VkLowRenderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\VkRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\common\d3dUtil.h" />
@@ -210,10 +218,10 @@
     <ClInclude Include="..\..\include\DX12Game\FrameResource.h" />
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h" />
     <ClInclude Include="..\..\include\DX12Game\InputSystem.h" />
-    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\DxLowRenderer.h" />
     <ClInclude Include="..\..\include\DX12Game\Mesh.h" />
     <ClInclude Include="..\..\include\DX12Game\MeshComponent.h" />
-    <ClInclude Include="..\..\include\DX12Game\Renderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\DxRenderer.h" />
     <ClInclude Include="..\..\include\DX12Game\ShadowMap.h" />
     <ClInclude Include="..\..\include\DX12Game\SoundEvent.h" />
     <ClInclude Include="..\..\include\DX12Game\Ssao.h" />

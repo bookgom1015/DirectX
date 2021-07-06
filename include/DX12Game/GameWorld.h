@@ -7,8 +7,13 @@
 
 #include "DX12Game/SoundEvent.h"
 
-// Forward declarations.
 class Renderer;
+// Forward declarations.
+#ifdef UsingVulkan
+	class VkRenderer;
+#else
+	class DxRenderer;
+#endif
 class AudioSystem;
 class InputSystem;
 class Actor;
@@ -35,12 +40,13 @@ private:
 	GameWorld& operator=(GameWorld&& rhs) = delete;
 
 public:
-	DxResult Initialize(INT inWidth = 800, UINT inHeight = 600);
+	GameResult Initialize(INT inWidth = 800, UINT inHeight = 600);
+	void CleanUp();
 	bool LoadData();
 	void UnloadData();
 	int RunLoop();
 
-#if !defined(MT_World)
+#ifndef MT_World
 	int GameLoop();
 #else
 	//* Multi-threaded version of the fuction GameLoop.
@@ -72,7 +78,7 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-#if !defined(MT_World)
+#ifndef MT_World
 	void ProcessInput();
 	void UpdateGame(const GameTimer& gt);
 #else
@@ -83,7 +89,7 @@ private:
 #endif 
 	void Draw(const GameTimer& gt);
 
-	DxResult InitMainWindow();
+	GameResult InitMainWindow();
 	void OnResize();
 	void CalculateFrameStats();
 
@@ -102,7 +108,15 @@ private:
 private:
 	static GameWorld* sWorld;
 
-	std::unique_ptr<Renderer> mRenderer = nullptr;
+	bool bIsCleaned = false;
+
+#ifdef UsingVulkan
+	GLFWwindow* mMainWindow;
+
+	std::unique_ptr<VkRenderer> mRenderer = nullptr;
+#else
+	std::unique_ptr<DxRenderer> mRenderer = nullptr;
+#endif
 	std::unique_ptr<AudioSystem> mAudioSystem = nullptr;
 	std::unique_ptr<InputSystem> mInputSystem = nullptr;
 
@@ -126,7 +140,7 @@ private:
 	GameTimer mTimer;
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
-#if defined(MT_World)
+#ifdef MT_World
 	GVector<std::thread> mThreads;
 	GVector<GVector<Actor*>> mMTActors;
 	GVector<GVector<Actor*>> mMTPendingActors;

@@ -28,10 +28,10 @@ private:
 	ShadowMap& operator=(ShadowMap&& rhs) = delete;
 
 public:
-	DxResult Initialize();
+	GameResult Initialize();
 
-    UINT Width() const;
-    UINT Height() const;
+	UINT Width() const;
+	UINT Height() const;
 	ID3D12Resource* Resource();
 	CD3DX12_GPU_DESCRIPTOR_HANDLE Srv() const;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE Dsv() const;
@@ -44,11 +44,11 @@ public:
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
 
-	DxResult OnResize(UINT newWidth, UINT newHeight);
+	GameResult OnResize(UINT newWidth, UINT newHeight);
 
 private:
 	void BuildDescriptors();
-	DxResult BuildResource();
+	GameResult BuildResource();
 
 private:
 	ID3D12Device* md3dDevice = nullptr;
@@ -66,5 +66,3 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mShadowMap = nullptr;
 };
-
- 

@@ -1,32 +1,8 @@
-﻿  Actor.cpp
-  AnimationsMap.cpp
-  AudioSystem.cpp
-  Camera.cpp
-  CameraComponent.cpp
-  Component.cpp
-  FbxImporter.cpp
-  FpsActor.cpp
-  FrameResource.cpp
-  GameCamera.cpp
-  GameWorld.cpp
-  InputSystem.cpp
-  LowRenderer.cpp
-  Mesh.cpp
-  MeshComponent.cpp
-  Renderer.cpp
-  ShadowMap.cpp
-  SkeletalMeshComponent.cpp
-  SkinnedData.cpp
-  SoundEvent.cpp
-  Compiling...
-  Ssao.cpp
-  StringUtil.cpp
-  ThreadUtil.cpp
-  TpsActor.cpp
+﻿  VkLowRenderer.cpp
   Generating code
-  18 of 12543 functions ( 0.1%) were compiled, the rest were copied from previous compilation.
+  3 of 12220 functions (<0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    104 functions had inline decision re-evaluated but remain unchanged
+    47 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmod64.dll

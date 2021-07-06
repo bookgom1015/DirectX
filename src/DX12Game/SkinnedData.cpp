@@ -1,4 +1,3 @@
-#include "DX12Game/GameCore.h"
 #include "DX12Game/SkinnedData.h"
 
 using namespace DirectX;

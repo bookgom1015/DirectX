@@ -1,10 +1,3 @@
-#pragma once
-
-#pragma comment(lib, "fmodstudioL64_vc.lib")
-#pragma comment(lib, "fmodstudio64_vc.lib")
-#pragma comment(lib, "fmod64_vc.lib")
-#pragma comment(lib, "fmodL64_vc.lib")
-
 // ----------------------------------------------------------------
 // From Game Programming in C++ by Sanjay Madhav
 // Copyright (C) 2017 Sanjay Madhav. All rights reserved.
@@ -14,6 +7,11 @@
 // ----------------------------------------------------------------
 
 #pragma once
+
+#pragma comment(lib, "fmodstudioL64_vc.lib")
+#pragma comment(lib, "fmodstudio64_vc.lib")
+#pragma comment(lib, "fmod64_vc.lib")
+#pragma comment(lib, "fmodL64_vc.lib")
 
 #include "DX12Game/SoundEvent.h"
 
@@ -36,6 +34,7 @@ public:
 
 public:
 	bool Initialize();
+	void CleanUp();
 	void Update(const GameTimer& gt);
 
 	bool LoadBank(const std::string& inFileName);
@@ -56,6 +55,8 @@ protected:
 	FMOD::Studio::EventInstance* GetEventInstance(unsigned int inId);
 
 private:
+	bool bIsCleaned = false;
+
 	// FMOD studio system
 	FMOD::Studio::System* mSystem = nullptr;
 	// FMODE Low-level system (in case needed)

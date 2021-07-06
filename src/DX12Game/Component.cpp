@@ -1,4 +1,5 @@
 #include "DX12Game/Component.h"
+#include "DX12Game/InputSystem.h"
 #include "DX12Game/Actor.h"
 
 using namespace DirectX;

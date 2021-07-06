@@ -1,12 +1,15 @@
-#include "DX12Game/GameCore.h"
 #include "DX12Game/GameWorld.h"
-#include "DX12Game/Renderer.h"
+#ifndef UsingVulkan
+	#include "DX12Game/DxRenderer.h"	
+#else
+	#include "DX12Game/VkRenderer.h"
+#endif
 #include "DX12Game/AudioSystem.h"
 #include "DX12Game/InputSystem.h"
 #include "DX12Game/GameCamera.h"
-#include "DX12Game/FpsActor.h"
-#include "DX12Game/SkeletalMeshComponent.h"
 #include "DX12Game/Mesh.h"
+#include "DX12Game/SkeletalMeshComponent.h"
+#include "DX12Game/FpsActor.h"
 #include "DX12Game/TpsActor.h"
 
 using namespace DirectX;
@@ -14,20 +17,22 @@ using namespace DirectX::PackedVector;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd) {
 	// Enable run-time memory check for debug builds
-#if defined(_DEBUG)
+#ifdef _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF || _CRTDBG_LEAK_CHECK_DF);
 #endif
 
 	try {
 		GameWorld game(hInstance);
 
-		DxResult result = game.Initialize(1600, 900);
+		GameResult result = game.Initialize(1600, 900);
 		if (result.hr != S_OK) {
 			WLogln(result.msg.c_str());
 			return static_cast<int>(result.hr);
 		}
 
 		int status = game.RunLoop();
+
+		game.CleanUp();
 
 		return status;
 	}
@@ -52,32 +57,43 @@ GameWorld::GameWorld(HINSTANCE hInstance)
 	if (sWorld == nullptr)
 		sWorld = this;
 
-	mRenderer = std::make_unique<Renderer>();
+#ifdef UsingVulkan
+	mRenderer = std::make_unique<VkRenderer>();
+#else
+	mRenderer = std::make_unique<DxRenderer>();
+#endif
 	mAudioSystem = std::make_unique<AudioSystem>();
 	mInputSystem = std::make_unique<InputSystem>();
 }
 
-GameWorld::~GameWorld() {}
+GameWorld::~GameWorld() {
+	if (!bIsCleaned)
+		CleanUp();
+}
 
-DxResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 */) {
+GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 */) {
 	mClientWidth = inWidth;
 	mClientHeight = inHeight;
 	
-	CheckDxResult(InitMainWindow());
+	CheckGameResult(InitMainWindow());
 	
-	CheckDxResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
+#ifdef UsingVulkan
+	CheckGameResult(mRenderer->Initialize(mMainWindow, mClientWidth, mClientHeight));
+#else
+	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
+#endif
 	
 	if (!mAudioSystem->Initialize())
-		ReturnDxResult(S_FALSE, L"Failed to initialize AudioSystem");
+		ReturnGameResult(S_FALSE, L"Failed to initialize AudioSystem");
 	mAudioSystem->SetBusVolume("bus:/", 0.0f);
-
+	
 	if (!mInputSystem->Initialize(mhMainWnd))
-		ReturnDxResult(S_FALSE, L"Failed to initialize InputSystem");
+		ReturnGameResult(S_FALSE, L"Failed to initialize InputSystem");
 
 	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
-#if defined(MT_World)
+#ifdef MT_World
 	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
 	mThreads.resize(numProcessors);
 	mMTActors.resize(numProcessors);
@@ -85,14 +101,29 @@ DxResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600 *
 	bMTUpdatingActors.resize(numProcessors);
 #endif 
 
-	return DxResult(S_OK);
+	return GameResult(S_OK);
+}
+
+void GameWorld::CleanUp() {
+	if (mInputSystem != nullptr)
+		mInputSystem->CleanUp();
+	if (mAudioSystem != nullptr)
+		mAudioSystem->CleanUp();
+	if (mRenderer != nullptr)
+		mRenderer->CleanUp();
+
+#ifdef UsingVulkan
+	glfwDestroyWindow(mMainWindow);
+
+	glfwTerminate();
+#endif
+
+	bIsCleaned = true;
 }
 
 bool GameWorld::LoadData() {
 	mMusicEvent = mAudioSystem->PlayEvent("event:/Over the Waves");
 
-	//FpsActor* fpsActor = new FpsActor();
-	//fpsActor->SetPosition(0.0f, 0.0f, -5.0f);
 	TpsActor* tpsActor = new TpsActor();
 	tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
 	
@@ -164,7 +195,7 @@ bool GameWorld::LoadData() {
 		}
 	}
 
-#if defined(MT_World)
+#ifdef MT_World
 	for (auto& actors : mMTActors) {
 		for (auto& actor : actors)
 			actor->OnLoadingData();
@@ -180,7 +211,7 @@ bool GameWorld::LoadData() {
 }
 
 void GameWorld::UnloadData() {
-#if defined(MT_World)
+#ifdef MT_World
 	for (auto& actors : mMTActors) {
 		for (auto actor : actors)
 			actor->OnUnloadingData();
@@ -205,7 +236,7 @@ int GameWorld::RunLoop() {
 
 	OnResize();
 
-#if defined(MT_World)
+#ifdef MT_World
 	int status = MTGameLoop();
 #else
 	int status = GameLoop();
@@ -216,14 +247,16 @@ int GameWorld::RunLoop() {
 	return status;
 }
 
-#if !defined(MT_World)
+#ifndef MT_World
 int GameWorld::GameLoop() {
-	MSG msg = { 0 };
 	float beginTime = 0.0f;
 	float endTime;
 	float elapsedTime;
 
 	mTimer.Reset();
+
+#ifndef UsingVulkan
+	MSG msg = { 0 };
 
 	while (msg.message != WM_QUIT) {
 		// If there are Window messages then process them
@@ -252,8 +285,33 @@ int GameWorld::GameLoop() {
 	}
 
 	return static_cast<int>(msg.wParam);
+#else // UsingVulkan
+	while (!glfwWindowShouldClose(mMainWindow)) {
+		glfwPollEvents();
+		if (glfwGetKey(mMainWindow, GLFW_KEY_ESCAPE))
+			break;;
+
+		mTimer.Tick();
+
+		endTime = mTimer.TotalTime();
+		elapsedTime = endTime - beginTime;
+
+		if (elapsedTime > mTimer.GetLimitFrameRate()) {
+			beginTime = endTime;
+			if (!mAppPaused) {
+				CalculateFrameStats();
+				ProcessInput();
+			}
+			UpdateGame(mTimer);
+			if (!mAppPaused)
+				Draw(mTimer);
+		}
+	}
+
+	return 0;
+#endif // UsingVulkan
 }
-#else
+#else // MT_World
 int GameWorld::MTGameLoop() {
 	MSG msg = { 0 };
 	float beginTime = 0.0f;
@@ -316,10 +374,10 @@ int GameWorld::MTGameLoop() {
 
 	return static_cast<int>(msg.wParam);
 }
-#endif
+#endif // MT_World
 
 void GameWorld::AddActor(Actor* inActor) {
-#if defined(MT_World)
+#ifdef MT_World
 	mAddingActorMutex.lock();
 	inActor->SetOwnerThreadID(mNextThreadId);
 	if (bMTUpdatingActors[mNextThreadId])
@@ -339,7 +397,7 @@ void GameWorld::AddActor(Actor* inActor) {
 }
 
 void GameWorld::RemoveActor(Actor* inActor) {
-#if defined(MT_World)
+#ifdef MT_World
 	UINT tid = inActor->GetOwnerThreadID();
 	auto& actors = mMTActors[tid];
 	auto iter = std::find(actors.begin(), actors.end(), inActor);
@@ -411,7 +469,7 @@ HWND GameWorld::GetMainWindowsHandle() const {
 	return mhMainWnd;
 }
 
-#if !defined(MT_World)
+#ifndef MT_World
 void GameWorld::ProcessInput() {
 	mInputSystem->PrepareForUpdate();
 
@@ -520,7 +578,16 @@ void GameWorld::Draw(const GameTimer& gt) {
 	mRenderer->Draw(gt);
 }
 
-DxResult GameWorld::InitMainWindow() {
+#ifdef UsingVulkan
+namespace {
+	void GLFWProcessInput(GLFWwindow* inMainWnd, int, int, int, int) {
+		WLogln(L"Pressed");
+	}
+}
+#endif
+
+GameResult GameWorld::InitMainWindow() {
+#ifndef UsingVulkan
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWndProc;
@@ -534,7 +601,7 @@ DxResult GameWorld::InitMainWindow() {
 	wc.lpszClassName = L"MainWnd";
 
 	if (!RegisterClass(&wc))
-		ReturnDxResult(S_FALSE, L"RegisterClass Failed");
+		ReturnGameResult(S_FALSE, L"RegisterClass Failed");
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
 	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
@@ -551,12 +618,23 @@ DxResult GameWorld::InitMainWindow() {
 	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
 		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
 	if (!mhMainWnd)
-		ReturnDxResult(S_FALSE, L"CreateWindow Failed");
+		ReturnGameResult(S_FALSE, L"CreateWindow Failed");
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
+#else
+	glfwInit();
 
-	return DxResult(S_OK);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+	mMainWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
+	mhMainWnd = glfwGetWin32Window(mMainWindow);
+	
+	glfwSetKeyCallback(mMainWindow, GLFWProcessInput);
+#endif
+
+	return GameResult(S_OK);
 }
 
 LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {

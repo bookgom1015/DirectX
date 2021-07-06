@@ -43,7 +43,7 @@ void MouseState::WheelDown() {
 	mScrollWheelAccum -= 1.0f;
 }
 
-const XMFLOAT2& MouseState::GetPosition() const {
+XMFLOAT2 MouseState::GetPosition() const {
 	return mMousePos;
 }
 
@@ -51,7 +51,7 @@ float MouseState::GetScrollWheel() const {
 	return mScrollWheel;
 }
 
-const XMFLOAT2& MouseState::GetMouseCenter() const {
+XMFLOAT2 MouseState::GetMouseCenter() const {
 	return mMouseCenter;
 }
 
@@ -74,7 +74,8 @@ ButtonState MouseState::GetButtonState(int inButton) const {
 InputSystem::InputSystem() {}
 
 InputSystem::~InputSystem() {
-	ShowCursor(true);
+	if (!bIsCleaned)
+		CleanUp();
 }
 
 bool InputSystem::Initialize(HWND hMainWnd) {
@@ -90,6 +91,12 @@ bool InputSystem::Initialize(HWND hMainWnd) {
 	mState.Mouse.mIsIgnored = true;
 
 	return true;
+}
+
+void InputSystem::CleanUp() {
+	ShowCursor(true);
+
+	bIsCleaned = true;
 }
 
 void InputSystem::PrepareForUpdate() {

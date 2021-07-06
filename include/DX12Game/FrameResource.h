@@ -1,8 +1,5 @@
 #pragma once
 
-const size_t gNumBones = 512;
-
-#include "DX12Game/FrameResource.h"
 #include "common/UploadBuffer.h"
 
 enum EInstanceRenderState : UINT {
@@ -186,7 +183,7 @@ private:
 	FrameResource& operator=(FrameResource&& rhs) = delete;
 
 public:
-	DxResult Initialize();
+	GameResult Initialize();
 
 public:
     // We cannot reset the allocator until the GPU is done processing the commands.

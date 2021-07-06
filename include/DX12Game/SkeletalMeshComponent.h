@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MeshComponent.h"
+#include "DX12Game/MeshComponent.h"
 
 class Actor;
 

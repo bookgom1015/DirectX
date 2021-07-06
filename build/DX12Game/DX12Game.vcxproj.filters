@@ -96,12 +96,6 @@
     <ClCompile Include="..\..\src\common\d3dUtil.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\Renderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\MeshComponent.cpp">
       <Filter>Source Files\Mesh</Filter>
     </ClCompile>
@@ -165,6 +159,24 @@
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
       <Filter>Source Files\Util\Shading</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\DxLowRenderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\DxRenderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\Renderer.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h">
@@ -193,12 +205,6 @@
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\InputSystem.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\Renderer.h">
-      <Filter>Header Files\Render</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\Mesh.h">
       <Filter>Header Files\Mesh</Filter>
@@ -268,6 +274,24 @@
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\ShadowMap.h">
       <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\VkRenderer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\VkLowRenderer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\DxLowRenderer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\DxRenderer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\Renderer.h">
+      <Filter>Header Files\Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
