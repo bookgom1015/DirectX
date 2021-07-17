@@ -1,25 +1,15 @@
-﻿  AnimationsMap.cpp
-  Camera.cpp
-  FbxImporter.cpp
-  GameTimer.cpp
-  SkeletalMeshComponent.cpp
-  SkinnedData.cpp
-  StringUtil.cpp
-  ThreadUtil.cpp
-  TpsActor.cpp
-  d3dUtil.cpp
-  DDSTextureLoader.cpp
-  GeometryGenerator.cpp
-  MathHelper.cpp
-  Actor.cpp
+﻿  Actor.cpp
+  AnimationsMap.cpp
   AudioSystem.cpp
-  GameCamera.cpp
+  Camera.cpp
   CameraComponent.cpp
   Component.cpp
+  DxLowRenderer.cpp
+  DxRenderer.cpp
+  FbxImporter.cpp
   FpsActor.cpp
   FrameResource.cpp
-  Generating Code...
-  Compiling...
+  GameCamera.cpp
   GameWorld.cpp
   InputSystem.cpp
   LowRenderer.cpp
@@ -27,10 +17,16 @@
   MeshComponent.cpp
   Renderer.cpp
   ShadowMap.cpp
+  SkeletalMeshComponent.cpp
+  Generating Code...
+  Compiling...
+  SkinnedData.cpp
   SoundEvent.cpp
   Ssao.cpp
+  TpsActor.cpp
+  VkLowRenderer.cpp
+  VkRenderer.cpp
   Generating Code...
-f:\visual studio projects\window projects\directx\include\dx12game\containerutil.inl(51): warning C4172: returning address of local variable or temporary
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmod64.dll
   F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmodL64.dll

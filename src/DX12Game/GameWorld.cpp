@@ -124,76 +124,76 @@ void GameWorld::CleanUp() {
 bool GameWorld::LoadData() {
 	mMusicEvent = mAudioSystem->PlayEvent("event:/Over the Waves");
 
-	TpsActor* tpsActor = new TpsActor();
-	tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
-	
-	XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
-
-	Actor* monkeyActor = new Actor();
-	monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
-	monkeyActor->SetQuaternion(rotateYPi);
-	std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
-		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 8.0f);
-		actor->SetQuaternion(rot);
-	};
-	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
-	MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
-
-	monkeyActor = new Actor();
-	monkeyActor->SetQuaternion(rotateYPi);
-	monkeyMeshComp = new MeshComponent(monkeyActor);
-	std::function<void(const GameTimer&, Actor*)> funcTurnCCW = [](const GameTimer& gt, Actor* actor) -> void {
-		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 8.0f);
-		actor->SetPosition(3.0f + cosf(4.0f * gt.TotalTime()), 2.5f + sinf(4.0f * gt.TotalTime()), 0.0f);
-		actor->SetQuaternion(rot);
-	};
-	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
-	
-	monkeyActor = new Actor();
-	monkeyActor->SetQuaternion(rotateYPi);
-	std::function<void(const GameTimer&, Actor*)> funcTurnCW = [](const GameTimer& gt, Actor* actor) -> void {
-		actor->SetPosition(-3.0f + -cosf(5.0f * gt.TotalTime()), 2.5f + sinf(5.0f * gt.TotalTime()), 0.0f);
-	};
-	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
-	monkeyMeshComp = new MeshComponent(monkeyActor);
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
-
-	Actor* leoniActor = new Actor();
-	leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
-	leoniActor->SetQuaternion(rotateYPi);
-	SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
-	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
-		return false;
-	leoniMeshComp->SetClipName("Idle");
-	leoniMeshComp->SetSkeleletonVisible(false);
-
-	Actor* treeActor;
-	MeshComponent* treeMeshComp;
-	int numTrees = 5;
-	for (int i = -numTrees; i <= numTrees; ++i) {
-		for (int j = -numTrees; j <= numTrees; ++j) {
-			if (i == 0 && j == 0)
-				continue;
-	
-			treeActor = new Actor();
-	
-			XMVECTOR pos = XMVectorSet(static_cast<float>(16 * i), 0.0f, static_cast<float>(16 * j), 1.0f);
-			XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
-	
-			treeActor->SetPosition(pos + offset);
-			treeActor->SetQuaternion(XMQuaternionRotationAxis(
-				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
-	
-			treeMeshComp = new MeshComponent(treeActor);
-			if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
-				return false;
-		}
-	}
+	//TpsActor* tpsActor = new TpsActor();
+	//tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
+	//
+	//XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
+	//
+	//Actor* monkeyActor = new Actor();
+	//monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
+	//monkeyActor->SetQuaternion(rotateYPi);
+	//std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
+	//	XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 8.0f);
+	//	actor->SetQuaternion(rot);
+	//};
+	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
+	//MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
+	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+	//	return false;
+	//
+	//monkeyActor = new Actor();
+	//monkeyActor->SetQuaternion(rotateYPi);
+	//monkeyMeshComp = new MeshComponent(monkeyActor);
+	//std::function<void(const GameTimer&, Actor*)> funcTurnCCW = [](const GameTimer& gt, Actor* actor) -> void {
+	//	XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 8.0f);
+	//	actor->SetPosition(3.0f + cosf(4.0f * gt.TotalTime()), 2.5f + sinf(4.0f * gt.TotalTime()), 0.0f);
+	//	actor->SetQuaternion(rot);
+	//};
+	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
+	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+	//	return false;
+	//
+	//monkeyActor = new Actor();
+	//monkeyActor->SetQuaternion(rotateYPi);
+	//std::function<void(const GameTimer&, Actor*)> funcTurnCW = [](const GameTimer& gt, Actor* actor) -> void {
+	//	actor->SetPosition(-3.0f + -cosf(5.0f * gt.TotalTime()), 2.5f + sinf(5.0f * gt.TotalTime()), 0.0f);
+	//};
+	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
+	//monkeyMeshComp = new MeshComponent(monkeyActor);
+	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+	//	return false;
+	//
+	//Actor* leoniActor = new Actor();
+	//leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
+	//leoniActor->SetQuaternion(rotateYPi);
+	//SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
+	//if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
+	//	return false;
+	//leoniMeshComp->SetClipName("Idle");
+	//leoniMeshComp->SetSkeleletonVisible(false);
+	//
+	//Actor* treeActor;
+	//MeshComponent* treeMeshComp;
+	//int numTrees = 5;
+	//for (int i = -numTrees; i <= numTrees; ++i) {
+	//	for (int j = -numTrees; j <= numTrees; ++j) {
+	//		if (i == 0 && j == 0)
+	//			continue;
+	//
+	//		treeActor = new Actor();
+	//
+	//		XMVECTOR pos = XMVectorSet(static_cast<float>(16 * i), 0.0f, static_cast<float>(16 * j), 1.0f);
+	//		XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
+	//
+	//		treeActor->SetPosition(pos + offset);
+	//		treeActor->SetQuaternion(XMQuaternionRotationAxis(
+	//			XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
+	//
+	//		treeMeshComp = new MeshComponent(treeActor);
+	//		if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
+	//			return false;
+	//	}
+	//}
 
 #ifdef MT_World
 	for (auto& actors : mMTActors) {
