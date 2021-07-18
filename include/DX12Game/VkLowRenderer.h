@@ -21,6 +21,12 @@ private:
 		}
 	};
 
+	struct SwapChainSupportDetails {
+		VkSurfaceCapabilitiesKHR mCapabilities;
+		std::vector<VkSurfaceFormatKHR> mFormats;
+		std::vector<VkPresentModeKHR> mPresentModes;
+	};
+
 protected:
 	VkLowRenderer();
 
@@ -54,11 +60,21 @@ private:
 	GameResult CreateSurface();
 
 	GameResult PickPhysicalDevice();
+
 	bool IsDeviceSuitable(VkPhysicalDevice inDevice);
+	bool CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice);
+
+	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice inDevice);
+
 	int RateDeviceSuitability(VkPhysicalDevice inDevice);
 	VkLowRenderer::QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice inDevice);
 
 	GameResult CreateLogicalDevice();
+
+	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats);
+	VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes);
+	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities);
+	GameResult CreateSwapChain();
 
 private:
 	bool bIsCleaned = false;
@@ -75,4 +91,9 @@ private:
 
 	VkQueue mGraphicsQueue;
 	VkQueue mPresentQueue;
+
+	VkSwapchainKHR mSwapChain;
+	std::vector<VkImage> mSwapChainImages;
+	VkFormat mSwapChainImageFormat;
+	VkExtent2D mSwapChainExtent;
 };

@@ -1,29 +1,4 @@
-﻿  Actor.cpp
-  AnimationsMap.cpp
-  AudioSystem.cpp
-  Camera.cpp
-  CameraComponent.cpp
-  Component.cpp
-  DxLowRenderer.cpp
-  DxRenderer.cpp
-  FbxImporter.cpp
-  FpsActor.cpp
-  FrameResource.cpp
-  GameCamera.cpp
-  GameWorld.cpp
-  InputSystem.cpp
-  LowRenderer.cpp
-  Mesh.cpp
-  MeshComponent.cpp
-  Renderer.cpp
-  ShadowMap.cpp
-  SkeletalMeshComponent.cpp
-  Generating Code...
-  Compiling...
-  SkinnedData.cpp
-  SoundEvent.cpp
-  Ssao.cpp
-  TpsActor.cpp
+﻿  GameWorld.cpp
   VkLowRenderer.cpp
   VkRenderer.cpp
   Generating Code...

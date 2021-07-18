@@ -4,15 +4,19 @@
 #include <set>
 
 namespace {
-	std::vector<const char*> ValidationLayers = {
-		"VK_LAYER_KHRONOS_validation"
-	};
-
 #ifdef _DEBUG
 	const bool EnableValidationLayers = true;
 #else
 	const bool EnableValidationLayers = false;
 #endif
+
+	const std::vector<const char*> ValidationLayers = {
+		"VK_LAYER_KHRONOS_validation"
+	};
+
+	const std::vector<const char*> DeviceExtensions = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	};
 
 	VkResult CreateDebugUtilsMessengerEXT(
 		VkInstance instance,
@@ -58,6 +62,8 @@ GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, 
 }
 
 void VkLowRenderer::CleanUp() {
+	vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+
 	vkDestroyDevice(mDevice, nullptr);
 
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
@@ -100,6 +106,7 @@ GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(CreateSurface());
 	CheckGameResult(PickPhysicalDevice());
 	CheckGameResult(CreateLogicalDevice());
+	CheckGameResult(CreateSwapChain());
 
 	return GameResult(S_OK);
 }
@@ -126,6 +133,9 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
+	std::vector<const char*> unsupportedLayer;
+	bool status = true;
+
 	for (const char* layerName : ValidationLayers) {
 		bool layerFound = false;
 
@@ -137,10 +147,18 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 		}
 
 		if (!layerFound) {
-			std::wstringstream wsstream;
-			wsstream << layerName << L" is not supported" << std::endl;
-			ReturnGameResult(S_FALSE, wsstream.str());
+			unsupportedLayer.push_back(layerName);
+			status = false;
 		}
+	}
+	
+	if (!status) {
+		std::wstringstream wsstream;
+		
+		for (const auto& layerName : unsupportedLayer)
+			wsstream << layerName << L" is not supported" << std::endl;
+
+		ReturnGameResult(S_FALSE, wsstream.str());
 	}
 
 	return GameResult(S_OK);
@@ -234,7 +252,7 @@ void VkLowRenderer::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreate
 	inCreateInfo = {};
 	inCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	inCreateInfo.messageSeverity =
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+		//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	inCreateInfo.messageType =
@@ -279,7 +297,53 @@ GameResult VkLowRenderer::PickPhysicalDevice() {
 bool VkLowRenderer::IsDeviceSuitable(VkPhysicalDevice inDevice) {
 	QueueFamilyIndices indices = FindQueueFamilies(inDevice);
 
-	return indices.IsComplete();
+	bool extensionsSupported = CheckDeviceExtensionsSupport(inDevice);
+
+	bool swapChainAdequate = false;
+	if (extensionsSupported) {
+		SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(inDevice);
+
+		swapChainAdequate = !swapChainSupport.mFormats.empty() && !swapChainSupport.mPresentModes.empty();
+	}
+
+	return indices.IsComplete() && extensionsSupported && swapChainAdequate;
+}
+
+bool VkLowRenderer::CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice) {
+	std::uint32_t extensionCount;
+	vkEnumerateDeviceExtensionProperties(inDevice, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(inDevice, nullptr, &extensionCount, availableExtensions.data());
+
+	std::set<std::string> requiredExtensions(DeviceExtensions.begin(), DeviceExtensions.end());
+
+	for (const auto& extension : availableExtensions)
+		requiredExtensions.erase(extension.extensionName);
+
+	return requiredExtensions.empty();
+}
+
+VkLowRenderer::SwapChainSupportDetails VkLowRenderer::QuerySwapChainSupport(VkPhysicalDevice inDevice) {
+	SwapChainSupportDetails details;
+
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(inDevice, mSurface, &details.mCapabilities);
+
+	std::uint32_t formatCount;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, nullptr);
+	if (formatCount != 0) {
+		details.mFormats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, details.mFormats.data());
+	}
+
+	std::uint32_t presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, nullptr);
+	if (presentModeCount != 0) {
+		details.mPresentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, details.mPresentModes.data());
+	}
+
+	return details;
 }
 
 int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
@@ -386,7 +450,8 @@ GameResult VkLowRenderer::CreateLogicalDevice() {
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
 	createInfo.queueCreateInfoCount = static_cast<std::uint32_t>(queueCreateInfos.size());
 	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = 0;
+	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(DeviceExtensions.size());
+	createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
 
 	if (EnableValidationLayers) {
 		createInfo.enabledLayerCount = static_cast<std::uint32_t>(ValidationLayers.size());
@@ -401,6 +466,100 @@ GameResult VkLowRenderer::CreateLogicalDevice() {
 
 	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
 	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
+
+	return GameResult(S_OK);
+}
+
+VkSurfaceFormatKHR VkLowRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats) {
+	for (const auto& availableFormat : inAvailableFormats) {
+		if (availableFormat.format == VK_FORMAT_R8G8B8A8_SRGB &&
+			availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+			return availableFormat;
+	}
+
+	return inAvailableFormats[0];
+}
+
+VkPresentModeKHR VkLowRenderer::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes) {
+	for (const auto& availablePresentMode : inAvailablePresentModes) {
+		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+			return availablePresentMode;
+	}
+
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D VkLowRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities) {
+	if (inCapabilities.currentExtent.width != UINT32_MAX) {
+		return inCapabilities.currentExtent;
+	}
+	else {
+		VkExtent2D actualExtent = { mClientWidth, mClientHeight };
+
+		actualExtent.width = std::max(inCapabilities.minImageExtent.width,
+			std::min(inCapabilities.maxImageExtent.width, actualExtent.width));
+
+		actualExtent.height = std::max(inCapabilities.minImageExtent.height,
+			std::min(inCapabilities.maxImageExtent.height, actualExtent.height));
+
+		return actualExtent;
+	}
+}
+
+GameResult VkLowRenderer::CreateSwapChain() {
+	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(mPhysicalDevice);
+
+	VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.mFormats);
+	VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.mPresentModes);
+	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.mCapabilities);
+
+	std::uint32_t imageCount = swapChainSupport.mCapabilities.minImageCount + 1;
+
+	if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
+		imageCount > swapChainSupport.mCapabilities.maxImageCount)
+		imageCount = swapChainSupport.mCapabilities.maxImageCount;
+
+	VkSwapchainCreateInfoKHR createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface = mSurface;
+	createInfo.minImageCount = imageCount;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageExtent = extent;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
+	std::uint32_t queueFamilyIndices[] = {
+		indices.GetGraphicsFamilyIndex(),
+		indices.GetPresentFamilyIndex()
+	};
+
+	if (indices.mGraphicsFamily != indices.mPresentFamily) {
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+	}
+	else {
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.queueFamilyIndexCount = 1;
+		createInfo.pQueueFamilyIndices = nullptr;
+	}
+	createInfo.preTransform = swapChainSupport.mCapabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.presentMode = presentMode;
+	createInfo.clipped = VK_TRUE;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapChain) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create swap chain");
+
+	vkGetSwapchainImagesKHR(mDevice, mSwapChain, &imageCount, nullptr);
+	mSwapChainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(mDevice, mSwapChain, &imageCount, mSwapChainImages.data());
+
+	mSwapChainImageFormat = surfaceFormat.format;
+	mSwapChainExtent = extent;
 
 	return GameResult(S_OK);
 }
