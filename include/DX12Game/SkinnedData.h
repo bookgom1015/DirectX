@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DX12Game/GameCore.h"
+
 struct Bone {
 	Bone() = default;
 	Bone(const std::string inName, int inParentIndex,

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Actor.h"
+#include "DX12Game/Actor.h"
 
 class MeshComponent;
 class CameraComponent;

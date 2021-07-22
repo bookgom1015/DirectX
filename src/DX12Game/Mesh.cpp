@@ -1,7 +1,7 @@
-#include "DX12Game/GameCore.h"
 #include "DX12Game/Mesh.h"
 #include "DX12Game/GameWorld.h"
 #include "DX12Game/Renderer.h"
+#include "DX12Game/FrameResource.h"
 #include "DX12Game/FBXImporter.h"
 
 using namespace DirectX;
@@ -204,7 +204,6 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		}
 	}
 	timer.SetEndTime();
-	Logln({ inFileName, " Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds\n" });
 
 	std::thread vertThread;
 	if (mIsSkeletal)
@@ -232,6 +231,8 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 	materialThread.join();
 	genSkelDataThread.join();
 
+	Logln("Mesh Name: ", mMeshName);
+	Logln("  Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds");
 	if (mIsSkeletal) {
 		GenerateSkeletonData();
 
@@ -358,14 +359,13 @@ void Mesh::AddSkeletonVertex(const Vertex& inVertex) {
 }
 
 void Mesh::OutputSkinnedDataInfo() {
-	Logln("Mesh Name: ", mMeshName);
-	WLogln(L" Num Bones: ", std::to_wstring(mSkinnedData.mSkeleton.mBones.size()), L"\n");
+	WLogln(L"    Num Bones: ", std::to_wstring(mSkinnedData.mSkeleton.mBones.size()));
 	for (auto animIter = mSkinnedData.mAnimations.cbegin(), end = mSkinnedData.mAnimations.cend(); animIter != end; ++animIter) {
 		const auto& anim = animIter->second;
-		Logln(" Clip Name: ", animIter->first);
-		WLogln(L" Num Frames: ", std::to_wstring(anim.mNumFrames));
-		WLogln(L" Duration: ", std::to_wstring(anim.mDuration));
-		WLogln(L" Frame Duration: ", std::to_wstring(anim.mFrameDuration));
-		WLogln(L" Curves Size: ", std::to_wstring(anim.mCurves.size()), L"\n");
+		Logln("      Clip Name: ", animIter->first);
+		WLogln(L"        Num Frames: ", std::to_wstring(anim.mNumFrames));
+		WLogln(L"        Duration: ", std::to_wstring(anim.mDuration));
+		WLogln(L"        Frame Duration: ", std::to_wstring(anim.mFrameDuration));
+		WLogln(L"        Curves Size: ", std::to_wstring(anim.mCurves.size()));
 	}
 }

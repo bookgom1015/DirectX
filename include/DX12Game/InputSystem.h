@@ -39,9 +39,9 @@ public:
 	void WheelDown();
 
 	// For mouse position
-	const DirectX::XMFLOAT2& GetPosition() const;
+	DirectX::XMFLOAT2 GetPosition() const;
 	float GetScrollWheel() const;
-	const DirectX::XMFLOAT2& GetMouseCenter() const;
+	DirectX::XMFLOAT2 GetMouseCenter() const;
 
 	bool IsRelative() const;
 	bool IsIgnored() const;
@@ -92,6 +92,7 @@ private:
 
 public:
 	bool Initialize(HWND hMainWnd);
+	void CleanUp();
 
 	void PrepareForUpdate();
 	void Update();
@@ -106,6 +107,8 @@ public:
 	void SetRelativeMouseMode(bool inValue);
 
 private:
+	bool bIsCleaned = false;
+
 	HWND mhMainWnd = nullptr; // main window handle
 
 	InputState mState;

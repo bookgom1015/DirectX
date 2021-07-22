@@ -1,5 +1,3 @@
-//***************************************************************************************
-// GameTimer.cpp by Frank Luna (C) 2011 All Rights Reserved.
 #include "DX12Game/GameTimer.h"
 
 #include <Windows.h>

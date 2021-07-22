@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "DX12Game/GameCore.h"
+
 class Camera {
 public:
 	Camera();

@@ -3,7 +3,6 @@
 #include "DX12Game/SkinnedData.h"
 
 class Renderer;
-
 struct Vertex;
 struct SkinnedVertex;
 struct MaterialIn;

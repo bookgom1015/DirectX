@@ -1,9 +1,10 @@
 #pragma once
 
 #include "DX12Game/GameCore.h"
-#include "DX12Game/InputSystem.h"
 
 class Component;
+
+struct InputState;
 
 class Actor {
 public:

@@ -178,7 +178,7 @@ FrameResource::FrameResource(ID3D12Device* inDevice,
 	mDevice = inDevice;
 }
 
-DxResult FrameResource::Initialize() {
+GameResult FrameResource::Initialize() {
 	ReturnIfFailed(
 		mDevice->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -193,5 +193,5 @@ DxResult FrameResource::Initialize() {
 	mInstanceIdxBuffer = std::make_unique<UploadBuffer<InstanceIdxData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
 	mInstanceBuffer = std::make_unique<UploadBuffer<InstanceData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
 
-	return DxResult(S_OK);
+	return GameResult(S_OK);
 }

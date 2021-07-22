@@ -3,7 +3,6 @@
 #include "DX12Game/Renderer.h"
 #include "DX12Game/Actor.h"
 #include "DX12Game/Mesh.h"
-#include "DX12Game/SkinnedData.h"
 
 using namespace DirectX;
 

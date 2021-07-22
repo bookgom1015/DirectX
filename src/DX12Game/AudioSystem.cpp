@@ -1,4 +1,3 @@
-#include "DX12Game/GameCore.h"
 #include "DX12Game/AudioSystem.h"
 
 #include <fmod_studio.hpp>
@@ -12,15 +11,8 @@ unsigned int AudioSystem::sNextID = 0;
 AudioSystem::AudioSystem() {}
 
 AudioSystem::~AudioSystem() {
-	// Unload all banks
-	UnloadAllBanks();
-
-	// Shutdown FMOD system
-	if (mSystem)
-		mSystem->release();
-
-	if (mLowLevelSystem)
-		mLowLevelSystem->release();
+	if (!bIsCleaned)
+		CleanUp();
 }
 
 bool AudioSystem::Initialize() {
@@ -64,6 +56,20 @@ bool AudioSystem::Initialize() {
 		return false;
 
 	return true;
+}
+
+void AudioSystem::CleanUp() {
+	// Unload all banks
+	UnloadAllBanks();
+
+	// Shutdown FMOD system
+	if (mSystem)
+		mSystem->release();
+
+	if (mLowLevelSystem)
+		mLowLevelSystem->release();
+
+	bIsCleaned = true;
 }
 
 void AudioSystem::Update(const GameTimer& gt) {

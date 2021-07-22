@@ -5,6 +5,8 @@
 #define FBXSDK_SHARED
 #include <fbxsdk.h>
 
+#include "DX12Game/GameCore.h"
+
 struct DxFbxVertex {
 public:
 	DirectX::XMFLOAT3 mPos;

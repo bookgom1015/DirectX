@@ -2,6 +2,7 @@
 #include "DX12Game/GameWorld.h"
 #include "DX12Game/Renderer.h"
 #include "DX12Game/SkeletalMeshComponent.h"
+#include "DX12Game/CameraComponent.h"
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;

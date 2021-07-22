@@ -11,21 +11,21 @@ namespace {
 
 AnimationsMap::AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
 	md3dDevice = inDevice;
-	mCommandList = inCmdList;	
+	mCommandList = inCmdList;
 }
 
-DxResult AnimationsMap::Initialize() {
+GameResult AnimationsMap::Initialize() {
 	mAnimations.resize(LineSize * LineSize);
 
-	CheckDxResult(BuildResource());
+	CheckGameResult(BuildResource());
 
-	return DxResult(S_OK);
+	return GameResult(S_OK);
 }
 
 UINT AnimationsMap::AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves) {
 	size_t numFrames = inAnimCurves.size();
 	UINT ret = mCurrIndex;
-	
+
 	for (size_t frame = 0; frame < numFrames; ++frame) {
 		const auto& animCurves = inAnimCurves[frame];
 		UINT paddingSize = static_cast<UINT>(LineSize - animCurves.size());
@@ -40,8 +40,8 @@ UINT AnimationsMap::AddAnimation(const std::string& inClipName, const GVector<GV
 }
 
 void AnimationsMap::BuildDescriptors(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv) {
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv) {
 	// Save references to the descriptors.
 	mhAnimsMapCpuSrv = hCpuSrv;
 	mhAnimsMapGpuSrv = hGpuSrv;
@@ -86,7 +86,7 @@ double AnimationsMap::GetInvLineSize() const {
 	return InvLineSize;
 }
 
-DxResult AnimationsMap::BuildResource() {
+GameResult AnimationsMap::BuildResource() {
 	// Free the old resources if they exist.
 	mAnimsMap = nullptr;
 
@@ -130,7 +130,7 @@ DxResult AnimationsMap::BuildResource() {
 		IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())
 	));
 
-	return DxResult(S_OK);
+	return GameResult(S_OK);
 }
 
 void AnimationsMap::BuildDescriptors() {

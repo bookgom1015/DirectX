@@ -1,4 +1,3 @@
-#include "DX12Game/GameCore.h"
 #include "DX12Game/FbxImporter.h"
 
 using namespace DirectX;
@@ -536,6 +535,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	const UINT remaining = vertexCounter % numProcessors;
 	{
 		std::wstringstream wsstream;
+		wsstream << L":\n";
 		for (size_t i = 0; i < numProcessors; ++i) {
 			if (i < remaining)
 				eachPolygonCounts[i] = lineSize + 1;
@@ -543,7 +543,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 				eachPolygonCounts[i] = lineSize;
 			wsstream << L"Thread_" << i << " Line-Size:" << eachPolygonCounts[i] << std::endl;
 		}
-		TWLogln(wsstream.str());
+		TWLog(wsstream.str());
 	}
 	
 	GVector<GVector<DxFbxVertex>> overlappedVertexSets(numProcessors);

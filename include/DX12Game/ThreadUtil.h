@@ -12,7 +12,7 @@
 		std::vector<std::string> texts = { x, __VA_ARGS__ };			\
 		std::stringstream _sstream;										\
 																		\
-		_sstream << "[tid: " << std::this_thread::get_id() << "] ";		\
+		_sstream << "[tid: " << std::this_thread::get_id() << "]";		\
 																		\
 		for (const auto& text : texts)									\
 			_sstream << text << ' ';									\
@@ -27,7 +27,7 @@
 		std::vector<std::string> texts = { x, __VA_ARGS__ };			\
 		std::stringstream _sstream;										\
 																		\
-		_sstream << "[tid: " << std::this_thread::get_id() << "] ";		\
+		_sstream << "[tid: " << std::this_thread::get_id() << "]";		\
 																		\
 		for (const auto& text : texts)									\
 			_sstream << text << ' ';									\
@@ -43,7 +43,7 @@
 		std::vector<std::wstring> texts = { x, __VA_ARGS__ };			\
 		std::wstringstream _wsstream;									\
 																		\
-		_wsstream << L"[tid: " << std::this_thread::get_id() << L"] ";	\
+		_wsstream << L"[tid: " << std::this_thread::get_id() << L"]";	\
 																		\
 		for (const auto& text : texts)									\
 			_wsstream << text << L' ';									\
@@ -58,7 +58,7 @@
 		std::vector<std::wstring> texts = { x, __VA_ARGS__ };			\
 		std::wstringstream _wsstream;									\
 																		\
-		_wsstream << L"[tid: " << std::this_thread::get_id() << L"] ";	\
+		_wsstream << L"[tid: " << std::this_thread::get_id() << L"]";	\
 																		\
 		for (const auto& text : texts)									\
 			_wsstream << text << L' ';									\
