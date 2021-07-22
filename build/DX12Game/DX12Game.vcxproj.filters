@@ -302,5 +302,9 @@
     <None Include="..\..\include\DX12Game\ContainerUtil.inl">
       <Filter>Inline Files</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\Shader.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Shader.frag" />
   </ItemGroup>
 </Project>

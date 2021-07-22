@@ -227,6 +227,8 @@
     <ClInclude Include="..\..\include\DX12Game\Ssao.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Shader.frag" />
+    <None Include="..\..\Assets\Shaders\Shader.vert" />
     <None Include="..\..\include\DX12Game\ContainerUtil.inl" />
     <None Include="..\..\include\DX12Game\StringUtil.inl" />
     <None Include="packages.config" />

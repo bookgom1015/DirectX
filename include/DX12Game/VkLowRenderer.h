@@ -76,6 +76,15 @@ private:
 	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities);
 	GameResult CreateSwapChain();
 
+	GameResult CreateImageViews();
+
+	GameResult CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule);
+
+	//----------------------------------------------------------------------------------------------------------
+	GameResult CreateRenderPass();
+	GameResult CreateGraphicsPipeline();
+	GameResult CreateFramebuffers();
+
 private:
 	bool bIsCleaned = false;
 
@@ -96,4 +105,12 @@ private:
 	std::vector<VkImage> mSwapChainImages;
 	VkFormat mSwapChainImageFormat;
 	VkExtent2D mSwapChainExtent;
+
+	std::vector<VkImageView> mSwapChainImageViews;
+
+	VkRenderPass mRenderPass;
+	VkPipelineLayout mPipelineLayout;
+	VkPipeline mGraphicsPipeline;
+
+	std::vector<VkFramebuffer> mSwapChainFramebuffers;
 };
