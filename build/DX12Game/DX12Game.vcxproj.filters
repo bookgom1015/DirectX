@@ -308,5 +308,38 @@
     <None Include="..\..\Assets\Shaders\Shader.frag">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\Common.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Default.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawDebug.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawNormals.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LightingUtil.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Shadows.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Skeleton.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Sky.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\SsaoBlur.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Ssao.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Waves.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

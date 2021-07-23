@@ -233,6 +233,43 @@
     <None Include="..\..\include\DX12Game\StringUtil.inl" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Common.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Default.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawDebug.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawNormals.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\LightingUtil.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\Shadows.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\Skeleton.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\Sky.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\Ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\SsaoBlur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\Waves.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets" Condition="Exists('..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets')" />

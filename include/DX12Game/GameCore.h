@@ -1,7 +1,7 @@
 #pragma once
 
-//#define MT_World
-#define UsingVulkan
+#define MT_World
+//#define UsingVulkan
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")

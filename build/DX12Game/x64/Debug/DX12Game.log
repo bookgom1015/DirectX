@@ -1,4 +1,32 @@
-﻿  GameWorld.cpp
+﻿  Actor.cpp
+  AnimationsMap.cpp
+  AudioSystem.cpp
+  Camera.cpp
+  CameraComponent.cpp
+  Component.cpp
+  DxLowRenderer.cpp
+  DxRenderer.cpp
+  FbxImporter.cpp
+  FpsActor.cpp
+  FrameResource.cpp
+  GameCamera.cpp
+  GameTimer.cpp
+  GameWorld.cpp
+  InputSystem.cpp
+  LowRenderer.cpp
+  Mesh.cpp
+  MeshComponent.cpp
+  Renderer.cpp
+  ShadowMap.cpp
+  Generating Code...
+f:\visual studio projects\window projects\directx\include\dx12game\containerutil.inl(51): warning C4172: returning address of local variable or temporary
+  Compiling...
+  SkeletalMeshComponent.cpp
+  SkinnedData.cpp
+  SoundEvent.cpp
+  Ssao.cpp
+  ThreadUtil.cpp
+  TpsActor.cpp
   VkLowRenderer.cpp
   VkRenderer.cpp
   Generating Code...
