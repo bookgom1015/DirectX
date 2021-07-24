@@ -160,27 +160,27 @@ private:
 	GameResult LoadDataFromSkeletalMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
 
 	GameResult AddSkeletonGeometry(const Mesh* inMesh);
-	void AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
+	GameResult AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
 	GameResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
-	void AnimateMaterials(const GameTimer& gt);
-	void UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
-	void UpdateMaterialBuffer(const GameTimer& gt);
-	void UpdateShadowTransform(const GameTimer& gt);
-	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateShadowPassCB(const GameTimer& gt);
-	void UpdateSsaoCB(const GameTimer& gt);
+	GameResult AnimateMaterials(const GameTimer& gt);
+	GameResult UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
+	GameResult UpdateMaterialBuffer(const GameTimer& gt);
+	GameResult UpdateShadowTransform(const GameTimer& gt);
+	GameResult UpdateMainPassCB(const GameTimer& gt);
+	GameResult UpdateShadowPassCB(const GameTimer& gt);
+	GameResult UpdateSsaoCB(const GameTimer& gt);
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
 	GameResult BuildSsaoRootSignature();
 	GameResult BuildDescriptorHeaps();
-	void BuildShadersAndInputLayout();
+	GameResult BuildShadersAndInputLayout();
 	GameResult BuildBasicGeometry();
-	void BuildBasicRenderItems();
-	void BuildBasicMaterials();
+	GameResult BuildBasicRenderItems();
+	GameResult BuildBasicMaterials();
 	GameResult BuildPSOs();
 	GameResult BuildFrameResources();
 

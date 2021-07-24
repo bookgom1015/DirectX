@@ -41,28 +41,6 @@ namespace {
 		if (func != nullptr)
 			func(instance, debugMessenger, pAllocator);
 	}
-
-	GameResult ReadFile(const std::string& inFileName, std::vector<char>& outData) {
-		std::ifstream file(inFileName, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open()) {
-			std::wstringstream wsstream;
-			wsstream << L"Failed to load file: " << inFileName.c_str();
-			ReturnGameResult(S_OK, wsstream.str());
-		}
-
-		size_t fileSize = static_cast<size_t>(file.tellg());
-		Logln(inFileName, " size: ", std::to_string(fileSize), " bytes");
-
-		outData.resize(fileSize);
-
-		file.seekg(0);
-		file.read(outData.data(), fileSize);
-
-		file.close();
-
-		return GameResult(S_OK);
-	}
 }
 
 VkLowRenderer::VkLowRenderer() {
@@ -85,6 +63,8 @@ GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, 
 }
 
 void VkLowRenderer::CleanUp() {
+	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+
 	for (auto framebuffer : mSwapChainFramebuffers)
 		vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
 
@@ -126,6 +106,40 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VkLowRenderer::DebugCallback(
 	return VK_FALSE;
 }
 
+GameResult VkLowRenderer::CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule) {
+	VkShaderModuleCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.codeSize = inCode.size();
+	createInfo.pCode = reinterpret_cast<const std::uint32_t*>(inCode.data());
+
+	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &outModule) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create shader module");
+
+	return GameResult(S_OK);
+}
+
+GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<char>& outData) {
+	std::ifstream file(inFileName, std::ios::ate | std::ios::binary);
+
+	if (!file.is_open()) {
+		std::wstringstream wsstream;
+		wsstream << L"Failed to load file: " << inFileName.c_str();
+		ReturnGameResult(S_OK, wsstream.str());
+	}
+
+	size_t fileSize = static_cast<size_t>(file.tellg());
+	Logln("[Read file] ", inFileName, " size: ", std::to_string(fileSize), " bytes");
+
+	outData.resize(fileSize);
+
+	file.seekg(0);
+	file.read(outData.data(), fileSize);
+
+	file.close();
+
+	return GameResult(S_OK);
+}
+
 GameResult VkLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) {
 	// Do nothing.
 	// This is for D3D12.
@@ -142,8 +156,8 @@ GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(CreateSwapChain());
 	CheckGameResult(CreateImageViews());
 	CheckGameResult(CreateRenderPass());
-	CheckGameResult(CreateGraphicsPipeline());
 	CheckGameResult(CreateFramebuffers());
+	CheckGameResult(CreateCommandPool());
 
 	return GameResult(S_OK);
 }
@@ -152,9 +166,9 @@ std::vector<const char*> VkLowRenderer::GetRequiredExtensions() {
 	std::uint32_t glfwExtensionCount = 0;
 	const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-	WLogln(L"Required extensions by GLFW:");
+	WLogln(L"[VkLowRenderer] Required extensions by GLFW:");
 	for (std::uint32_t i = 0; i < glfwExtensionCount; ++i)
-		Logln("   ", glfwExtensions[i]);
+		Logln("                   ", glfwExtensions[i]);
 
 	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 	if (EnableValidationLayers)
@@ -240,14 +254,14 @@ GameResult VkLowRenderer::CreateInstance() {
 			missingExtensions.push_back(requiredExt);
 	}
 
-	WLogln(L"Not supported extensions:")
+	WLogln(L"[VkLowRenderer] Unsupported extensions:")
 	if (missingExtensions.size() > 0) {
 		for (const auto& missingExt : missingExtensions)
-			Logln("    ", missingExt);
+			Logln("                    ", missingExt);
 		ReturnGameResult(S_FALSE, L"that extensions are not supported");
 	}
 	else {
-		Logln("    None");
+		Logln("                    None");
 	}
 
 	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(requiredExtensions.size());
@@ -389,9 +403,9 @@ int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(inDevice, &deviceProperties);
 
-	WLogln(L"Physical device properties:");
-	Logln("    Device name    : ", deviceProperties.deviceName);
-	WLog(L"    Device type    : ");
+	WLogln(L"[VkLowRenderer] Physical device properties:");
+	Logln("                    Device name    : ", deviceProperties.deviceName);
+	WLog(L"                    Device type    : ");
 	switch (deviceProperties.deviceType) {
 	case VK_PHYSICAL_DEVICE_TYPE_OTHER:
 		WLogln(L"Other type");
@@ -414,8 +428,8 @@ int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
 		score += 50;
 		break;
 	}
-	WLogln(L"    Driver version : ", std::to_wstring(deviceProperties.driverVersion));
-	WLogln(L"    API version    : ", std::to_wstring(deviceProperties.apiVersion));
+	WLogln(L"                    Driver version : ", std::to_wstring(deviceProperties.driverVersion));
+	WLogln(L"                    API version    : ", std::to_wstring(deviceProperties.apiVersion));
 
 	score += deviceProperties.limits.maxImageDimension2D;
 
@@ -423,11 +437,11 @@ int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
 	vkGetPhysicalDeviceFeatures(inDevice, &deviceFeatures);
 
 	if (!deviceFeatures.geometryShader || !IsDeviceSuitable(inDevice)) {
-		WLogln(L"    Doesn't support geometry shaders or graphics queues");
+		WLogln(L"                    Doesn't support geometry shaders or graphics queues");
 		return 0;
 	}
 
-	WLogln(L"    Supports geometry shaders and graphics queues");
+	WLogln(L"                Supports geometry shaders and graphics queues");
 
 	return score;
 }
@@ -550,10 +564,12 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.mPresentModes);
 	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.mCapabilities);
 
-	std::uint32_t imageCount = swapChainSupport.mCapabilities.minImageCount + 1;
+	std::uint32_t imageCount = mSwapChainImageCount;
 
-	if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
-		imageCount > swapChainSupport.mCapabilities.maxImageCount)
+	if (imageCount < swapChainSupport.mCapabilities.minImageCount)
+		imageCount = swapChainSupport.mCapabilities.minImageCount;
+	else if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
+			 imageCount > swapChainSupport.mCapabilities.maxImageCount)
 		imageCount = swapChainSupport.mCapabilities.maxImageCount;
 
 	VkSwapchainCreateInfoKHR createInfo = {};
@@ -627,18 +643,6 @@ GameResult VkLowRenderer::CreateImageViews() {
 	return GameResult(S_OK);
 }
 
-GameResult VkLowRenderer::CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule) {
-	VkShaderModuleCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = inCode.size();
-	createInfo.pCode = reinterpret_cast<const std::uint32_t*>(inCode.data());
-
-	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &outModule) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create shader module");
-
-	return GameResult(S_OK);
-}
-
 GameResult VkLowRenderer::CreateRenderPass() {
 	VkAttachmentDescription colorAttachment = {};
 	colorAttachment.format = mSwapChainImageFormat;
@@ -659,6 +663,14 @@ GameResult VkLowRenderer::CreateRenderPass() {
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 
+	VkSubpassDependency dependency = {};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	VkRenderPassCreateInfo renderPassInfo = {};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = 1;
@@ -666,153 +678,11 @@ GameResult VkLowRenderer::CreateRenderPass() {
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
 
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
+
 	if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create render pass");
-
-	return GameResult(S_OK);
-}
-
-GameResult VkLowRenderer::CreateGraphicsPipeline() {
-	VkShaderModule vertShaderModule;
-	VkShaderModule fragShaderModule;
-
-	{
-		std::vector<char> vertShaderCode;
-		CheckGameResult(ReadFile("./../../../../Assets/Shaders/vert.spv", vertShaderCode));
-		std::vector<char> fragShaderCode;
-		CheckGameResult(ReadFile("./../../../../Assets/Shaders/frag.spv", fragShaderCode));
-
-		CheckGameResult(CreateShaderModule(vertShaderCode, vertShaderModule));
-		CheckGameResult(CreateShaderModule(fragShaderCode, fragShaderModule));
-	}
-
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertShaderStageInfo.module = vertShaderModule;
-	vertShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragShaderStageInfo.module = fragShaderModule;
-	fragShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo shaderStages[] = {
-		vertShaderStageInfo, fragShaderStageInfo
-	};
-
-	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
-	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-	VkViewport viewport = {};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(mSwapChainExtent.width);
-	viewport.height = static_cast<float>(mSwapChainExtent.height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor = {};
-	scissor.offset = { 0, 0 };
-	scissor.extent = mSwapChainExtent;
-
-	VkPipelineViewportStateCreateInfo viewportState = {};
-	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = 1;
-	viewportState.pViewports = &viewport;
-	viewportState.scissorCount = 1;
-	viewportState.pScissors = &scissor;
-
-	VkPipelineRasterizationStateCreateInfo rasterizer = {};	
-	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizer.depthClampEnable = VK_FALSE;
-	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterizer.lineWidth = 1.0f;
-	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-	rasterizer.depthBiasEnable = VK_FALSE;
-	rasterizer.depthBiasConstantFactor = 0.0f;
-	rasterizer.depthBiasClamp = 0.0f;
-	rasterizer.depthBiasSlopeFactor = 0.0f;
-
-	VkPipelineMultisampleStateCreateInfo multisampling = {};
-	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisampling.minSampleShading = 1.0f;
-	multisampling.pSampleMask = nullptr;
-	multisampling.alphaToCoverageEnable = VK_FALSE;
-	multisampling.alphaToOneEnable = VK_FALSE;
-
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-	colorBlendAttachment.colorWriteMask =
-		VK_COLOR_COMPONENT_R_BIT |
-		VK_COLOR_COMPONENT_G_BIT |
-		VK_COLOR_COMPONENT_B_BIT |
-		VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_TRUE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
-	VkPipelineColorBlendStateCreateInfo colorBlending = {};
-	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	colorBlending.logicOpEnable = VK_FALSE;
-	colorBlending.logicOp = VK_LOGIC_OP_COPY;
-	colorBlending.attachmentCount = 1;
-	colorBlending.pAttachments = &colorBlendAttachment;
-	colorBlending.blendConstants[0] = 0.0f;
-	colorBlending.blendConstants[1] = 0.0f;
-	colorBlending.blendConstants[2] = 0.0f;
-	colorBlending.blendConstants[3] = 0.0f;
-
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
-	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = nullptr;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
-	pipelineLayoutInfo.pPushConstantRanges = nullptr;
-
-	if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create pipeline layout");
-
-	VkGraphicsPipelineCreateInfo pipelineInfo = {};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStages;
-	pipelineInfo.pVertexInputState = &vertexInputInfo;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = nullptr;
-	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDynamicState = nullptr;
-	pipelineInfo.layout = mPipelineLayout;
-	pipelineInfo.renderPass = mRenderPass;
-	pipelineInfo.subpass = 0;
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-	pipelineInfo.basePipelineIndex = -1;
-
-	if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create graphics pipeline");
-
-	vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
-	vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
 
 	return GameResult(S_OK);
 }
@@ -837,6 +707,20 @@ GameResult VkLowRenderer::CreateFramebuffers() {
 		if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapChainFramebuffers[i]) != VK_SUCCESS)
 			ReturnGameResult(S_FALSE, L"Failed to create framebuffer");
 	}
+
+	return GameResult(S_OK);
+}
+
+GameResult VkLowRenderer::CreateCommandPool() {
+	QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
+
+	VkCommandPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.queueFamilyIndex = indices.GetGraphicsFamilyIndex();
+	poolInfo.flags = 0;
+
+	if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create command pool");
 
 	return GameResult(S_OK);
 }

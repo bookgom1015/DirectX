@@ -67,10 +67,10 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	CheckGameResult(BuildRootSignature());
 	CheckGameResult(BuildSsaoRootSignature());
 	CheckGameResult(BuildDescriptorHeaps());
-	BuildShadersAndInputLayout();
+	CheckGameResult(BuildShadersAndInputLayout());
 	CheckGameResult(BuildBasicGeometry());
-	BuildBasicMaterials();
-	BuildBasicRenderItems();
+	CheckGameResult(BuildBasicMaterials());
+	CheckGameResult(BuildBasicRenderItems());
 	CheckGameResult(BuildFrameResources());
 	CheckGameResult(BuildPSOs());
 
@@ -135,13 +135,13 @@ GameResult DxRenderer::Update(const GameTimer& gt) {
 		CloseHandle(eventHandle);
 	}
 
-	AnimateMaterials(gt);
-	UpdateObjectCBsAndInstanceBuffer(gt);
-	UpdateMaterialBuffer(gt);
-	UpdateShadowTransform(gt);
-	UpdateMainPassCB(gt);
-	UpdateShadowPassCB(gt);
-	UpdateSsaoCB(gt);
+	CheckGameResult(AnimateMaterials(gt));
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffer(gt));
+	CheckGameResult(UpdateMaterialBuffer(gt));
+	CheckGameResult(UpdateShadowTransform(gt));
+	CheckGameResult(UpdateMainPassCB(gt));
+	CheckGameResult(UpdateShadowPassCB(gt));
+	CheckGameResult(UpdateSsaoCB(gt));
 
 	GVector<std::string> textsToRemove;
 	for (auto& text : mOutputTexts) {
@@ -249,7 +249,7 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the back buffer and depth buffer.
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilView(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
@@ -319,10 +319,12 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 }
 
 GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist")
+
 	CheckGameResult(DxLowRenderer::OnResize(inClientWidth, inClientHeight));
 
-	if (mMainCamera != nullptr)
-		mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
+	mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
 
 	if (mSsao != nullptr) {
 		mSsao->OnResize(mClientWidth, mClientHeight);
@@ -331,8 +333,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 		mSsao->RebuildDescriptors(mDepthStencilBuffer.Get());
 	}
 
-	if (mMainCamera != nullptr)
-		BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
+	BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 
 	return GameResult(S_OK);
 }
@@ -879,7 +880,7 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	return GameResult(S_OK);
 }
 
-void DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
+GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
 	if (inIsNested) {
 		auto iter = mMeshToSkeletonRitem.find(inMesh);
 		if (iter != mMeshToSkeletonRitem.end()) {
@@ -925,6 +926,8 @@ void DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName, cons
 		mInstancesIndex[name] = 0;
 		mAllRitems.push_back(std::move(ritem));
 	}
+
+	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
@@ -1150,9 +1153,14 @@ GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialI
 	return GameResult(S_OK);
 }
 
-void DxRenderer::AnimateMaterials(const GameTimer& gt) {}
+GameResult DxRenderer::AnimateMaterials(const GameTimer& gt) {
+	return GameResult(S_OK);
+}
 
-void DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
+GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
@@ -1229,9 +1237,11 @@ void DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		static_cast<float>(mScreenViewport.Height * 0.09f),
 		16.0f
 	);
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
+GameResult DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
 	auto currMaterialBuffer = mCurrFrameResource->mMaterialBuffer.get();
 	for (auto& e : mMaterials) {
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
@@ -1255,25 +1265,28 @@ void DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
 			mat->NumFramesDirty--;
 		}
 	}
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::UpdateShadowTransform(const GameTimer& gt) {
+GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+
 	XMFLOAT3 camPos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 dirf = { 0.0f, 0.0f, 0.0f };
-	if (mMainCamera != nullptr) {
-		camPos = mMainCamera->GetPosition3f();
 
-		auto dir = mMainCamera->GetLook() * SceneBoundQuarterRadius;
-		XMStoreFloat3(&dirf, dir);
+	camPos = mMainCamera->GetPosition3f();
 
-		mSceneBounds.Center = XMFLOAT3(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z);
-	}
+	auto dir = mMainCamera->GetLook() * SceneBoundQuarterRadius;
+	XMStoreFloat3(&dirf, dir);
+
+	mSceneBounds.Center = XMFLOAT3(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z);
 
 	// Only the first "main" light casts a shadow.
 	XMVECTOR lightDir = XMLoadFloat3(&mLightingVars.mBaseLightDirections[0]);
-	XMVECTOR lightPos = mMainCamera != nullptr ?
-		-2.0f * mSceneBounds.Radius * lightDir + XMVectorSet(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z, 0.0f) :
-		-2.0f * mSceneBounds.Radius * lightDir;
+	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir + 
+		XMVectorSet(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z, 0.0f);
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 	XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
@@ -1308,9 +1321,14 @@ void DxRenderer::UpdateShadowTransform(const GameTimer& gt) {
 	XMStoreFloat4x4(&mLightingVars.mLightView, lightView);
 	XMStoreFloat4x4(&mLightingVars.mLightProj, lightProj);
 	XMStoreFloat4x4(&mLightingVars.mShadowTransform, S);
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX proj = mMainCamera->GetProj();
 
@@ -1355,9 +1373,11 @@ void DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
 
 	auto currPassCB = mCurrFrameResource->mPassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
 	XMMATRIX view = XMLoadFloat4x4(&mLightingVars.mLightView);
 	XMMATRIX proj = XMLoadFloat4x4(&mLightingVars.mLightProj);
 
@@ -1383,9 +1403,14 @@ void DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
 
 	auto currPassCB = mCurrFrameResource->mPassCB.get();
 	currPassCB->CopyData(1, mShadowPassCB);
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+
 	SsaoConstants ssaoCB;
 
 	XMMATRIX P = mMainCamera->GetProj();
@@ -1419,6 +1444,8 @@ void DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
 
 	auto currSsaoCB = mCurrFrameResource->mSsaoCB.get();
 	currSsaoCB->CopyData(0, ssaoCB);
+
+	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::LoadBasicTextures() {
@@ -1802,7 +1829,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	return GameResult(S_OK);
 }
 
-void DxRenderer::BuildShadersAndInputLayout() {
+GameResult DxRenderer::BuildShadersAndInputLayout() {
 	const D3D_SHADER_MACRO alphaTestDefines[] = {
 		"ALPHA_TEST", "1",
 		"BLUR_RADIUS_2", "1",
@@ -1892,6 +1919,8 @@ void DxRenderer::BuildShadersAndInputLayout() {
 		{ "BONEINDICES",	0, DXGI_FORMAT_R32G32B32A32_SINT,	0, 76,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "BONEINDICES",	1, DXGI_FORMAT_R32G32B32A32_SINT,	0, 92,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
+
+	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::BuildBasicGeometry() {
@@ -2093,7 +2122,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	return GameResult(S_OK);
 }
 
-void DxRenderer::BuildBasicMaterials() {
+GameResult DxRenderer::BuildBasicMaterials() {
 	auto defaultMat = std::make_unique<Material>();
 	defaultMat->Name = "default";
 	defaultMat->MatCBIndex = mNumMatCB++;
@@ -2118,9 +2147,11 @@ void DxRenderer::BuildBasicMaterials() {
 
 	mMaterials[defaultMat->Name] = std::move(defaultMat);
 	mMaterials[skyMat->Name] = std::move(skyMat);
+
+	return GameResult(S_OK);
 }
 
-void DxRenderer::BuildBasicRenderItems() {
+GameResult DxRenderer::BuildBasicRenderItems() {
 	XMFLOAT4X4 world;
 	XMFLOAT4X4 tex;
 
@@ -2208,6 +2239,8 @@ void DxRenderer::BuildBasicRenderItems() {
 	);
 	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
+
+	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::BuildPSOs() {

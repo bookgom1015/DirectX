@@ -303,7 +303,7 @@ void DxLowRenderer::LogAdapters() {
 		adapter->GetDesc(&desc);
 
 		std::wstring text = L"***Adapter:\n";
-		text += L'\t' + desc.Description + L'\n';
+		text += L'\t' + desc.Description;
 		WLogln(text.c_str());
 
 		adapterList.push_back(adapter);
@@ -324,7 +324,7 @@ void DxLowRenderer::LogAdapterOutputs(IDXGIAdapter* inAdapter) {
 		output->GetDesc(&desc);
 
 		std::wstring text = L"***Output:\n";
-		text += L'\t' + desc.DeviceName + L'\n';
+		text += L'\t' + desc.DeviceName;
 		WLogln(text);
 
 		LogOutputDisplayModes(output, mBackBufferFormat);
@@ -350,8 +350,7 @@ void DxLowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inF
 		std::wstring text =
 			L"Width = " + std::to_wstring(x.Width) + L' ' +
 			L"Height = " + std::to_wstring(x.Height) + L' ' +
-			L"Refresh = " + std::to_wstring(n) + L'/' + std::to_wstring(d) +
-			L"\n";
+			L"Refresh = " + std::to_wstring(n) + L'/' + std::to_wstring(d);
 		WLogln(text);
 	}
 }

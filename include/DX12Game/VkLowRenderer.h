@@ -45,6 +45,10 @@ public:
 		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 		void* pUserData);
 
+protected:
+	GameResult CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule);
+	GameResult ReadFile(const std::string& inFileName, std::vector<char>& outData);
+
 private:
 	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) override;
 
@@ -62,6 +66,7 @@ private:
 	GameResult PickPhysicalDevice();
 
 	bool IsDeviceSuitable(VkPhysicalDevice inDevice);
+
 	bool CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice);
 
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice inDevice);
@@ -74,20 +79,17 @@ private:
 	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats);
 	VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes);
 	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities);
-	GameResult CreateSwapChain();
 
+	GameResult CreateSwapChain();
 	GameResult CreateImageViews();
 
-	GameResult CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule);
-
-	//----------------------------------------------------------------------------------------------------------
 	GameResult CreateRenderPass();
-	GameResult CreateGraphicsPipeline();
+
 	GameResult CreateFramebuffers();
 
-private:
-	bool bIsCleaned = false;
+	GameResult CreateCommandPool();
 
+protected:
 	GLFWwindow* mMainWindow;
 
 	VkInstance mInstance;
@@ -103,6 +105,7 @@ private:
 
 	VkSwapchainKHR mSwapChain;
 	std::vector<VkImage> mSwapChainImages;
+	const std::uint32_t mSwapChainImageCount = 3;
 	VkFormat mSwapChainImageFormat;
 	VkExtent2D mSwapChainExtent;
 
@@ -113,4 +116,10 @@ private:
 	VkPipeline mGraphicsPipeline;
 
 	std::vector<VkFramebuffer> mSwapChainFramebuffers;
+
+	VkCommandPool mCommandPool;
+	std::vector<VkCommandBuffer> mCommandBuffers;
+
+private:
+	bool bIsCleaned = false;
 };

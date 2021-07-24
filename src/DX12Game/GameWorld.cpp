@@ -78,7 +78,7 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	CheckGameResult(InitMainWindow());
 	
 #ifdef UsingVulkan
-	CheckGameResult(mRenderer->Initialize(mMainWindow, mClientWidth, mClientHeight));
+	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight));
 #else
 	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
 #endif
@@ -113,7 +113,7 @@ void GameWorld::CleanUp() {
 		mRenderer->CleanUp();
 
 #ifdef UsingVulkan
-	glfwDestroyWindow(mMainWindow);
+	glfwDestroyWindow(mMainGLFWWindow);
 
 	glfwTerminate();
 #endif
@@ -124,76 +124,78 @@ void GameWorld::CleanUp() {
 bool GameWorld::LoadData() {
 	mMusicEvent = mAudioSystem->PlayEvent("event:/Over the Waves");
 
-	//TpsActor* tpsActor = new TpsActor();
-	//tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
-	//
-	//XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
-	//
-	//Actor* monkeyActor = new Actor();
-	//monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
-	//monkeyActor->SetQuaternion(rotateYPi);
-	//std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
-	//	XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 8.0f);
-	//	actor->SetQuaternion(rot);
-	//};
-	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
-	//MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
-	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-	//	return false;
-	//
-	//monkeyActor = new Actor();
-	//monkeyActor->SetQuaternion(rotateYPi);
-	//monkeyMeshComp = new MeshComponent(monkeyActor);
-	//std::function<void(const GameTimer&, Actor*)> funcTurnCCW = [](const GameTimer& gt, Actor* actor) -> void {
-	//	XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 8.0f);
-	//	actor->SetPosition(3.0f + cosf(4.0f * gt.TotalTime()), 2.5f + sinf(4.0f * gt.TotalTime()), 0.0f);
-	//	actor->SetQuaternion(rot);
-	//};
-	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
-	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-	//	return false;
-	//
-	//monkeyActor = new Actor();
-	//monkeyActor->SetQuaternion(rotateYPi);
-	//std::function<void(const GameTimer&, Actor*)> funcTurnCW = [](const GameTimer& gt, Actor* actor) -> void {
-	//	actor->SetPosition(-3.0f + -cosf(5.0f * gt.TotalTime()), 2.5f + sinf(5.0f * gt.TotalTime()), 0.0f);
-	//};
-	//monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
-	//monkeyMeshComp = new MeshComponent(monkeyActor);
-	//if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-	//	return false;
-	//
-	//Actor* leoniActor = new Actor();
-	//leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
-	//leoniActor->SetQuaternion(rotateYPi);
-	//SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
-	//if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
-	//	return false;
-	//leoniMeshComp->SetClipName("Idle");
-	//leoniMeshComp->SetSkeleletonVisible(false);
-	//
-	//Actor* treeActor;
-	//MeshComponent* treeMeshComp;
-	//int numTrees = 5;
-	//for (int i = -numTrees; i <= numTrees; ++i) {
-	//	for (int j = -numTrees; j <= numTrees; ++j) {
-	//		if (i == 0 && j == 0)
-	//			continue;
-	//
-	//		treeActor = new Actor();
-	//
-	//		XMVECTOR pos = XMVectorSet(static_cast<float>(16 * i), 0.0f, static_cast<float>(16 * j), 1.0f);
-	//		XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
-	//
-	//		treeActor->SetPosition(pos + offset);
-	//		treeActor->SetQuaternion(XMQuaternionRotationAxis(
-	//			XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
-	//
-	//		treeMeshComp = new MeshComponent(treeActor);
-	//		if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
-	//			return false;
-	//	}
-	//}
+#ifndef UsingVulkan
+	TpsActor* tpsActor = new TpsActor();
+	tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
+	
+	XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
+	
+	Actor* monkeyActor = new Actor();
+	monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
+	monkeyActor->SetQuaternion(rotateYPi);
+	std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
+		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 8.0f);
+		actor->SetQuaternion(rot);
+	};
+	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
+	MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
+	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+		return false;
+	
+	monkeyActor = new Actor();
+	monkeyActor->SetQuaternion(rotateYPi);
+	monkeyMeshComp = new MeshComponent(monkeyActor);
+	std::function<void(const GameTimer&, Actor*)> funcTurnCCW = [](const GameTimer& gt, Actor* actor) -> void {
+		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 8.0f);
+		actor->SetPosition(3.0f + cosf(4.0f * gt.TotalTime()), 2.5f + sinf(4.0f * gt.TotalTime()), 0.0f);
+		actor->SetQuaternion(rot);
+	};
+	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
+	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+		return false;
+	
+	monkeyActor = new Actor();
+	monkeyActor->SetQuaternion(rotateYPi);
+	std::function<void(const GameTimer&, Actor*)> funcTurnCW = [](const GameTimer& gt, Actor* actor) -> void {
+		actor->SetPosition(-3.0f + -cosf(5.0f * gt.TotalTime()), 2.5f + sinf(5.0f * gt.TotalTime()), 0.0f);
+	};
+	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
+	monkeyMeshComp = new MeshComponent(monkeyActor);
+	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
+		return false;
+	
+	Actor* leoniActor = new Actor();
+	leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
+	leoniActor->SetQuaternion(rotateYPi);
+	SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
+	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
+		return false;
+	leoniMeshComp->SetClipName("Idle");
+	leoniMeshComp->SetSkeleletonVisible(false);
+	
+	Actor* treeActor;
+	MeshComponent* treeMeshComp;
+	int numTrees = 5;
+	for (int i = -numTrees; i <= numTrees; ++i) {
+		for (int j = -numTrees; j <= numTrees; ++j) {
+			if (i == 0 && j == 0)
+				continue;
+	
+			treeActor = new Actor();
+	
+			XMVECTOR pos = XMVectorSet(static_cast<float>(16 * i), 0.0f, static_cast<float>(16 * j), 1.0f);
+			XMVECTOR offset = XMVectorSet(8.0f * MathHelper::RandF() - 4.0f, 0.0f, 8.0f * MathHelper::RandF() - 4.0f, 0.0f);
+	
+			treeActor->SetPosition(pos + offset);
+			treeActor->SetQuaternion(XMQuaternionRotationAxis(
+				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
+	
+			treeMeshComp = new MeshComponent(treeActor);
+			if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
+				return false;
+		}
+	}
+#endif
 
 #ifdef MT_World
 	for (auto& actors : mMTActors) {
@@ -230,11 +232,16 @@ void GameWorld::UnloadData() {
 
 int GameWorld::RunLoop() {
 	if (!LoadData()) {
-		WErrln(L"LoadData() returned error code");
+		WErrln(L"LoadData() returned an error code");
 		return -1;
 	}
 
-	OnResize();
+	GameResult resizeStatus = OnResize();
+	if (resizeStatus.hr != S_OK) {
+		WErrln(L"OnResize() returned an error code from RunLoop()");
+		WErrln(resizeStatus.msg);
+		return -1;
+	}
 
 #ifdef MT_World
 	int status = MTGameLoop();
@@ -286,9 +293,9 @@ int GameWorld::GameLoop() {
 
 	return static_cast<int>(msg.wParam);
 #else // UsingVulkan
-	while (!glfwWindowShouldClose(mMainWindow)) {
+	while (!glfwWindowShouldClose(mMainGLFWWindow)) {
 		glfwPollEvents();
-		if (glfwGetKey(mMainWindow, GLFW_KEY_ESCAPE))
+		if (glfwGetKey(mMainGLFWWindow, GLFW_KEY_ESCAPE))
 			break;;
 
 		mTimer.Tick();
@@ -580,8 +587,13 @@ void GameWorld::Draw(const GameTimer& gt) {
 
 #ifdef UsingVulkan
 namespace {
-	void GLFWProcessInput(GLFWwindow* inMainWnd, int, int, int, int) {
-		WLogln(L"Pressed");
+	void GLFWProcessInput(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods) {
+		if (inAction == GLFW_PRESS) {
+			WLogln(L"[Key callback] Pressed key: ", std::to_wstring(inKey));
+		}
+		else {
+			WLogln(L"[Key callback] Released key: ", std::to_wstring(inKey));
+		}
 	}
 }
 #endif
@@ -628,10 +640,21 @@ GameResult GameWorld::InitMainWindow() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-	mMainWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
-	mhMainWnd = glfwGetWin32Window(mMainWindow);
+	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
+	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
+
+	auto primaryMonitor = glfwGetPrimaryMonitor();
+	const auto vidmode = glfwGetVideoMode(primaryMonitor);
+
+	mPrimaryMonitorWidth = static_cast<UINT>(vidmode->width);
+	mPrimaryMonitorHeight = static_cast<UINT>(vidmode->height);
+
+	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
+	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
+
+	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
 	
-	glfwSetKeyCallback(mMainWindow, GLFWProcessInput);
+	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
 #endif
 
 	return GameResult(S_OK);
@@ -663,49 +686,51 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		// Save the new client area dimensions.
 		mClientWidth = LOWORD(lParam);
 		mClientHeight = HIWORD(lParam);
-		if (mRenderer->IsValid()) {
-			if (wParam == SIZE_MINIMIZED) {
-				mAppPaused = true;
-				mMinimized = true;
-				mMaximized = false;
-			}
-			else if (wParam == SIZE_MAXIMIZED) {
-				mAppPaused = false;
-				mMinimized = false;
-				mMaximized = true;
-				OnResize();
-			}
-			else if (wParam == SIZE_RESTORED) {
-
-				// Restoring from minimized state?
-				if (mMinimized) {
+		{
+			HRESULT hr = S_OK;
+			if (mRenderer->IsValid()) {
+				if (wParam == SIZE_MINIMIZED) {
+					mAppPaused = true;
+					mMinimized = true;
+					mMaximized = false;
+				}
+				else if (wParam == SIZE_MAXIMIZED) {
 					mAppPaused = false;
 					mMinimized = false;
-					OnResize();
+					mMaximized = true;
+					hr = OnResize().hr;
 				}
+				else if (wParam == SIZE_RESTORED) {
+					// Restoring from minimized state?
+					if (mMinimized) {
+						mAppPaused = false;
+						mMinimized = false;
+						hr = OnResize().hr;
+					}
 
-				// Restoring from maximized state?
-				else if (mMaximized) {
-					mAppPaused = false;
-					mMaximized = false;
-					OnResize();
-				}
-				else if (mResizing) {
-					// If user is dragging the resize bars, we do not resize 
-					// the buffers here because as the user continuously 
-					// drags the resize bars, a stream of WM_SIZE messages are
-					// sent to the window, and it would be pointless (and slow)
-					// to resize for each WM_SIZE message received from dragging
-					// the resize bars.  So instead, we reset after the user is 
-					// done resizing the window and releases the resize bars, which 
-					// sends a WM_EXITSIZEMOVE message.
-				}
-				else { // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
-					OnResize();
+					// Restoring from maximized state?
+					else if (mMaximized) {
+						mAppPaused = false;
+						mMaximized = false;
+						hr = OnResize().hr;
+					}
+					else if (mResizing) {
+						// If user is dragging the resize bars, we do not resize 
+						// the buffers here because as the user continuously 
+						// drags the resize bars, a stream of WM_SIZE messages are
+						// sent to the window, and it would be pointless (and slow)
+						// to resize for each WM_SIZE message received from dragging
+						// the resize bars.  So instead, we reset after the user is 
+						// done resizing the window and releases the resize bars, which 
+						// sends a WM_EXITSIZEMOVE message.
+					}
+					else { // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
+						hr = OnResize().hr;
+					}
 				}
 			}
+			return hr;
 		}
-		return 0;
 
 		// WM_EXITSIZEMOVE is sent when the user grabs the resize bars.
 	case WM_ENTERSIZEMOVE:
@@ -720,8 +745,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		mAppPaused = false;
 		mResizing = false;
 		mTimer.Start();
-		OnResize();
-		return 0;
+		return OnResize().hr;
 
 		// WM_DESTROY is sent when the window is being destroyed.
 	case WM_DESTROY:
@@ -775,8 +799,10 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-void GameWorld::OnResize() {
-	mRenderer->OnResize(mClientWidth, mClientHeight);
+GameResult GameWorld::OnResize() {
+	CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
+
+	return GameResult(S_OK);
 }
 
 void GameWorld::CalculateFrameStats() {

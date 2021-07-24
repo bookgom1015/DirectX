@@ -21,6 +21,10 @@ public:
 	virtual GameResult Draw(const GameTimer& gt) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
+	GameResult CreateGraphicsPipeline();
+	GameResult CreateCommandBuffers();
+	GameResult CreateSyncObjects();
+
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
 		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) override;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
@@ -38,4 +42,10 @@ public:
 
 private:
 	bool bIsCleaned = false;
+
+	std::vector<VkSemaphore> mImageAvailableSemaphores;
+	std::vector<VkSemaphore> mRenderFinishedSemaphores;
+	std::vector<VkFence> mInFlightFences;
+	std::vector<VkFence> mImagesInFlight;
+	size_t mCurrentFrame = 0;
 };

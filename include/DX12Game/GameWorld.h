@@ -90,7 +90,7 @@ private:
 	void Draw(const GameTimer& gt);
 
 	GameResult InitMainWindow();
-	void OnResize();
+	GameResult OnResize();
 	void CalculateFrameStats();
 
 	///
@@ -111,7 +111,7 @@ private:
 	bool bIsCleaned = false;
 
 #ifdef UsingVulkan
-	GLFWwindow* mMainWindow;
+	GLFWwindow* mMainGLFWWindow;
 
 	std::unique_ptr<VkRenderer> mRenderer = nullptr;
 #else
