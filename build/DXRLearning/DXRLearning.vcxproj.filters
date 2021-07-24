@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\DX12Game">
+      <UniqueIdentifier>{80db2a4f-5d8c-443f-b8d4-42fb5957ddb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files">
+      <UniqueIdentifier>{d4ad031d-4bbf-4f40-afeb-f23202059483}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Private">
+      <UniqueIdentifier>{9790b5d3-835b-4fff-9195-17f7c71d425a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Public">
+      <UniqueIdentifier>{d73e9f9f-f6b7-4cf1-b424-ddc46440d83a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\DXRLearning\Application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DXRLearning\LowRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DXRLearning\Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dUtil.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dx12.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\MathHelper.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\UploadBuffer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\Utilities.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\DXRLearning\Application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DXRLearning\LowRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DXRLearning\Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
+      <Filter>Source Files\DX12Game</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp">
+      <Filter>Source Files\DX12Game</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

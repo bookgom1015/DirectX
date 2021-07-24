@@ -1,0 +1,13 @@
+﻿  d3dUtil.cpp
+  DDSTextureLoader.cpp
+  GeometryGenerator.cpp
+  MathHelper.cpp
+  GameTimer.cpp
+  StringUtil.cpp
+  Application.cpp
+  LowRenderer.cpp
+  Renderer.cpp
+  Generating code
+  All 486 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  DXRLearning.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DXRLearning\Release\DXRLearning.exe
