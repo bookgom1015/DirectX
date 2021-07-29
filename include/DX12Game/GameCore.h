@@ -1,7 +1,7 @@
 #pragma once
 
-//#define MT_World
-#define UsingVulkan
+#define MT_World
+//#define UsingVulkan
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")
@@ -17,7 +17,7 @@ const int gNumFrameResources = 3;
 #define NOMINMAX
 
 #include <comdef.h>
-#include <float.h>
+#include <cfloat>
 #include <functional>
 #include <future>
 #include <initializer_list>

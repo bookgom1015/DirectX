@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{622B99DB-52D9-43B3-8EC5-B4B00E87B926}</ProjectGuid>
     <RootNamespace>DX12Game</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -81,18 +81,19 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VK_SDK_PATH)include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib\;$(SolutionDir)lib\$(Configuration)\;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VK_SDK_PATH)Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
       </StackReserveSize>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y</Command>
+      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y
+powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").PlaySync()</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -133,20 +134,21 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VULKAN_SDK)\Include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_INC);$(SolutionDir)include;$(FMODE_INC);$(FMODE_LOW_INC)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VK_SDK_PATH)include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib\;$(SolutionDir)lib\$(Configuration)\;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_LIB64);$(FMODE_LIB);$(FMODE_LOW_LIB)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VK_SDK_PATH)Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
       </StackReserveSize>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y</Command>
+      <Command>xcopy "$(SolutionDir)\lib\dll\*.dll" "$(OutDir)" /i /s /y
+powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").PlaySync()</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

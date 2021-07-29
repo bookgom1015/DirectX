@@ -45,7 +45,7 @@ bool AudioSystem::Initialize() {
 	}
 
 	// Save the low-level system pointer
-	mSystem->getLowLevelSystem(&mLowLevelSystem);
+	mSystem->getCoreSystem(&mLowLevelSystem);
 
 	// Load the master banks (strings first)
 	if (!LoadBank("./../../../../Assets/Banks/Master Bank.strings.bank"))

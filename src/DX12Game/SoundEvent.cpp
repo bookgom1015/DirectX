@@ -78,14 +78,14 @@ float SoundEvent::GetParameter(const std::string& inParamName) {
 	float retVal = 0.0f;
 	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
 	if (event)
-		event->getParameterValue(inParamName.c_str(), &retVal);
+		event->getParameterByName(inParamName.c_str(), &retVal);
 	return retVal;
 }
 
 void SoundEvent::SetParameter(const std::string& inParamName, float inValue) {
 	FMOD::Studio::EventInstance* event = mSystem ? mSystem->GetEventInstance(mID) : nullptr;
 	if (event)
-		event->setParameterValue(inParamName.c_str(), inValue);
+		event->setParameterByName(inParamName.c_str(), inValue);
 }
 
 bool SoundEvent::Is3D() const {

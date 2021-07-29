@@ -8,10 +8,10 @@
 
 #pragma once
 
-#pragma comment(lib, "fmodstudioL64_vc.lib")
-#pragma comment(lib, "fmodstudio64_vc.lib")
-#pragma comment(lib, "fmod64_vc.lib")
-#pragma comment(lib, "fmodL64_vc.lib")
+#pragma comment(lib, "fmodstudioL_vc.lib")
+#pragma comment(lib, "fmodstudio_vc.lib")
+#pragma comment(lib, "fmodL_vc.lib")
+#pragma comment(lib, "fmod_vc.lib")
 
 #include "DX12Game/SoundEvent.h"
 
