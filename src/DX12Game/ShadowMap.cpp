@@ -3,18 +3,16 @@
 //***************************************************************************************
 
 #include "DX12Game/ShadowMap.h"
- 
-ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height) {
-	md3dDevice = device;
 
-	mWidth = width;
-	mHeight = height;
+GameResult ShadowMap::Initialize(ID3D12Device* inDevice, UINT inWidth, UINT inHeight) {
+	md3dDevice = inDevice;
 
-	mViewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
-	mScissorRect = { 0, 0, static_cast<int>(width), static_cast<int>(height) };
-}
+	mWidth = inWidth;
+	mHeight = inHeight;
 
-GameResult ShadowMap::Initialize() {
+	mViewport = { 0.0f, 0.0f, static_cast<float>(inWidth), static_cast<float>(inHeight), 0.0f, 1.0f };
+	mScissorRect = { 0, 0, static_cast<int>(inWidth), static_cast<int>(inHeight) };
+
 	CheckGameResult(BuildResource());
 
 	return GameResult(S_OK);
@@ -48,7 +46,8 @@ D3D12_RECT ShadowMap::ScissorRect() const {
 	return mScissorRect;
 }
 
-void ShadowMap::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
+void ShadowMap::BuildDescriptors(
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv) {
 	// Save references to the descriptors.
@@ -60,10 +59,10 @@ void ShadowMap::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	BuildDescriptors();
 }
 
-GameResult ShadowMap::OnResize(UINT newWidth, UINT newHeight) {
-	if ((mWidth != newWidth) || (mHeight != newHeight)) {
-		mWidth = newWidth;
-		mHeight = newHeight;
+GameResult ShadowMap::OnResize(UINT inNewWidth, UINT inNewHeight) {
+	if ((mWidth != inNewWidth) || (mHeight != inNewHeight)) {
+		mWidth = inNewWidth;
+		mHeight = inNewHeight;
 
 		CheckGameResult(BuildResource());
 

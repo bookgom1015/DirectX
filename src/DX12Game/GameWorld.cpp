@@ -101,6 +101,8 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	bMTUpdatingActors.resize(numProcessors);
 #endif 
 
+	bFinishedInit = true;
+
 	return GameResult(S_OK);
 }
 
@@ -800,7 +802,8 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 GameResult GameWorld::OnResize() {
-	CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
+	if (bFinishedInit)
+		CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
 
 	return GameResult(S_OK);
 }

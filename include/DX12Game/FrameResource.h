@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/UploadBuffer.h"
+#include "DX12Game/GameUploadBuffer.h"
 
 enum EInstanceRenderState : UINT {
 	EID_Visible		= 1,
@@ -192,12 +192,17 @@ public:
 
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.
-    std::unique_ptr<UploadBuffer<PassConstants>> mPassCB = nullptr;
-    std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
-	std::unique_ptr<UploadBuffer<SsaoConstants>> mSsaoCB = nullptr;
-	std::unique_ptr<UploadBuffer<MaterialData>> mMaterialBuffer = nullptr;
+	GameUploadBuffer<PassConstants> mPassCB;
+	GameUploadBuffer<ObjectConstants> mObjectCB;
+	GameUploadBuffer<SsaoConstants> mSsaoCB;
+	GameUploadBuffer<MaterialData> mMaterialBuffer;
+    //std::unique_ptr<UploadBuffer<PassConstants>> mPassCB = nullptr;
+    //std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
+	//std::unique_ptr<UploadBuffer<SsaoConstants>> mSsaoCB = nullptr;
+	//std::unique_ptr<UploadBuffer<MaterialData>> mMaterialBuffer = nullptr;
 
-	std::unique_ptr<UploadBuffer<InstanceIdxData>> mInstanceIdxBuffer = nullptr;
+	GameUploadBuffer<InstanceIdxData> mInstanceIdxBuffer;
+	//std::unique_ptr<UploadBuffer<InstanceIdxData>> mInstanceIdxBuffer = nullptr;
 	// NOTE: In this demo, we instance only one render-item, so we only have one structured buffer to 
 	// store instancing data.  To make this more general (i.e., to support instancing multiple render-items), 
 	// you would need to have a structured buffer for each render-item, and allocate each buffer with enough
@@ -206,7 +211,8 @@ public:
 	// would need if we were not using instancing.  For example, if we were drawing 1000 objects without instancing,
 	// we would create a constant buffer with enough room for a 1000 objects.  With instancing, we would just
 	// create a structured buffer large enough to store the instance data for 1000 instances.  
-	std::unique_ptr<UploadBuffer<InstanceData>> mInstanceBuffer = nullptr;
+	GameUploadBuffer<InstanceData> mInstanceDataBuffer;
+	//std::unique_ptr<UploadBuffer<InstanceData>> mInstanceBuffer = nullptr;
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.

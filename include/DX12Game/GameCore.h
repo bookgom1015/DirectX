@@ -3,6 +3,8 @@
 #define MT_World
 //#define UsingVulkan
 
+#define DeferredRendering
+
 // Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
@@ -16,16 +18,39 @@ const int gNumFrameResources = 3;
 
 #define NOMINMAX
 
-#include <comdef.h>
+#include <algorithm>
+#include <array>
+#include <cassert>
 #include <cfloat>
-#include <functional>
-#include <future>
+#include <comdef.h>
+#include <cstdint>
+#include <DirectXCollision.h>
+#include <DirectXColors.h>
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <dxgi1_4.h>
+#include <D3Dcompiler.h>
+#include <d3d12.h>
 #include <initializer_list>
 #include <iomanip>
+#include <fstream>
+#include <functional>
+#include <future>
+#include <memory>
 #include <SimpleMath.h>
+#include <sstream>
+#include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
+#include <vector>
+#include <windows.h>
 #include <windowsx.h>
+#include <wrl.h>
+
+#include "common/d3dx12.h"
+#include "common/DDSTextureLoader.h"
+#include "common/MathHelper.h"
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
@@ -33,8 +58,6 @@ const int gNumFrameResources = 3;
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-#include "common/MathHelper.h"
-#include "common/d3dUtil.h"
 #include "DX12Game/ContainerUtil.h"
 #include "DX12Game/GameTimer.h"
 #include "DX12Game/StringUtil.h"
@@ -89,8 +112,10 @@ public:
 		if (FAILED(__hr)) {																			\
 			std::wstringstream __wsstream_RIF;														\
 			_com_error err(__hr);																	\
-			__wsstream_RIF << L#__statement << L" failed;" << L"; message: " << err.ErrorMessage();	\
+			__wsstream_RIF << L#__statement << L" failed; message: " << err.ErrorMessage();	\
 			ReturnGameResult(__hr, __wsstream_RIF.str());											\
 		}																							\
 	}
 #endif
+
+#include "DX12Game/D3D12Util.h"

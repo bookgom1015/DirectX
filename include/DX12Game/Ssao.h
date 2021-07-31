@@ -9,25 +9,26 @@
 
 class Ssao {
 public:
-	Ssao(ID3D12Device* device,
-		ID3D12GraphicsCommandList* cmdList,
-		UINT width, UINT height);
+	Ssao() = default;
 	virtual ~Ssao() = default;
 
 private:
-	Ssao(const Ssao& src) = delete;
-	Ssao(Ssao&& src) = delete;
-	Ssao& operator=(const Ssao& rhs) = delete;
-	Ssao& operator=(Ssao&& rhs) = delete;
+	Ssao(const Ssao& inRef) = delete;
+	Ssao(Ssao&& inRVal) = delete;
+	Ssao& operator=(const Ssao& inRef) = delete;
+	Ssao& operator=(Ssao&& inRVal) = delete;
 
 public:
-	GameResult Initialize();
+	GameResult Initialize(
+		ID3D12Device* inDevice,
+		ID3D12GraphicsCommandList* inCmdList,
+		UINT inClientWidth, UINT inClientHeight);
 
 	UINT SsaoMapWidth() const;
 	UINT SsaoMapHeight() const;
 
-	void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
-	std::vector<float> CalcGaussWeights(float sigma);
+	void GetOffsetVectors(DirectX::XMFLOAT4 inOffsets[14]);
+	std::vector<float> CalcGaussWeights(float inSigma);
 
 
 	ID3D12Resource* NormalMap();
@@ -38,21 +39,21 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE AmbientMapSrv() const;
 
 	void BuildDescriptors(
-		ID3D12Resource* depthStencilBuffer,
+		ID3D12Resource* inDepthStencilBuffer,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
-		UINT cbvSrvUavDescriptorSize,
-		UINT rtvDescriptorSize);
+		UINT inCbvSrvUavDescriptorSize,
+		UINT inRtvDescriptorSize);
 
-	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer);
+	void RebuildDescriptors(ID3D12Resource* inDepthStencilBuffer);
 
-	void SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPso);
+	void SetPSOs(ID3D12PipelineState* inSsaoPso, ID3D12PipelineState* inSsaoBlurPso);
 
 	///<summary>
 	/// Call when the backbuffer is resized.  
 	///</summary>
-	GameResult OnResize(UINT newWidth, UINT newHeight);
+	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
 	///<summary>
 	/// Changes the render target to the Ambient render target and draws a fullscreen
@@ -61,9 +62,9 @@ public:
 	/// are disabled, as we do not need the depth buffer computing the Ambient map.
 	///</summary>
 	void ComputeSsao(
-		ID3D12GraphicsCommandList* cmdList,
-		FrameResource* currFrame,
-		int blurCount);
+		ID3D12GraphicsCommandList* inCmdList,
+		FrameResource* inCurrFrame,
+		int inBlurCount);
 
 private:
 	///<summary>
@@ -71,11 +72,11 @@ private:
 	/// few random samples per pixel.  We use an edge preserving blur so that 
 	/// we do not blur across discontinuities--we want edges to remain edges.
 	///</summary>
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount);
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, FrameResource* inCurrFrame, int inBlurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur);
 
 	GameResult BuildResources();
-	GameResult BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList);
+	GameResult BuildRandomVectorTexture(ID3D12GraphicsCommandList* inCmdList);
 
 	void BuildOffsetVectors();
 
@@ -89,8 +90,8 @@ private:
 	ID3D12Device* md3dDevice;
 	ID3D12GraphicsCommandList* mCmdList;
 
-	UINT mWidth;
-	UINT mHeight;
+	UINT mClientWidth;
+	UINT mClientHeight;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSig;
 

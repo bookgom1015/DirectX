@@ -4,11 +4,11 @@
 
 class AnimationsMap {
 public:
-	AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
+	AnimationsMap() = default;
 	virtual ~AnimationsMap() = default;
 
 public:
-	GameResult Initialize();
+	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
 
 	UINT AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves);
 

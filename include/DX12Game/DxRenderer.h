@@ -14,6 +14,7 @@
 #include "DX12Game/DxLowRenderer.h"
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
+#include "DX12Game/GBuffer.h"
 
 class Mesh;
 class Animation;
@@ -80,6 +81,11 @@ private:
 	struct DescriptorHeapIndices {
 		UINT mSkyTexHeapIndex;
 		UINT mBlurSkyTexHeapIndex;
+#ifdef DeferredRendering
+		UINT mDiffuseMapHeapIndex;
+		UINT mNormalMapHeapIndex;
+		UINT mDepthMapHeapIndex;
+#endif
 		UINT mShadowMapHeapIndex;
 		UINT mSsaoHeapIndexStart;
 		UINT mSsaoAmbientMapIndex;
@@ -239,8 +245,10 @@ private:
 	PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
-	std::unique_ptr<ShadowMap> mShadowMap;
-	std::unique_ptr<Ssao> mSsao;
+	ShadowMap mShadowMap;
+	Ssao mSsao;
+	AnimationsMap mAnimsMap;
+	GBuffer mGBuffer;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;
@@ -254,8 +262,6 @@ private:
 	GUnorderedMap<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
 	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToRitem;
 	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToSkeletonRitem;
-
-	std::unique_ptr<AnimationsMap> mAnimsMap;
 
 	// Variables for drawing text on the screen.
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
