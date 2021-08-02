@@ -79,15 +79,12 @@ private:
 	};
 
 	struct DescriptorHeapIndices {
-		UINT mSkyTexHeapIndex;
-		UINT mBlurSkyTexHeapIndex;
-#ifdef DeferredRendering
 		UINT mDiffuseMapHeapIndex;
 		UINT mNormalMapHeapIndex;
 		UINT mDepthMapHeapIndex;
-#endif
+		UINT mSkyTexHeapIndex;
+		UINT mBlurSkyTexHeapIndex;
 		UINT mShadowMapHeapIndex;
-		UINT mSsaoHeapIndexStart;
 		UINT mSsaoAmbientMapIndex;
 		UINT mAnimationsMapIndex;
 		UINT mNullCubeSrvIndex;
@@ -245,10 +242,10 @@ private:
 	PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
+	GBuffer mGBuffer;
 	ShadowMap mShadowMap;
 	Ssao mSsao;
 	AnimationsMap mAnimsMap;
-	GBuffer mGBuffer;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;

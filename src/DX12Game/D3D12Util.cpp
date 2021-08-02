@@ -2,7 +2,7 @@
 
 using namespace Microsoft::WRL;
 
-GameResult D3D12Util::LoadBinary(const std::wstring& inFilename, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob) {
+GameResult D3D12Util::LoadBinary(const std::wstring& inFilename, ComPtr<ID3DBlob>& outBlob) {
 	std::ifstream fin(inFilename, std::ios::binary);
 
 	fin.seekg(0, std::ios_base::end);
@@ -22,8 +22,8 @@ GameResult D3D12Util::CreateDefaultBuffer(
 	ID3D12GraphicsCommandList* inCmdList,
 	const void* inInitData,
 	UINT64 inByteSize,
-	Microsoft::WRL::ComPtr<ID3D12Resource>& outUploadBuffer,
-	Microsoft::WRL::ComPtr<ID3D12Resource>& outDefaultBuffer) {
+	ComPtr<ID3D12Resource>& outUploadBuffer,
+	ComPtr<ID3D12Resource>& outDefaultBuffer) {
 
 	// Create the actual default buffer resource.
 	ReturnIfFailed(inDevice->CreateCommittedResource(
@@ -34,7 +34,7 @@ GameResult D3D12Util::CreateDefaultBuffer(
 		nullptr,
 		IID_PPV_ARGS(outDefaultBuffer.GetAddressOf()))
 	);
-
+	
 	// In order to copy CPU memory data into our default buffer, we need to create
 	// an intermediate upload heap. 
 	ReturnIfFailed(inDevice->CreateCommittedResource(
@@ -45,7 +45,7 @@ GameResult D3D12Util::CreateDefaultBuffer(
 		nullptr,
 		IID_PPV_ARGS(outUploadBuffer.GetAddressOf()))
 	);
-
+	
 	// Describe the data we want to copy into the default buffer.
 	D3D12_SUBRESOURCE_DATA subResourceData = {};
 	subResourceData.pData = inInitData;
@@ -73,7 +73,7 @@ GameResult D3D12Util::CompileShader(
 	const D3D_SHADER_MACRO* inDefines,
 	const std::string& inEntrypoint,
 	const std::string& inTarget,
-	Microsoft::WRL::ComPtr<ID3DBlob>& outByteCode) {
+	ComPtr<ID3DBlob>& outByteCode) {
 
 #if defined(_DEBUG)  
 	UINT compileFlags = 0; = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;

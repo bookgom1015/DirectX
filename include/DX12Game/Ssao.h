@@ -30,23 +30,22 @@ public:
 	void GetOffsetVectors(DirectX::XMFLOAT4 inOffsets[14]);
 	std::vector<float> CalcGaussWeights(float inSigma);
 
+	ID3D12Resource* GetAmbientMap();
 
-	ID3D12Resource* NormalMap();
-	ID3D12Resource* AmbientMap();
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE NormalMapRtv() const;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE NormalMapSrv() const;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE AmbientMapSrv() const;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetAmbientMapSrv() const;
 
 	void BuildDescriptors(
-		ID3D12Resource* inDepthStencilBuffer,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
 
-	void RebuildDescriptors(ID3D12Resource* inDepthStencilBuffer);
+	void RebuildDescriptors(
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv);
 
 	void SetPSOs(ID3D12PipelineState* inSsaoPso, ID3D12PipelineState* inSsaoBlurPso);
 
@@ -100,15 +99,12 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mRandomVectorMap;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mRandomVectorMapUploadBuffer;
-	Microsoft::WRL::ComPtr<ID3D12Resource> mNormalMap;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAmbientMap0;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAmbientMap1;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhRandomVectorMapCpuSrv;

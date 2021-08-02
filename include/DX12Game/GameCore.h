@@ -41,9 +41,7 @@ const int gNumFrameResources = 3;
 #include <sstream>
 #include <string>
 #include <thread>
-#include <unordered_map>
 #include <utility>
-#include <vector>
 #include <windows.h>
 #include <windowsx.h>
 #include <wrl.h>
@@ -89,32 +87,34 @@ public:
 };
 
 #ifndef ReturnGameResult
-	#define ReturnGameResult(__status, __message)													\
-	{																								\
-		std::wstringstream __wsstream_RGR;															\
-		__wsstream_RGR << __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;	\
-		return GameResult(__status, __wsstream_RGR.str());											\
+	#define ReturnGameResult(__status, __message)										\
+	{																					\
+		std::wstringstream __wsstream_RGR;												\
+		__wsstream_RGR << L"[HRESULT: 0x" << std::hex << __status << L"] "				\
+			<< __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;	\
+		return GameResult(__status, __wsstream_RGR.str());								\
 	}
 #endif
 
 #ifndef CheckGameResult
-#define CheckGameResult(__result)		\
-	{									\
-		if (__result.hr != S_OK)		\
-			return __result;			\
+#define CheckGameResult(__statement)			\
+	{											\
+		GameResult __result = (__statement);	\
+		if (FAILED(__result.hr))				\
+			return __result;					\
 	}
 #endif
 
 #ifndef ReturnIfFailed
-	#define ReturnIfFailed(__statement)																\
-	{																								\
-		HRESULT __hr = (__statement);																\
-		if (FAILED(__hr)) {																			\
-			std::wstringstream __wsstream_RIF;														\
-			_com_error err(__hr);																	\
-			__wsstream_RIF << L#__statement << L" failed; message: " << err.ErrorMessage();	\
-			ReturnGameResult(__hr, __wsstream_RIF.str());											\
-		}																							\
+	#define ReturnIfFailed(__statement)															\
+	{																							\
+		HRESULT __hr = (__statement);															\
+		if (FAILED(__hr)) {																		\
+			std::wstringstream __wsstream_RIF;													\
+			_com_error __err(__hr);																\
+			__wsstream_RIF << L#__statement << L" failed; message: " << __err.ErrorMessage();	\
+			ReturnGameResult(__hr, __wsstream_RIF.str());										\
+		}																						\
 	}
 #endif
 

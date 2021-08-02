@@ -19,23 +19,35 @@ public:
 		UINT inClientWidth,
 		UINT inClientHeight,
 		DXGI_FORMAT inDiffuseMapFormat,
-		DXGI_FORMAT inNormalMapFormat);
+		DXGI_FORMAT inNormalMapFormat,
+		DXGI_FORMAT inDepthMapFormat);
 
 	GameResult BuildDescriptors(
-		ID3D12Resource* depthStencilBuffer,
+		ID3D12Resource* inDepthStencilBuffer,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
-		UINT cbvSrvUavDescriptorSize,
-		UINT rtvDescriptorSize);
+		UINT inCbvSrvUavDescriptorSize,
+		UINT inRtvDescriptorSize);
 
-	GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
+	GameResult OnResize(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer);
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGBufferSrv();
-	CD3DX12_CPU_DESCRIPTOR_HANDLE GetGBufferRtv();
+	ID3D12Resource* GetDiffuseMap();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetDiffuseMapSrv() const;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetDiffuseMapRtv() const;
+
+	ID3D12Resource* GetNormalMap();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetNormalMapSrv() const;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetNormalMapRtv() const;
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetDepthMapSrv() const;
+
+	DXGI_FORMAT GetDiffuseMapFormat() const;
+	DXGI_FORMAT GetNormalMapFormat() const;
+	DXGI_FORMAT GetDepthMapFormat() const;
 
 private:
-	GameResult CreateGBuffer(UINT inClientWidth, UINT inClientHeight);
+	GameResult CreateGBuffer(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer);
 
 private:
 	ID3D12Device* md3dDevice;
@@ -45,10 +57,18 @@ private:
 
 	DXGI_FORMAT mDiffuseMapFormat;
 	DXGI_FORMAT mNormalMapFormat;
+	DXGI_FORMAT mDepthMapFormat;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhGpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhCpuRtv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDiffuseMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDiffuseMapGpuSrv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDiffuseMapCpuRtv;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;
 
 	UINT mCbvSrvUavDescriptorSize;
 	UINT mRtvDescriptorSize;

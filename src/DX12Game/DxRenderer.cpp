@@ -61,16 +61,32 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), mCommandList.Get()));
 
+	CheckGameResult(mGBuffer.Initialize(
+		md3dDevice.Get(),
+		mClientWidth, 
+		mClientHeight, 
+		mBackBufferFormat, 
+		DXGI_FORMAT_R16G16B16A16_FLOAT,
+		DXGI_FORMAT_R24_UNORM_X8_TYPELESS)
+	);
+
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
 	CheckGameResult(BuildSsaoRootSignature());
 	CheckGameResult(BuildDescriptorHeaps());
+	WLogln(L"Hi1");
 	CheckGameResult(BuildShadersAndInputLayout());
+	WLogln(L"Hi2");
 	CheckGameResult(BuildBasicGeometry());
+	WLogln(L"Hi3");
 	CheckGameResult(BuildBasicMaterials());
+	WLogln(L"Hi4");
 	CheckGameResult(BuildBasicRenderItems());
+	WLogln(L"Hi5");
 	CheckGameResult(BuildFrameResources());
+	WLogln(L"Hi6");
 	CheckGameResult(BuildPSOs());
+	WLogln(L"Hi7");
 
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
 
@@ -325,10 +341,12 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 	mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
 
+	mGBuffer.OnResize(mClientWidth, mClientHeight, mDepthStencilBuffer.Get());
+
 	mSsao.OnResize(mClientWidth, mClientHeight);
 
 	// Resources changed, so need to rebuild descriptors.
-	mSsao.RebuildDescriptors(mDepthStencilBuffer.Get());
+	mSsao.RebuildDescriptors(mGBuffer.GetNormalMapSrv(), mGBuffer.GetDepthMapSrv());
 
 	BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 
@@ -648,11 +666,10 @@ GameResult DxRenderer::UpdateAnimationsMap() {
 }
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
-	// Add +1 for screen normal map, +2 for ambient maps.
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 #ifdef DeferredRendering
-	// Add +1 for screen normal map, +2 for ambient maps, +2 for gbuffer.
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 5;
+	// Add + 1 for diffuse map, +1 for screen normal map, +2 for ambient maps.
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 4;
 #else
 	// Add +1 for screen normal map, +2 for ambient maps.
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 3;
@@ -1593,17 +1610,13 @@ namespace {
 
 GameResult DxRenderer::BuildRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable0;
-	CD3DX12_DESCRIPTOR_RANGE texTable1;
-	CD3DX12_DESCRIPTOR_RANGE texTable2;
-#ifdef DeferredRendering
 	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0, 0);
+
+	CD3DX12_DESCRIPTOR_RANGE texTable1;
 	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 7, 0);
+	
+	CD3DX12_DESCRIPTOR_RANGE texTable2;
 	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 71, 0);
-#else
-	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0);
-	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 4, 0);
-	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 68, 0);
-#endif
 
 	const UINT numParameters = 9;
 
@@ -1667,13 +1680,11 @@ GameResult DxRenderer::BuildRootSignature() {
 		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
 	ReturnIfFailed(hr);
 
-	ReturnIfFailed(
-		md3dDevice->CreateRootSignature(
-			0,
-			serializedRootSig->GetBufferPointer(),
-			serializedRootSig->GetBufferSize(),
-			IID_PPV_ARGS(mRootSignature.GetAddressOf())
-		)
+	ReturnIfFailed(md3dDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(mRootSignature.GetAddressOf()))
 	);
 
 	return GameResult(S_OK);
@@ -1766,7 +1777,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 64; // default: 14, gbuffer: 14 + 2
+	srvHeapDesc.NumDescriptors = 64; // default: 14, gbuffer: ?
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mCbvSrvUavDescriptorHeap)));
@@ -1812,19 +1823,14 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	srvDesc.Format = blurSkyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(blurSkyCubeMap.Get(), &srvDesc, hDescriptor);
 
-	mDescHeapIdx.mSkyTexHeapIndex = static_cast<UINT>(tex2DList.size());
-	mDescHeapIdx.mBlurSkyTexHeapIndex = mDescHeapIdx.mSkyTexHeapIndex + 1;
-#ifdef DeferredRendering
-	mDescHeapIdx.mDiffuseMapHeapIndex = mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
+	mDescHeapIdx.mDiffuseMapHeapIndex = static_cast<UINT>(tex2DList.size());
 	mDescHeapIdx.mNormalMapHeapIndex = mDescHeapIdx.mDiffuseMapHeapIndex + 1;
 	mDescHeapIdx.mDepthMapHeapIndex = mDescHeapIdx.mNormalMapHeapIndex + 1;
-	mDescHeapIdx.mShadowMapHeapIndex = mDescHeapIdx.mDepthMapHeapIndex + 1;
-#else
+	mDescHeapIdx.mSkyTexHeapIndex = mDescHeapIdx.mDepthMapHeapIndex + 1;
+	mDescHeapIdx.mBlurSkyTexHeapIndex = mDescHeapIdx.mSkyTexHeapIndex + 1;
 	mDescHeapIdx.mShadowMapHeapIndex = mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
-#endif
-	mDescHeapIdx.mSsaoHeapIndexStart = mDescHeapIdx.mShadowMapHeapIndex + 1;
-	mDescHeapIdx.mSsaoAmbientMapIndex = mDescHeapIdx.mSsaoHeapIndexStart + 3;
-	mDescHeapIdx.mAnimationsMapIndex = mDescHeapIdx.mSsaoHeapIndexStart + 5;
+	mDescHeapIdx.mSsaoAmbientMapIndex = mDescHeapIdx.mShadowMapHeapIndex + 1;
+	mDescHeapIdx.mAnimationsMapIndex = mDescHeapIdx.mSsaoAmbientMapIndex + 3;
 	mDescHeapIdx.mNullCubeSrvIndex = mDescHeapIdx.mAnimationsMapIndex + 1;
 	mDescHeapIdx.mNullBlurCubeSrvIndex = mDescHeapIdx.mNullCubeSrvIndex + 1;
 	mDescHeapIdx.mNullTexSrvIndex1 = mDescHeapIdx.mNullBlurCubeSrvIndex + 1;
@@ -1856,6 +1862,15 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 
 	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 
+	mGBuffer.BuildDescriptors(
+		mDepthStencilBuffer.Get(),
+		GetCpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetRtv(SwapChainBufferCount),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
+	);
+
 	mShadowMap.BuildDescriptors(
 		GetCpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
 		GetGpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
@@ -1863,9 +1878,10 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	);
 
 	mSsao.BuildDescriptors(
-		mDepthStencilBuffer.Get(),
-		GetCpuSrv(mDescHeapIdx.mSsaoHeapIndexStart),
-		GetGpuSrv(mDescHeapIdx.mSsaoHeapIndexStart),
+		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
 		GetRtv(SwapChainBufferCount),
 		mCbvSrvUavDescriptorSize,
 		mRtvDescriptorSize
@@ -2149,13 +2165,13 @@ GameResult DxRenderer::BuildBasicGeometry() {
 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
+	
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		mCommandList.Get(),
 		vertices.data(),
-		vbByteSize, 
-		geo->VertexBufferUploader, 
+		vbByteSize,
+		geo->VertexBufferUploader,
 		geo->VertexBufferGPU)
 	);
 
@@ -2167,7 +2183,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 		geo->IndexBufferUploader, 
 		geo->IndexBufferGPU)
 	);
-
+	
 	geo->VertexByteStride = static_cast<UINT>(sizeof(Vertex));
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -2423,7 +2439,7 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["drawNormalsPS"]->GetBufferPointer()),
 		mShaders["drawNormalsPS"]->GetBufferSize()
 	};
-	drawNormalsPsoDesc.RTVFormats[0] = Ssao::NormalMapFormat;
+	drawNormalsPsoDesc.RTVFormats[0] = mGBuffer.GetNormalMapFormat();
 	drawNormalsPsoDesc.SampleDesc.Count = 1;
 	drawNormalsPsoDesc.SampleDesc.Quality = 0;
 	drawNormalsPsoDesc.DSVFormat = mDepthStencilFormat;
@@ -2589,8 +2605,8 @@ void DxRenderer::DrawNormalsAndDepth() {
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	auto normalMap = mSsao.NormalMap();
-	auto normalMapRtv = mSsao.NormalMapRtv();
+	auto normalMap = mGBuffer.GetNormalMap();
+	auto normalMapRtv = mGBuffer.GetNormalMapRtv();
 
 	// Change to RENDER_TARGET.
 	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,

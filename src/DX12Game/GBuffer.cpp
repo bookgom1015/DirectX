@@ -5,7 +5,8 @@ GameResult GBuffer::Initialize(
 	UINT inClientWidth,
 	UINT inClientHeight,
 	DXGI_FORMAT inDiffuseMapFormat,
-	DXGI_FORMAT inNormalMapFormat) {
+	DXGI_FORMAT inNormalMapFormat,
+	DXGI_FORMAT inDepthMapFormat) {
 
 	md3dDevice = inDevice;
 
@@ -14,44 +15,88 @@ GameResult GBuffer::Initialize(
 
 	mDiffuseMapFormat = inDiffuseMapFormat;
 	mNormalMapFormat = inNormalMapFormat;
+	mDepthMapFormat = inDepthMapFormat;
 
 	return GameResult(S_OK);
 }
 
 GameResult GBuffer::BuildDescriptors(
-	ID3D12Resource* depthStencilBuffer,
+	ID3D12Resource* inDepthStencilBuffer,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
-	UINT cbvSrvUavDescriptorSize,
-	UINT rtvDescriptorSize) {
+	UINT inCbvSrvUavDescriptorSize,
+	UINT inRtvDescriptorSize) {
 
-	mhCpuSrv = hCpuSrv;
-	mhGpuSrv = hGpuSrv;
-	mhCpuRtv = hCpuRtv;
-	mCbvSrvUavDescriptorSize = cbvSrvUavDescriptorSize;
-	mRtvDescriptorSize = rtvDescriptorSize;
+	mhDiffuseMapCpuSrv = hCpuSrv;
+	mhDiffuseMapGpuSrv = hGpuSrv;
+	mhDiffuseMapCpuRtv = hCpuRtv;
 
-	CheckGameResult(CreateGBuffer(mClientWidth, mClientHeight));
+	mhNormalMapCpuSrv = hCpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+	mhNormalMapGpuSrv = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+	mhNormalMapCpuRtv = hCpuRtv.Offset(1, inRtvDescriptorSize);
+
+	mhDepthMapCpuSrv = hCpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+	mhDepthMapGpuSrv = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+
+	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
+	mRtvDescriptorSize = inRtvDescriptorSize;
+
+	CheckGameResult(CreateGBuffer(mClientWidth, mClientHeight, inDepthStencilBuffer));
 
 	return GameResult(S_OK);
 }
 
-GameResult GBuffer::OnResize(UINT inClientWidth, UINT inClientHeight) {
-	CheckGameResult(CreateGBuffer(mClientWidth, mClientHeight));
+GameResult GBuffer::OnResize(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer) {
+	CheckGameResult(CreateGBuffer(mClientWidth, mClientHeight, inDepthStencilBuffer));
 
 	return GameResult(S_OK);
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetGBufferSrv() {
-	return mhGpuSrv;
+ID3D12Resource* GBuffer::GetDiffuseMap() {
+	return mGBuffer[0].Get();
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetGBufferRtv() {
-	return mhCpuRtv;
+CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetDiffuseMapSrv() const {
+	mhDiffuseMapGpuSrv;
 }
 
-GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight) {
+CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDiffuseMapRtv() const {
+	mhDiffuseMapCpuRtv;
+}
+
+ID3D12Resource* GBuffer::GetNormalMap() {
+	return mGBuffer[1].Get();
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetNormalMapSrv() const {
+	return mhNormalMapGpuSrv;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetNormalMapRtv() const {
+	return mhNormalMapCpuRtv;
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetDepthMapSrv() const {
+	return mhDepthMapGpuSrv;
+}
+
+DXGI_FORMAT GBuffer::GetDiffuseMapFormat() const {
+	return mDiffuseMapFormat;
+}
+
+DXGI_FORMAT GBuffer::GetNormalMapFormat() const {
+	return mNormalMapFormat;
+}
+
+DXGI_FORMAT GBuffer::GetDepthMapFormat() const {
+	return mDepthMapFormat;
+}
+
+GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer) {
+	for (size_t i = 0; i < mGBufferSize; ++i)
+		mGBuffer[i] = nullptr;
+
 	D3D12_RESOURCE_DESC rscDesc;
 	rscDesc.Alignment = 0;
 	rscDesc.Width = mClientWidth;
@@ -61,7 +106,7 @@ GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight) {
 	rscDesc.SampleDesc.Count = 1;
 	rscDesc.SampleDesc.Quality = 0;
 	rscDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rscDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	rscDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -75,20 +120,13 @@ GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight) {
 	rtvDesc.Texture2D.PlaneSlice = 0;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-	D3D12_CLEAR_VALUE optClear;
-	optClear.Color[0] = 0.0f;
-	optClear.Color[1] = 0.0f;
-	optClear.Color[2] = 0.0f;
-	optClear.Color[3] = 1.0f;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptorSrv(mhCpuSrv);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptorRtv(mhCpuRtv);
-
 	//
 	// Creates resource for diffuse map.
 	//
 	rscDesc.Format = mDiffuseMapFormat;
-	optClear.Format = mDiffuseMapFormat;
+	
+	float diffuseClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	CD3DX12_CLEAR_VALUE optClear(mDiffuseMapFormat, diffuseClearColor);
 
 	md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -104,21 +142,23 @@ GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight) {
 	//
 	srvDesc.Format = mDiffuseMapFormat;
 
-	md3dDevice->CreateShaderResourceView(mGBuffer[0].Get(), &srvDesc, hDescriptorSrv);
+	md3dDevice->CreateShaderResourceView(mGBuffer[0].Get(), &srvDesc, mhDiffuseMapCpuSrv);
 
 	//
 	// Creates render target view for diffuse map.
 	//
 	rtvDesc.Format = mDiffuseMapFormat;
 
-	md3dDevice->CreateRenderTargetView(mGBuffer[0].Get(), &rtvDesc, hDescriptorRtv);
+	md3dDevice->CreateRenderTargetView(mGBuffer[0].Get(), &rtvDesc, mhDiffuseMapCpuRtv);
 
 
 	//
 	// Creates resource for normal map.
 	//
 	rscDesc.Format = mNormalMapFormat;
-	optClear.Format = mNormalMapFormat;
+
+	float normalClearColor[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+	optClear = CD3DX12_CLEAR_VALUE(mNormalMapFormat, normalClearColor);
 
 	md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
@@ -133,17 +173,22 @@ GameResult GBuffer::CreateGBuffer(UINT inClientWidth, UINT inClientHeight) {
 	// Create shader resource view for normal map.
 	//
 	srvDesc.Format = mNormalMapFormat;
-	hDescriptorSrv.Offset(mCbvSrvUavDescriptorSize);
 
-	md3dDevice->CreateShaderResourceView(mGBuffer[1].Get(), &srvDesc, hDescriptorSrv);
+	md3dDevice->CreateShaderResourceView(mGBuffer[1].Get(), &srvDesc, mhNormalMapCpuSrv);
 
 	//
 	// Create render target view for normal map.
 	//
 	rtvDesc.Format = mNormalMapFormat;
-	hDescriptorRtv.Offset(mRtvDescriptorSize);
 
-	md3dDevice->CreateRenderTargetView(mGBuffer[1].Get(), &rtvDesc, hDescriptorRtv);
+	md3dDevice->CreateRenderTargetView(mGBuffer[1].Get(), &rtvDesc, mhNormalMapCpuRtv);
+
+	//
+	// Create shader resource view for depth map.
+	//
+	srvDesc.Format = mDepthMapFormat;
+
+	md3dDevice->CreateShaderResourceView(inDepthStencilBuffer, &srvDesc, mhDepthMapCpuSrv);
 
 	return GameResult(S_OK);
 }
