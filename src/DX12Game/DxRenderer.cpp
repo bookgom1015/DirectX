@@ -50,43 +50,40 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
+	CheckGameResult(
+		mGBuffer.Initialize(
+			md3dDevice.Get(),
+			mClientWidth,
+			mClientHeight,
+			mBackBufferFormat,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+		)
+	);
+
 	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 4096, 4096));
 
-	CheckGameResult(mSsao.Initialize(
-		md3dDevice.Get(),
-		mCommandList.Get(),
-		mClientWidth,
-		mClientHeight)
+	CheckGameResult(
+		mSsao.Initialize(
+			md3dDevice.Get(),
+			mCommandList.Get(),
+			mClientWidth,
+			mClientHeight
+		)
 	);
 
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), mCommandList.Get()));
-
-	CheckGameResult(mGBuffer.Initialize(
-		md3dDevice.Get(),
-		mClientWidth, 
-		mClientHeight, 
-		mBackBufferFormat, 
-		DXGI_FORMAT_R16G16B16A16_FLOAT,
-		DXGI_FORMAT_R24_UNORM_X8_TYPELESS)
-	);
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
 	CheckGameResult(BuildSsaoRootSignature());
 	CheckGameResult(BuildDescriptorHeaps());
-	WLogln(L"Hi1");
 	CheckGameResult(BuildShadersAndInputLayout());
-	WLogln(L"Hi2");
 	CheckGameResult(BuildBasicGeometry());
-	WLogln(L"Hi3");
 	CheckGameResult(BuildBasicMaterials());
-	WLogln(L"Hi4");
 	CheckGameResult(BuildBasicRenderItems());
-	WLogln(L"Hi5");
 	CheckGameResult(BuildFrameResources());
-	WLogln(L"Hi6");
 	CheckGameResult(BuildPSOs());
-	WLogln(L"Hi7");
 
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
 
@@ -265,8 +262,8 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	// Clear the back buffer and depth buffer.
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	//mCommandList->ClearDepthStencilView(DepthStencilView(),
+	//	D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
@@ -1676,15 +1673,22 @@ GameResult DxRenderer::BuildRootSignature() {
 	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
 		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
-	if (errorBlob != nullptr)
-		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
-	ReturnIfFailed(hr);
+	{
+		std::wstringstream wsstream;
+		if (errorBlob != nullptr)
+			wsstream << reinterpret_cast<char*>(errorBlob->GetBufferPointer());
+			
+		if (FAILED(hr))
+			ReturnGameResult(S_FALSE, wsstream.str());
+	}
 
-	ReturnIfFailed(md3dDevice->CreateRootSignature(
-		0,
-		serializedRootSig->GetBufferPointer(),
-		serializedRootSig->GetBufferSize(),
-		IID_PPV_ARGS(mRootSignature.GetAddressOf()))
+	ReturnIfFailed(
+		md3dDevice->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(mRootSignature.GetAddressOf())
+		)
 	);
 
 	return GameResult(S_OK);
@@ -1772,6 +1776,93 @@ GameResult DxRenderer::BuildSsaoRootSignature() {
 	return GameResult(S_OK);
 }
 
+void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
+	mDescHeapIdx.mSkyTexHeapIndex		= inOffset;
+	mDescHeapIdx.mBlurSkyTexHeapIndex	= mDescHeapIdx.mSkyTexHeapIndex		+ 1;
+	mDescHeapIdx.mDiffuseMapHeapIndex	= mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
+	mDescHeapIdx.mNormalMapHeapIndex	= mDescHeapIdx.mDiffuseMapHeapIndex + 1;
+	mDescHeapIdx.mDepthMapHeapIndex		= mDescHeapIdx.mNormalMapHeapIndex	+ 1;
+	mDescHeapIdx.mShadowMapHeapIndex	= mDescHeapIdx.mDepthMapHeapIndex	+ 1;
+	mDescHeapIdx.mSsaoAmbientMapIndex	= mDescHeapIdx.mShadowMapHeapIndex	+ 1;
+	mDescHeapIdx.mAnimationsMapIndex	= mDescHeapIdx.mSsaoAmbientMapIndex + 3;
+	mDescHeapIdx.mNullCubeSrvIndex1		= mDescHeapIdx.mAnimationsMapIndex	+ 1;
+	mDescHeapIdx.mNullCubeSrvIndex2		= mDescHeapIdx.mNullCubeSrvIndex1	+ 1;
+	mDescHeapIdx.mNullTexSrvIndex1		= mDescHeapIdx.mNullCubeSrvIndex2	+ 1;
+	mDescHeapIdx.mNullTexSrvIndex2		= mDescHeapIdx.mNullTexSrvIndex1	+ 1;
+	mDescHeapIdx.mNullTexSrvIndex3		= mDescHeapIdx.mNullTexSrvIndex2	+ 1;
+	mDescHeapIdx.mNullTexSrvIndex4		= mDescHeapIdx.mNullTexSrvIndex3	+ 1;
+	mDescHeapIdx.mNullTexSrvIndex5		= mDescHeapIdx.mNullTexSrvIndex4	+ 1;
+	mDescHeapIdx.mDefaultFontIndex		= mDescHeapIdx.mNullTexSrvIndex5	+ 1;
+	mDescHeapIdx.mCurrSrvHeapIndex		= mDescHeapIdx.mDefaultFontIndex	+ 1;
+
+	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
+}
+
+void DxRenderer::BuildNullShaderResourceViews() {
+	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	srvDesc.Format = skyCubeMap->GetDesc().Format;
+
+	auto nullSrv = GetCpuSrv(mDescHeapIdx.mNullCubeSrvIndex1);
+	mNullSrv = GetGpuSrv(mDescHeapIdx.mNullCubeSrvIndex1);
+
+	for (INT i = 0; i < 2; ++i) {
+		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
+
+		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
+	}
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	for (INT i = 0; i < 5; ++i) {
+		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
+
+		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
+	}
+}
+
+void DxRenderer::BuildDescriptorsForEachHelperClass() {
+	mGBuffer.BuildDescriptors(
+		mDepthStencilBuffer.Get(),
+		GetCpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetRtv(SwapChainBufferCount),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
+	);
+
+	mShadowMap.BuildDescriptors(
+		GetCpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
+		GetDsv(1)
+	);
+
+	mSsao.BuildDescriptors(
+		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetRtv(SwapChainBufferCount + 2),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
+	);
+
+	mAnimsMap.BuildDescriptors(
+		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
+		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
+	);
+}
+
 GameResult DxRenderer::BuildDescriptorHeaps() {
 	//
 	// Create the SRV heap.
@@ -1823,74 +1914,9 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	srvDesc.Format = blurSkyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(blurSkyCubeMap.Get(), &srvDesc, hDescriptor);
 
-	mDescHeapIdx.mDiffuseMapHeapIndex = static_cast<UINT>(tex2DList.size());
-	mDescHeapIdx.mNormalMapHeapIndex = mDescHeapIdx.mDiffuseMapHeapIndex + 1;
-	mDescHeapIdx.mDepthMapHeapIndex = mDescHeapIdx.mNormalMapHeapIndex + 1;
-	mDescHeapIdx.mSkyTexHeapIndex = mDescHeapIdx.mDepthMapHeapIndex + 1;
-	mDescHeapIdx.mBlurSkyTexHeapIndex = mDescHeapIdx.mSkyTexHeapIndex + 1;
-	mDescHeapIdx.mShadowMapHeapIndex = mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
-	mDescHeapIdx.mSsaoAmbientMapIndex = mDescHeapIdx.mShadowMapHeapIndex + 1;
-	mDescHeapIdx.mAnimationsMapIndex = mDescHeapIdx.mSsaoAmbientMapIndex + 3;
-	mDescHeapIdx.mNullCubeSrvIndex = mDescHeapIdx.mAnimationsMapIndex + 1;
-	mDescHeapIdx.mNullBlurCubeSrvIndex = mDescHeapIdx.mNullCubeSrvIndex + 1;
-	mDescHeapIdx.mNullTexSrvIndex1 = mDescHeapIdx.mNullBlurCubeSrvIndex + 1;
-	mDescHeapIdx.mNullTexSrvIndex2 = mDescHeapIdx.mNullTexSrvIndex1 + 1;
-	mDescHeapIdx.mDefaultFontIndex = mDescHeapIdx.mNullTexSrvIndex2 + 1;
-	mDescHeapIdx.mCurrSrvHeapIndex = mDescHeapIdx.mDefaultFontIndex + 1;
-
-	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
-
-	auto nullSrv = GetCpuSrv(mDescHeapIdx.mNullCubeSrvIndex);
-	mNullSrv = GetGpuSrv(mDescHeapIdx.mNullCubeSrvIndex);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	mGBuffer.BuildDescriptors(
-		mDepthStencilBuffer.Get(),
-		GetCpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
-		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
-		GetRtv(SwapChainBufferCount),
-		mCbvSrvUavDescriptorSize,
-		mRtvDescriptorSize
-	);
-
-	mShadowMap.BuildDescriptors(
-		GetCpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
-		GetGpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
-		GetDsv(1)
-	);
-
-	mSsao.BuildDescriptors(
-		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
-		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
-		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
-		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
-		GetRtv(SwapChainBufferCount),
-		mCbvSrvUavDescriptorSize,
-		mRtvDescriptorSize
-	);
-
-	mAnimsMap.BuildDescriptors(
-		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
-		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
-	);
+	BuildDescriptorHeapIndices(static_cast<UINT>(tex2DList.size()));
+	BuildNullShaderResourceViews();
+	BuildDescriptorsForEachHelperClass();
 
 	return GameResult(S_OK);
 }
@@ -2280,22 +2306,16 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
-	quadRitem->mInstances.emplace_back(
-		MathHelper::Identity4x4(),
-		MathHelper::Identity4x4(),
-		0.0f,
-		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		-1,
-		EInstanceRenderState::EID_DrawAlways
-	);
-	quadRitem->mInstances.emplace_back(
-		MathHelper::Identity4x4(),
-		MathHelper::Identity4x4(),
-		0.0f,
-		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		-1,
-		EInstanceRenderState::EID_DrawAlways
-	);
+	for (size_t i = 0; i < 5; ++i) {
+		quadRitem->mInstances.emplace_back(
+			MathHelper::Identity4x4(),
+			MathHelper::Identity4x4(),
+			0.0f,
+			static_cast<UINT>(quadRitem->mMat->MatCBIndex),
+			-1,
+			EInstanceRenderState::EID_DrawAlways
+		);
+	}
 	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
@@ -2615,7 +2635,8 @@ void DxRenderer::DrawNormalsAndDepth() {
 	// Clear the screen normal map and depth buffer.
 	float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
 	mCommandList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), 
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &normalMapRtv, true, &DepthStencilView());

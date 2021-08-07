@@ -48,11 +48,11 @@ struct MaterialData {
 	int			DispMapIndex;
 };
 
-Texture2D gDiffuseMap							: register(t0);
-Texture2D gNormalMap							: register(t1);
-Texture2D gDepthMap								: register(t2);
-TextureCube gCubeMap							: register(t3);
-TextureCube gBlurCubeMap						: register(t4);
+TextureCube gCubeMap							: register(t0);
+TextureCube gBlurCubeMap						: register(t1);
+Texture2D gDiffuseMap							: register(t2);
+Texture2D gNormalMap							: register(t3);
+Texture2D gDepthMap								: register(t4);
 Texture2D gShadowMap							: register(t5);
 Texture2D gSsaoMap								: register(t6);
 

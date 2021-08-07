@@ -132,7 +132,7 @@ float4 PS(VertexOut pin) : SV_Target {
 	MaterialData matData = gMaterialData[pin.MatIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;
 	uint diffuseMapIndex = matData.DiffuseMapIndex;
-	uint normalMapIndex = matData.NormalMapIndex;
+	//uint normalMapIndex = matData.NormalMapIndex;
 	
     // Dynamically look up the texture in the array.
     diffuseAlbedo *= gTextureMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);

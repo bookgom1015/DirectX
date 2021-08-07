@@ -79,18 +79,21 @@ private:
 	};
 
 	struct DescriptorHeapIndices {
+		UINT mSkyTexHeapIndex;
+		UINT mBlurSkyTexHeapIndex;
 		UINT mDiffuseMapHeapIndex;
 		UINT mNormalMapHeapIndex;
 		UINT mDepthMapHeapIndex;
-		UINT mSkyTexHeapIndex;
-		UINT mBlurSkyTexHeapIndex;
 		UINT mShadowMapHeapIndex;
 		UINT mSsaoAmbientMapIndex;
 		UINT mAnimationsMapIndex;
-		UINT mNullCubeSrvIndex;
-		UINT mNullBlurCubeSrvIndex;
+		UINT mNullCubeSrvIndex1;
+		UINT mNullCubeSrvIndex2;
 		UINT mNullTexSrvIndex1;
 		UINT mNullTexSrvIndex2;
+		UINT mNullTexSrvIndex3;
+		UINT mNullTexSrvIndex4;
+		UINT mNullTexSrvIndex5;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -179,6 +182,11 @@ private:
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
 	GameResult BuildSsaoRootSignature();
+
+	void BuildDescriptorHeapIndices(UINT inOffset);
+	void BuildNullShaderResourceViews();
+	void BuildDescriptorsForEachHelperClass();
+
 	GameResult BuildDescriptorHeaps();
 	GameResult BuildShadersAndInputLayout();
 	GameResult BuildBasicGeometry();

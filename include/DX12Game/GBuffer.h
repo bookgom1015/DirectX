@@ -22,7 +22,7 @@ public:
 		DXGI_FORMAT inNormalMapFormat,
 		DXGI_FORMAT inDepthMapFormat);
 
-	GameResult BuildDescriptors(
+	void BuildDescriptors(
 		ID3D12Resource* inDepthStencilBuffer,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
@@ -47,13 +47,14 @@ public:
 	DXGI_FORMAT GetDepthMapFormat() const;
 
 private:
-	GameResult CreateGBuffer(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer);
+	GameResult BuildResources();
+	void BuildGBuffer(ID3D12Resource* inDepthStencilBuffer);
 
 private:
 	ID3D12Device* md3dDevice;
 
-	static const size_t mGBufferSize = 2;
-	std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, mGBufferSize> mGBuffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDiffuseMap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> mNormalMap = nullptr;
 
 	DXGI_FORMAT mDiffuseMapFormat;
 	DXGI_FORMAT mNormalMapFormat;
