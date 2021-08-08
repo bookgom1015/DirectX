@@ -76,7 +76,7 @@ GameResult D3D12Util::CompileShader(
 	ComPtr<ID3DBlob>& outByteCode) {
 
 #if defined(_DEBUG)  
-	UINT compileFlags = 0; = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+	UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
 	UINT compileFlags = 0;
 #endif

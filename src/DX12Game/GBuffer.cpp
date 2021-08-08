@@ -63,11 +63,11 @@ ID3D12Resource* GBuffer::GetDiffuseMap() {
 }
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetDiffuseMapSrv() const {
-	mhDiffuseMapGpuSrv;
+	return mhDiffuseMapGpuSrv;
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetDiffuseMapRtv() const {
-	mhDiffuseMapCpuRtv;
+	return mhDiffuseMapCpuRtv;
 }
 
 ID3D12Resource* GBuffer::GetNormalMap() {

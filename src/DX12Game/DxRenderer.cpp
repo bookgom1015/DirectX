@@ -280,11 +280,8 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
 
-	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
-
-	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Skeleton]);
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
 	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
@@ -294,6 +291,15 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	mCommandList->SetPipelineState(mPSOs["sky"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Sky]);
+
+	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Skeleton]);
+
+	mCommandList->SetPipelineState(mPSOs["debug"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
+
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	//
 	// Draw texts.
@@ -1959,8 +1965,7 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 		std::wstring shadowhlsl = ShaderFileNamePrefix + L"Shadows.hlsl";
 		CheckGameResult(D3D12Util::CompileShader(shadowhlsl, nullptr, "VS", "vs_5_1", mShaders["shadowVS"]));
 		CheckGameResult(D3D12Util::CompileShader(shadowhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedShadowVS"]));
-		CheckGameResult(D3D12Util::CompileShader(shadowhlsl, nullptr, "PS", "ps_5_1", mShaders["shadowOpaquePS"]));
-		CheckGameResult(D3D12Util::CompileShader(shadowhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["shadowAlphaTestedPS"]));
+		CheckGameResult(D3D12Util::CompileShader(shadowhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["shadowOpaquePS"]));
 	}
 
 	{
@@ -1973,7 +1978,7 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 		std::wstring drawnormalhlsl = ShaderFileNamePrefix + L"DrawNormals.hlsl";
 		CheckGameResult(D3D12Util::CompileShader(drawnormalhlsl, nullptr, "VS", "vs_5_1", mShaders["drawNormalsVS"]));
 		CheckGameResult(D3D12Util::CompileShader(drawnormalhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedDrawNormalsVS"]));
-		CheckGameResult(D3D12Util::CompileShader(drawnormalhlsl, nullptr, "PS", "ps_5_1", mShaders["drawNormalsPS"]));
+		CheckGameResult(D3D12Util::CompileShader(drawnormalhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["drawNormalsPS"]));
 	}
 
 	{
@@ -2360,7 +2365,9 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	opaquePsoDesc.DepthStencilState.DepthEnable = true;
+	opaquePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	opaquePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	opaquePsoDesc.SampleMask = UINT_MAX;
 	opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	opaquePsoDesc.NumRenderTargets = 1;
@@ -2397,6 +2404,7 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["skeletonPS"]->GetBufferPointer()),
 		mShaders["skeletonPS"]->GetBufferSize()
 	};
+	skeletonPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	skeletonPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&skeletonPsoDesc, IID_PPV_ARGS(&mPSOs["skeleton"])));
 
@@ -2419,6 +2427,7 @@ GameResult DxRenderer::BuildPSOs() {
 	// Shadow map pass does not have a render target.
 	smapPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	smapPsoDesc.NumRenderTargets = 0;
+	smapPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&smapPsoDesc, IID_PPV_ARGS(&mPSOs["shadow_opaque"])));
 
 	//
@@ -2445,6 +2454,7 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["debugPS"]->GetBufferPointer()),
 		mShaders["debugPS"]->GetBufferSize()
 	};
+	debugPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&debugPsoDesc, IID_PPV_ARGS(&mPSOs["debug"])));
 
 	//
@@ -2463,6 +2473,7 @@ GameResult DxRenderer::BuildPSOs() {
 	drawNormalsPsoDesc.SampleDesc.Count = 1;
 	drawNormalsPsoDesc.SampleDesc.Quality = 0;
 	drawNormalsPsoDesc.DSVFormat = mDepthStencilFormat;
+	drawNormalsPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&drawNormalsPsoDesc, IID_PPV_ARGS(&mPSOs["drawNormals"])));
 
 	//
@@ -2533,26 +2544,6 @@ GameResult DxRenderer::BuildPSOs() {
 		mShaders["skyPS"]->GetBufferSize()
 	};
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
-
-	//D3D12_GRAPHICS_PIPELINE_STATE_DESC wavesPsoDesc = opaquePsoDesc;
-	//wavesPsoDesc.VS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesVS"]->GetBufferPointer()),
-	//	mShaders["wavesVS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.HS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesHS"]->GetBufferPointer()),
-	//	mShaders["wavesHS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.DS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesDS"]->GetBufferPointer()),
-	//	mShaders["wavesDS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.PS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesPS"]->GetBufferPointer()),
-	//	mShaders["wavesPS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	//ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesPsoDesc, IID_PPV_ARGS(&mPSOs["waves"])));
 
 	return GameResult(S_OK);
 }
