@@ -25,17 +25,11 @@
     <Filter Include="Header Files\Render">
       <UniqueIdentifier>{5f2764bf-85ec-412e-8584-c5a99ded41fc}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Mesh">
-      <UniqueIdentifier>{cb560eec-d9da-4746-816a-defbdcb974a8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Util">
       <UniqueIdentifier>{426f151e-d66e-4f54-b7a8-a135b600a9b8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render">
       <UniqueIdentifier>{b9fe2120-b3ad-4c8a-8e27-5b99a932114f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Mesh">
-      <UniqueIdentifier>{dcc7aeb6-3e97-4e8a-b47d-e40bea67d2b4}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Util">
       <UniqueIdentifier>{2a76cb0e-e0a3-4974-80d9-1222548b9c45}</UniqueIdentifier>
@@ -45,12 +39,6 @@
     </Filter>
     <Filter Include="Header Files\Audio">
       <UniqueIdentifier>{6001d07d-afec-4ffb-9a71-77c39ba3512b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Camera">
-      <UniqueIdentifier>{5f9272a4-0837-47c6-9b9a-c1cd3262b0f4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Camera">
-      <UniqueIdentifier>{827821d9-aa83-4f97-8bfa-4ad0bf6bba85}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{83303e38-b5dd-4851-91ec-2ed398eda092}</UniqueIdentifier>
@@ -76,6 +64,54 @@
     <Filter Include="Header Files\Util\Shading">
       <UniqueIdentifier>{6e21acd3-55fe-49eb-a68b-35d36de870bb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shader Files\Vk">
+      <UniqueIdentifier>{fb3c4e46-53f0-4a8d-97cc-a5d9259fde3a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files\Dx">
+      <UniqueIdentifier>{fe781a92-6204-4c7c-b87b-bb0183e9bb90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util\Camera">
+      <UniqueIdentifier>{827821d9-aa83-4f97-8bfa-4ad0bf6bba85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component\Mesh">
+      <UniqueIdentifier>{dcc7aeb6-3e97-4e8a-b47d-e40bea67d2b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component\Camera">
+      <UniqueIdentifier>{2b3ffad6-70ca-463f-8f58-35f4c69ca7a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render\Dx">
+      <UniqueIdentifier>{f9c86e77-3259-404f-94e3-8ccde64edb59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render\Vk">
+      <UniqueIdentifier>{c6cc0102-9dd3-4d48-be01-68569a07f3d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util\Mesh">
+      <UniqueIdentifier>{ced7d7c8-f6ea-4d53-aa9c-515e7c9ee64b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render\Vk">
+      <UniqueIdentifier>{7fd4ecc2-1b9f-4477-aca2-463b5cc161a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render\Dx">
+      <UniqueIdentifier>{2b9a7b63-507b-4e3d-9aab-01149994488e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component\Mesh">
+      <UniqueIdentifier>{cb560eec-d9da-4746-816a-defbdcb974a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util\Camera">
+      <UniqueIdentifier>{5f9272a4-0837-47c6-9b9a-c1cd3262b0f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component\Camera">
+      <UniqueIdentifier>{43527deb-02a2-40fa-946b-1e171576f522}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Input">
+      <UniqueIdentifier>{40cc4ea6-b2e1-4550-aebd-aa0c0c53344b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Input">
+      <UniqueIdentifier>{3195a6e7-bbd1-4287-a458-33a2f9001d6a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util\Mesh">
+      <UniqueIdentifier>{d9b8518c-e6e0-44e8-816e-fcc53210f9c7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp">
@@ -90,22 +126,13 @@
     <ClCompile Include="..\..\src\common\MathHelper.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\InputSystem.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\MeshComponent.cpp">
-      <Filter>Source Files\Mesh</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\Mesh.cpp">
-      <Filter>Source Files\Mesh</Filter>
+      <Filter>Source Files\Component\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp">
-      <Filter>Source Files\Mesh</Filter>
+      <Filter>Source Files\Component\Mesh</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp">
-      <Filter>Source Files\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\SoundEvent.cpp">
@@ -115,10 +142,7 @@
       <Filter>Source Files\Audio</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\GameCamera.cpp">
-      <Filter>Source Files\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\FrameResource.cpp">
-      <Filter>Source Files\Util</Filter>
+      <Filter>Source Files\Util\Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\Actor.cpp">
       <Filter>Source Files\Actor</Filter>
@@ -133,15 +157,12 @@
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\Camera.cpp">
-      <Filter>Source Files\Camera</Filter>
+      <Filter>Source Files\Util\Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\Component.cpp">
-      <Filter>Source Files\Component</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\CameraComponent.cpp">
       <Filter>Source Files\Component</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
@@ -156,18 +177,6 @@
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
       <Filter>Source Files\Util\Shading</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\DxLowRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\DxRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp">
       <Filter>Source Files\Render</Filter>
     </ClCompile>
@@ -179,6 +188,33 @@
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\InputSystem.cpp">
+      <Filter>Source Files\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\CameraComponent.cpp">
+      <Filter>Source Files\Component\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp">
+      <Filter>Source Files\Render\Vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp">
+      <Filter>Source Files\Render\Vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\DxLowRenderer.cpp">
+      <Filter>Source Files\Render\Dx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\DxRenderer.cpp">
+      <Filter>Source Files\Render\Dx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\Mesh.cpp">
+      <Filter>Source Files\Util\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp">
+      <Filter>Source Files\Util\Mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\FrameResource.cpp">
+      <Filter>Source Files\Render\Dx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -197,22 +233,13 @@
     <ClInclude Include="..\..\include\common\MathHelper.h">
       <Filter>Common Files\Public</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\InputSystem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\Mesh.h">
-      <Filter>Header Files\Mesh</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\MeshComponent.h">
-      <Filter>Header Files\Mesh</Filter>
+      <Filter>Header Files\Component\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h">
-      <Filter>Header Files\Mesh</Filter>
+      <Filter>Header Files\Component\Mesh</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\ThreadUtil.h">
-      <Filter>Header Files\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\SkinnedData.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\SoundEvent.h">
@@ -222,10 +249,7 @@
       <Filter>Header Files\Audio</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\GameCamera.h">
-      <Filter>Header Files\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\FrameResource.h">
-      <Filter>Header Files\Util</Filter>
+      <Filter>Header Files\Util\Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\GameCore.h">
       <Filter>Header Files</Filter>
@@ -246,15 +270,12 @@
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\Camera.h">
-      <Filter>Header Files\Camera</Filter>
+      <Filter>Header Files\Util\Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\Component.h">
-      <Filter>Header Files\Component</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\CameraComponent.h">
       <Filter>Header Files\Component</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h">
@@ -269,18 +290,6 @@
     <ClInclude Include="..\..\include\DX12Game\ShadowMap.h">
       <Filter>Header Files\Util\Shading</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\VkRenderer.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\VkLowRenderer.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\DxLowRenderer.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\DxRenderer.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\LowRenderer.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>
@@ -293,8 +302,35 @@
     <ClInclude Include="..\..\include\DX12Game\D3D12Util.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\InputSystem.h">
+      <Filter>Header Files\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\DxLowRenderer.h">
+      <Filter>Header Files\Render\Dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\DxRenderer.h">
+      <Filter>Header Files\Render\Dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\VkLowRenderer.h">
+      <Filter>Header Files\Render\Vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\VkRenderer.h">
+      <Filter>Header Files\Render\Vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\CameraComponent.h">
+      <Filter>Header Files\Component\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\Mesh.h">
+      <Filter>Header Files\Util\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\SkinnedData.h">
+      <Filter>Header Files\Util\Mesh</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\GameUploadBuffer.h">
-      <Filter>Header Files\Util</Filter>
+      <Filter>Header Files\Render\Dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\FrameResource.h">
+      <Filter>Header Files\Render\Dx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -305,53 +341,53 @@
     <None Include="..\..\include\DX12Game\ContainerUtil.inl">
       <Filter>Inline Files</Filter>
     </None>
-    <None Include="..\..\Assets\Shaders\Shader.vert">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Shader.frag">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Common.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Default.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\DrawDebug.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\DrawNormals.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\LightingUtil.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Shadows.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Skeleton.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Sky.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\SsaoBlur.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Ssao.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\..\Assets\Shaders\Waves.hlsl">
-      <Filter>Shader Files</Filter>
-    </None>
     <None Include="..\..\include\DX12Game\GameUploadBuffer.inl">
       <Filter>Inline Files</Filter>
     </None>
-    <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
-      <Filter>Shader Files</Filter>
+    <None Include="..\..\Assets\Shaders\Shader.vert">
+      <Filter>Shader Files\Vk</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Shader.frag">
+      <Filter>Shader Files\Vk</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Common.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Default.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawDebug.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawNormals.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LightingUtil.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Shadows.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Skeleton.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Sky.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Ssao.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\SsaoBlur.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Waves.hlsl">
+      <Filter>Shader Files\Dx</Filter>
     </None>
     <None Include="..\..\Assets\Shaders\DefaultUsingGBuffer.hlsl">
-      <Filter>Shader Files</Filter>
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
+      <Filter>Shader Files\Dx</Filter>
     </None>
   </ItemGroup>
 </Project>
