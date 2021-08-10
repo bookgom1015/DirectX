@@ -50,18 +50,30 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	mShadowMap = std::make_unique<ShadowMap>(md3dDevice.Get(), 4096, 4096);
-	CheckGameResult(mShadowMap->Initialize());
+	CheckGameResult(
+		mGBuffer.Initialize(
+			md3dDevice.Get(),
+			mClientWidth,
+			mClientHeight,
+			mBackBufferFormat,
+			DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
+			DXGI_FORMAT_R8G8B8A8_UNORM
+		)
+	);
 
-	mSsao = std::make_unique<Ssao>(
-		md3dDevice.Get(),
-		mCommandList.Get(),
-		mClientWidth, mClientHeight
-		);
-	CheckGameResult(mSsao->Initialize());
+	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 4096, 4096));
 
-	mAnimsMap = std::make_unique<AnimationsMap>(md3dDevice.Get(), mCommandList.Get());
-	CheckGameResult(mAnimsMap->Initialize());
+	CheckGameResult(
+		mSsao.Initialize(
+			md3dDevice.Get(),
+			mCommandList.Get(),
+			mClientWidth,
+			mClientHeight
+		)
+	);
+
+	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), mCommandList.Get()));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
@@ -74,7 +86,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	CheckGameResult(BuildFrameResources());
 	CheckGameResult(BuildPSOs());
 
-	mSsao->SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
+	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
 
 	// Execute the initialization commands.
 	ReturnIfFailed(mCommandList->Close());
@@ -179,14 +191,14 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
 	// set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer->Resource();
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
 
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer->Resource();
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
 
-	auto instBuffer = mCurrFrameResource->mInstanceBuffer->Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instBuffer->GetGPUVirtualAddress());
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
 
 	// Bind null SRV for shadow map pass.
 	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
@@ -201,7 +213,8 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 	// Bind the texture for extracing animations data.
 	mCommandList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap->AnimationsMapSrv());
+		mAnimsMap.AnimationsMapSrv()
+	);
 
 	mCommandList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
@@ -209,6 +222,7 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 		&MaxInstanceCount,
 		0
 	);
+
 	mCommandList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
 		static_cast<UINT>(mConstantSettings.size()),
@@ -218,16 +232,13 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	DrawSceneToShadowMap();
 
-	//
-	// Normal/depth pass.
-	//
-	DrawNormalsAndDepth();
+	DrawGBuffer();
 
 	//
 	// Compute SSAO.
 	//
 	mCommandList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
-	mSsao->ComputeSsao(mCommandList.Get(), mCurrFrameResource, 3);
+	mSsao.ComputeSsao(mCommandList.Get(), mCurrFrameResource, 3);
 
 	//
 	// Main rendering pass.
@@ -238,7 +249,7 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
 	// set as a root descriptor.
-	matBuffer = mCurrFrameResource->mMaterialBuffer->Resource();
+	matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
 
 	mCommandList->RSSetViewports(1, &mScreenViewport);
@@ -250,38 +261,45 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	// Clear the back buffer and depth buffer.
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	//mCommandList->ClearDepthStencilView(DepthStencilView(),
+	//	D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-	auto passCB = mCurrFrameResource->mPassCB->Resource();
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
 
 	// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
 	// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
 	// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
 	// index into an array of cube maps.
-	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	skyTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
+	CD3DX12_GPU_DESCRIPTOR_HANDLE miscTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	miscTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
+	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
 
-	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, skyTexDescriptor);
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
-	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
+	mCommandList->SetPipelineState(mPSOs["gbufferScreen"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Screen]);
+	//mCommandList->SetPipelineState(mPSOs["opaque"].Get());
+	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
+	//
+	//mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
+	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
+
+	mCommandList->SetPipelineState(mPSOs["sky"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Sky]);
 
 	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Skeleton]);
 
-	mCommandList->SetPipelineState(mPSOs["opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
+	mCommandList->SetPipelineState(mPSOs["debug"].Get());
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
 
-	mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
-
-	mCommandList->SetPipelineState(mPSOs["sky"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Sky]);
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	//
 	// Draw texts.
@@ -326,12 +344,12 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 	mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
 
-	if (mSsao != nullptr) {
-		mSsao->OnResize(mClientWidth, mClientHeight);
+	mGBuffer.OnResize(mClientWidth, mClientHeight, mDepthStencilBuffer.Get());
 
-		// Resources changed, so need to rebuild descriptors.
-		mSsao->RebuildDescriptors(mDepthStencilBuffer.Get());
-	}
+	mSsao.OnResize(mClientWidth, mClientHeight);
+
+	// Resources changed, so need to rebuild descriptors.
+	mSsao.RebuildDescriptors(mGBuffer.GetNormalMapSrv(), mGBuffer.GetDepthMapSrv());
 
 	BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 
@@ -378,7 +396,7 @@ void DxRenderer::UpdateInstanceAnimationData(const std::string& inRenderItemName
 					auto& inst = ritem->mInstances[mInstancesIndex[inRenderItemName]];
 
 					inst.mAnimClipIndex = inAnimClipIdx == -1 ?
-						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap.GetInvLineSize());
 					inst.mTimePos = inTimePos;
 					inst.SetNumFramesDirty(gNumFrameResources);
 				}
@@ -394,7 +412,7 @@ void DxRenderer::UpdateInstanceAnimationData(const std::string& inRenderItemName
 					auto& inst = ritem->mInstances[mInstancesIndex[name]];
 
 					inst.mAnimClipIndex = inAnimClipIdx == -1 ?
-						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap->GetInvLineSize());
+						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap.GetInvLineSize());
 					inst.mTimePos = inTimePos;
 					inst.SetNumFramesDirty(gNumFrameResources);
 				}
@@ -630,14 +648,14 @@ UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& i
 		}
 	}
 
-	return mAnimsMap->AddAnimation(inClipName, data);
+	return mAnimsMap.AddAnimation(inClipName, data);
 }
 
 GameResult DxRenderer::UpdateAnimationsMap() {
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
-	mAnimsMap->UpdateAnimationsMap();
+	mAnimsMap.UpdateAnimationsMap();
 
 	// Execute the initialization commands.
 	ReturnIfFailed(mCommandList->Close());
@@ -651,9 +669,14 @@ GameResult DxRenderer::UpdateAnimationsMap() {
 }
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
-	// Add +1 for screen normal map, +2 for ambient maps.
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+#ifdef DeferredRendering
+	// Add + 1 for diffuse map, +1 for screen normal map, +1 for specular map, +2 for ambient maps.
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + GBuffer::NumRenderTargets + 2;
+#else
+	// Add +1 for screen normal map, +2 for ambient maps.
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 3;
+#endif
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
@@ -763,11 +786,23 @@ GameResult DxRenderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &outGeo->IndexBufferCPU));
 	CopyMemory(outGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	outGeo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, outGeo->VertexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(),
+		vertices.data(),
+		vbByteSize,
+		outGeo->VertexBufferUploader,
+		outGeo->VertexBufferGPU)
+	);
 
-	outGeo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, outGeo->IndexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(),
+		indices.data(),
+		ibByteSize,
+		outGeo->IndexBufferUploader,
+		outGeo->IndexBufferGPU)
+	);
 
 	outGeo->VertexByteStride = static_cast<UINT>(vertexSize);
 	outGeo->VertexBufferByteSize = vbByteSize;
@@ -807,11 +842,23 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(), 
+		vertices.data(),
+		vbByteSize, 
+		geo->VertexBufferUploader,
+		geo->VertexBufferGPU)
+	);
 
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(), 
+		indices.data(),
+		ibByteSize,
+		geo->IndexBufferUploader, 
+		geo->IndexBufferGPU)
+	);
 
 	geo->VertexByteStride = static_cast<UINT>(vertexSize);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -856,11 +903,23 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(), 
+		vertices.data(), 
+		vbByteSize,
+		geo->VertexBufferUploader,
+		geo->VertexBufferGPU)
+	);
 
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(), 
+		indices.data(), 
+		ibByteSize, 
+		geo->IndexBufferUploader, 
+		geo->IndexBufferGPU)
+	);
 
 	geo->VertexByteStride = static_cast<UINT>(vertexSize);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -1166,9 +1225,9 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 
 	UINT visibleObjectCount = 0;
 
-	auto currObjectCB = mCurrFrameResource->mObjectCB.get();
-	auto currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.get();
-	auto currInstBuffer = mCurrFrameResource->mInstanceBuffer.get();
+	auto& currObjectCB = mCurrFrameResource->mObjectCB;
+	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
+	auto& currInstBuffer = mCurrFrameResource->mInstanceDataBuffer;
 
 	for (auto& e : mAllRitems) {
 		UINT index = e->mObjCBIndex * MaxInstanceCount;
@@ -1197,7 +1256,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 				InstanceIdxData instIdxData;
 				instIdxData.mInstanceIdx = instIdx;
 
-				currInstIdxBuffer->CopyData(index + offset, instIdxData);
+				currInstIdxBuffer.CopyData(index + offset, instIdxData);
 
 				// Only update the cbuffer data if the constants have changed.
 				// This needs to be tracked per frame resource.
@@ -1209,7 +1268,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 					instData.mAnimClipIndex = i.mAnimClipIndex;
 					instData.mMaterialIndex = i.mMaterialIndex;
 
-					currInstBuffer->CopyData(instIdx, instData);
+					currInstBuffer.CopyData(instIdx, instData);
 
 					// Next FrameResource need to be updated too.
 					i.DecreaseNumFramesDirty();
@@ -1227,7 +1286,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 		ObjectConstants objConstants;
 		objConstants.mInstanceIndex = e->mObjCBIndex;
 
-		currObjectCB->CopyData(e->mObjCBIndex, objConstants);
+		currObjectCB.CopyData(e->mObjCBIndex, objConstants);
 	}
 
 	AddOutputText(
@@ -1242,7 +1301,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 }
 
 GameResult DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
-	auto currMaterialBuffer = mCurrFrameResource->mMaterialBuffer.get();
+	auto& currMaterialBuffer = mCurrFrameResource->mMaterialBuffer;
 	for (auto& e : mMaterials) {
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
 		// data changes, it needs to be updated for each FrameResource.
@@ -1259,7 +1318,7 @@ GameResult DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
 			matData.mNormalMapIndex = mat->NormalSrvHeapIndex;
 			matData.mSpecularMapIndex = mat->SpecularSrvHeapIndex;
 
-			currMaterialBuffer->CopyData(mat->MatCBIndex, matData);
+			currMaterialBuffer.CopyData(mat->MatCBIndex, matData);
 
 			// Next FrameResource need to be updated too.
 			mat->NumFramesDirty--;
@@ -1371,8 +1430,8 @@ GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
 	mMainPassCB.mLights[2].Direction = mLightingVars.mBaseLightDirections[2];
 	mMainPassCB.mLights[2].Strength = mLightingVars.mBaseLightStrengths[2];
 
-	auto currPassCB = mCurrFrameResource->mPassCB.get();
-	currPassCB->CopyData(0, mMainPassCB);
+	auto& currPassCB = mCurrFrameResource->mPassCB;
+	currPassCB.CopyData(0, mMainPassCB);
 
 	return GameResult(S_OK);
 }
@@ -1386,8 +1445,8 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
 	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
 	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
 
-	UINT w = mShadowMap->Width();
-	UINT h = mShadowMap->Height();
+	UINT w = mShadowMap.Width();
+	UINT h = mShadowMap.Height();
 
 	XMStoreFloat4x4(&mShadowPassCB.mView, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mShadowPassCB.mInvView, XMMatrixTranspose(invView));
@@ -1401,8 +1460,8 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
 	mShadowPassCB.mNearZ = mLightingVars.mLightNearZ;
 	mShadowPassCB.mFarZ = mLightingVars.mLightFarZ;
 
-	auto currPassCB = mCurrFrameResource->mPassCB.get();
-	currPassCB->CopyData(1, mShadowPassCB);
+	auto& currPassCB = mCurrFrameResource->mPassCB;
+	currPassCB.CopyData(1, mShadowPassCB);
 
 	return GameResult(S_OK);
 }
@@ -1427,14 +1486,14 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
 	ssaoCB.mInvProj = mMainPassCB.mInvProj;
 	XMStoreFloat4x4(&ssaoCB.mProjTex, XMMatrixTranspose(P*T));
 
-	mSsao->GetOffsetVectors(ssaoCB.mOffsetVectors);
+	mSsao.GetOffsetVectors(ssaoCB.mOffsetVectors);
 
-	auto blurWeights = mSsao->CalcGaussWeights(2.5f);
+	auto blurWeights = mSsao.CalcGaussWeights(2.5f);
 	ssaoCB.mBlurWeights[0] = XMFLOAT4(&blurWeights[0]);
 	ssaoCB.mBlurWeights[1] = XMFLOAT4(&blurWeights[4]);
 	ssaoCB.mBlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
-	ssaoCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsao->SsaoMapWidth(), 1.0f / mSsao->SsaoMapHeight());
+	ssaoCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsao.SsaoMapWidth(), 1.0f / mSsao.SsaoMapHeight());
 
 	// Coordinates given in view space.
 	ssaoCB.mOcclusionRadius = 0.5f;
@@ -1442,8 +1501,8 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
 	ssaoCB.mOcclusionFadeEnd = 2.0f;
 	ssaoCB.mSurfaceEpsilon = 0.05f;
 
-	auto currSsaoCB = mCurrFrameResource->mSsaoCB.get();
-	currSsaoCB->CopyData(0, ssaoCB);
+	auto& currSsaoCB = mCurrFrameResource->mSsaoCB;
+	currSsaoCB.CopyData(0, ssaoCB);
 
 	return GameResult(S_OK);
 }
@@ -1484,83 +1543,102 @@ GameResult DxRenderer::LoadBasicTextures() {
 }
 
 namespace {
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers() {
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 8> GetStaticSamplers() {
 		// Applications usually only need a handful of samplers.  So just define them all up front
 		// and keep them available as part of the root signature.  
 
 		const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 			0, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+			D3D12_FILTER_MIN_MAG_MIP_POINT,		// filter
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP		// addressW
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
 			1, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+			D3D12_FILTER_MIN_MAG_MIP_POINT,		// filter
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP	// addressW
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
 			2, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP		// addressW
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
 			3, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP	// addressW
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
 			4, // shaderRegister
-			D3D12_FILTER_ANISOTROPIC, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP,  // addressW
-			0.0f,                             // mipLODBias
-			8);                               // maxAnisotropy
+			D3D12_FILTER_ANISOTROPIC,			// filter
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressW
+			0.0f,								// mipLODBias
+			8									// maxAnisotropy
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
 			5, // shaderRegister
-			D3D12_FILTER_ANISOTROPIC, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,  // addressW
-			0.0f,                              // mipLODBias
-			8);                                // maxAnisotropy
+			D3D12_FILTER_ANISOTROPIC,			// filter
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressW
+			0.0f,								// mipLODBias
+			8									// maxAnisotropy
+		);
 
 		const CD3DX12_STATIC_SAMPLER_DESC shadow(
-			6, // shaderRegister
-			D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_BORDER,  // addressW
-			0.0f,                               // mipLODBias
-			16,                                 // maxAnisotropy
+			6,													// shaderRegister
+			D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,	// filter
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,					// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,					// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,					// addressW
+			0.0f,												// mipLODBias
+			16,													// maxAnisotropy
 			D3D12_COMPARISON_FUNC_LESS_EQUAL,
-			D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
+			D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK
+		);
+
+		const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+			7,									// shaderRegister
+			D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressU
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressV
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressW
+			0.0f,
+			0,
+			D3D12_COMPARISON_FUNC_LESS_EQUAL,
+			D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+		);
 
 		return {
 			pointWrap, pointClamp, linearWrap, linearClamp,
-			anisotropicWrap, anisotropicClamp, shadow
+			anisotropicWrap, anisotropicClamp, shadow, depthMapSam
 		};
 	}
 }
 
 GameResult DxRenderer::BuildRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable0;
-	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0, 0);
+	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0, 0);
 
 	CD3DX12_DESCRIPTOR_RANGE texTable1;
-	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 4, 0);
-
+	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 8, 0);
+	
 	CD3DX12_DESCRIPTOR_RANGE texTable2;
-	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 68, 0);
+	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 72, 0);
 
 	const UINT numParameters = 9;
 
@@ -1620,9 +1698,14 @@ GameResult DxRenderer::BuildRootSignature() {
 	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
 		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
-	if (errorBlob != nullptr)
-		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
-	ReturnIfFailed(hr);
+	{
+		std::wstringstream wsstream;
+		if (errorBlob != nullptr)
+			wsstream << reinterpret_cast<char*>(errorBlob->GetBufferPointer());
+			
+		if (FAILED(hr))
+			ReturnGameResult(S_FALSE, wsstream.str());
+	}
 
 	ReturnIfFailed(
 		md3dDevice->CreateRootSignature(
@@ -1718,12 +1801,100 @@ GameResult DxRenderer::BuildSsaoRootSignature() {
 	return GameResult(S_OK);
 }
 
+void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
+	mDescHeapIdx.mSkyTexHeapIndex		= inOffset;
+	mDescHeapIdx.mBlurSkyTexHeapIndex	= mDescHeapIdx.mSkyTexHeapIndex			+ 1;
+	mDescHeapIdx.mDiffuseMapHeapIndex	= mDescHeapIdx.mBlurSkyTexHeapIndex		+ 1;
+	mDescHeapIdx.mNormalMapHeapIndex	= mDescHeapIdx.mDiffuseMapHeapIndex		+ 1;
+	mDescHeapIdx.mDepthMapHeapIndex		= mDescHeapIdx.mNormalMapHeapIndex		+ 1;
+	mDescHeapIdx.mSpecularMapHeapIndex	= mDescHeapIdx.mDepthMapHeapIndex		+ 1;
+	mDescHeapIdx.mShadowMapHeapIndex	= mDescHeapIdx.mSpecularMapHeapIndex	+ 1;
+	mDescHeapIdx.mSsaoAmbientMapIndex	= mDescHeapIdx.mShadowMapHeapIndex		+ 1;
+	mDescHeapIdx.mAnimationsMapIndex	= mDescHeapIdx.mSsaoAmbientMapIndex		+ 3;
+	mDescHeapIdx.mNullCubeSrvIndex1		= mDescHeapIdx.mAnimationsMapIndex		+ 1;
+	mDescHeapIdx.mNullCubeSrvIndex2		= mDescHeapIdx.mNullCubeSrvIndex1		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex1		= mDescHeapIdx.mNullCubeSrvIndex2		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex2		= mDescHeapIdx.mNullTexSrvIndex1		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex3		= mDescHeapIdx.mNullTexSrvIndex2		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex4		= mDescHeapIdx.mNullTexSrvIndex3		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex5		= mDescHeapIdx.mNullTexSrvIndex4		+ 1;
+	mDescHeapIdx.mDefaultFontIndex		= mDescHeapIdx.mNullTexSrvIndex5		+ 1;
+	mDescHeapIdx.mCurrSrvHeapIndex		= mDescHeapIdx.mDefaultFontIndex		+ 1;
+
+	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
+}
+
+void DxRenderer::BuildNullShaderResourceViews() {
+	auto skyCubeMap = mTextures["skyCubeMap"]->Resource;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
+	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+	srvDesc.Format = skyCubeMap->GetDesc().Format;
+
+	auto nullSrv = GetCpuSrv(mDescHeapIdx.mNullCubeSrvIndex1);
+	mNullSrv = GetGpuSrv(mDescHeapIdx.mNullCubeSrvIndex1);
+
+	for (INT i = 0; i < 2; ++i) {
+		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
+
+		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
+	}
+
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+	for (INT i = 0; i < 5; ++i) {
+		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
+
+		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
+	}
+}
+
+void DxRenderer::BuildDescriptorsForEachHelperClass() {
+	mGBuffer.BuildDescriptors(
+		mDepthStencilBuffer.Get(),
+		GetCpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetRtv(SwapChainBufferCount),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
+	);
+
+	mShadowMap.BuildDescriptors(
+		GetCpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
+		GetDsv(1)
+	);
+
+	mSsao.BuildDescriptors(
+		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetRtv(SwapChainBufferCount + GBuffer::NumRenderTargets),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
+	);
+
+	mAnimsMap.BuildDescriptors(
+		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
+		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
+	);
+}
+
 GameResult DxRenderer::BuildDescriptorHeaps() {
 	//
 	// Create the SRV heap.
 	//
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = 64; // default: 14
+	srvHeapDesc.NumDescriptors = 64; // default: 14, gbuffer: ?
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mCbvSrvUavDescriptorHeap)));
@@ -1769,62 +1940,9 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	srvDesc.Format = blurSkyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(blurSkyCubeMap.Get(), &srvDesc, hDescriptor);
 
-	mDescHeapIdx.mSkyTexHeapIndex = static_cast<UINT>(tex2DList.size());
-	mDescHeapIdx.mBlurSkyTexHeapIndex = mDescHeapIdx.mSkyTexHeapIndex + 1;
-	mDescHeapIdx.mShadowMapHeapIndex = mDescHeapIdx.mBlurSkyTexHeapIndex + 1;
-	mDescHeapIdx.mSsaoHeapIndexStart = mDescHeapIdx.mShadowMapHeapIndex + 1;
-	mDescHeapIdx.mSsaoAmbientMapIndex = mDescHeapIdx.mSsaoHeapIndexStart + 3;
-	mDescHeapIdx.mAnimationsMapIndex = mDescHeapIdx.mSsaoHeapIndexStart + 5;
-	mDescHeapIdx.mNullCubeSrvIndex = mDescHeapIdx.mAnimationsMapIndex + 1;
-	mDescHeapIdx.mNullBlurCubeSrvIndex = mDescHeapIdx.mNullCubeSrvIndex + 1;
-	mDescHeapIdx.mNullTexSrvIndex1 = mDescHeapIdx.mNullBlurCubeSrvIndex + 1;
-	mDescHeapIdx.mNullTexSrvIndex2 = mDescHeapIdx.mNullTexSrvIndex1 + 1;
-	mDescHeapIdx.mDefaultFontIndex = mDescHeapIdx.mNullTexSrvIndex2 + 1;
-	mDescHeapIdx.mCurrSrvHeapIndex = mDescHeapIdx.mDefaultFontIndex + 1;
-
-	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
-
-	auto nullSrv = GetCpuSrv(mDescHeapIdx.mNullCubeSrvIndex);
-	mNullSrv = GetGpuSrv(mDescHeapIdx.mNullCubeSrvIndex);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
-
-	md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
-
-	mShadowMap->BuildDescriptors(
-		GetCpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
-		GetGpuSrv(mDescHeapIdx.mShadowMapHeapIndex),
-		GetDsv(1)
-	);
-
-	mSsao->BuildDescriptors(
-		mDepthStencilBuffer.Get(),
-		GetCpuSrv(mDescHeapIdx.mSsaoHeapIndexStart),
-		GetGpuSrv(mDescHeapIdx.mSsaoHeapIndexStart),
-		GetRtv(SwapChainBufferCount),
-		mCbvSrvUavDescriptorSize,
-		mRtvDescriptorSize
-	);
-
-	mAnimsMap->BuildDescriptors(
-		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
-		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
-	);
+	BuildDescriptorHeapIndices(static_cast<UINT>(tex2DList.size()));
+	BuildNullShaderResourceViews();
+	BuildDescriptorsForEachHelperClass();
 
 	return GameResult(S_OK);
 }
@@ -1843,63 +1961,93 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 
 	{
 		std::wstring defaulthlsl = ShaderFileNamePrefix + L"Default.hlsl";
-		mShaders["standardVS"] = d3dUtil::CompileShader(defaulthlsl, nullptr, "VS", "vs_5_1");
-		mShaders["opaquePS"] = d3dUtil::CompileShader(defaulthlsl, alphaTestDefines, "PS", "ps_5_1");
-		mShaders["skinnedVS"] = d3dUtil::CompileShader(defaulthlsl, skinnedDefines, "VS", "vs_5_1");
+		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, nullptr, "VS", "vs_5_1", mShaders["standardVS"]));
+		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["opaquePS"]));
+		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedVS"]));
 	}
 
 	{
 		std::wstring skeletonhlsl = ShaderFileNamePrefix + L"Skeleton.hlsl";
-		mShaders["skeletonVS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "VS", "vs_5_1");
-		mShaders["skeletonGS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "GS", "gs_5_1");
-		mShaders["skeletonPS"] = d3dUtil::CompileShader(skeletonhlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(skeletonhlsl, nullptr, "VS", "vs_5_1", mShaders["skeletonVS"]));
+		CheckGameResult(D3D12Util::CompileShader(skeletonhlsl, nullptr, "GS", "gs_5_1", mShaders["skeletonGS"]));
+		CheckGameResult(D3D12Util::CompileShader(skeletonhlsl, nullptr, "PS", "ps_5_1", mShaders["skeletonPS"]));
 	}
 
 	{
 		std::wstring waveshlsl = ShaderFileNamePrefix + L"Waves.hlsl";
-		mShaders["wavesVS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "VS", "vs_5_1");
-		mShaders["wavesHS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "HS", "hs_5_1");
-		mShaders["wavesDS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "DS", "ds_5_1");
-		mShaders["wavesPS"] = d3dUtil::CompileShader(waveshlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(waveshlsl, nullptr, "VS", "vs_5_1", mShaders["wavesVS"]));
+		CheckGameResult(D3D12Util::CompileShader(waveshlsl, nullptr, "HS", "hs_5_1", mShaders["wavesHS"]));
+		CheckGameResult(D3D12Util::CompileShader(waveshlsl, nullptr, "DS", "ds_5_1", mShaders["wavesDS"]));
+		CheckGameResult(D3D12Util::CompileShader(waveshlsl, nullptr, "PS", "ps_5_1", mShaders["wavesPS"]));
 	}
 
 	{
 		std::wstring shadowhlsl = ShaderFileNamePrefix + L"Shadows.hlsl";
-		mShaders["shadowVS"] = d3dUtil::CompileShader(shadowhlsl, nullptr, "VS", "vs_5_1");
-		mShaders["skinnedShadowVS"] = d3dUtil::CompileShader(shadowhlsl, skinnedDefines, "VS", "vs_5_1");
-		mShaders["shadowOpaquePS"] = d3dUtil::CompileShader(shadowhlsl, nullptr, "PS", "ps_5_1");
-		mShaders["shadowAlphaTestedPS"] = d3dUtil::CompileShader(shadowhlsl, alphaTestDefines, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(
+			shadowhlsl, nullptr, "VS", "vs_5_1", mShaders["shadowVS"])
+		);
+		CheckGameResult(D3D12Util::CompileShader(
+			shadowhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedShadowVS"])
+		);
+		CheckGameResult(D3D12Util::CompileShader(
+			shadowhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["shadowOpaquePS"])
+		);
 	}
 
 	{
 		std::wstring drawdebughlsl = ShaderFileNamePrefix + L"DrawDebug.hlsl";
-		mShaders["debugVS"] = d3dUtil::CompileShader(drawdebughlsl, nullptr, "VS", "vs_5_1");
-		mShaders["debugPS"] = d3dUtil::CompileShader(drawdebughlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(drawdebughlsl, nullptr, "VS", "vs_5_1", mShaders["debugVS"]));
+		CheckGameResult(D3D12Util::CompileShader(drawdebughlsl, nullptr, "PS", "ps_5_1", mShaders["debugPS"]));
 	}
 
 	{
 		std::wstring drawnormalhlsl = ShaderFileNamePrefix + L"DrawNormals.hlsl";
-		mShaders["drawNormalsVS"] = d3dUtil::CompileShader(drawnormalhlsl, nullptr, "VS", "vs_5_1");
-		mShaders["skinnedDrawNormalsVS"] = d3dUtil::CompileShader(drawnormalhlsl, skinnedDefines, "VS", "vs_5_1");
-		mShaders["drawNormalsPS"] = d3dUtil::CompileShader(drawnormalhlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(
+			drawnormalhlsl, nullptr, "VS", "vs_5_1", mShaders["drawNormalsVS"])
+		);
+		CheckGameResult(
+			D3D12Util::CompileShader(drawnormalhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedDrawNormalsVS"])
+		);
+		CheckGameResult(
+			D3D12Util::CompileShader(drawnormalhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["drawNormalsPS"])
+		);
 	}
 
 	{
 		std::wstring ssaohlsl = ShaderFileNamePrefix + L"Ssao.hlsl";
-		mShaders["ssaoVS"] = d3dUtil::CompileShader(ssaohlsl, nullptr, "VS", "vs_5_1");
-		mShaders["ssaoPS"] = d3dUtil::CompileShader(ssaohlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(ssaohlsl, nullptr, "VS", "vs_5_1", mShaders["ssaoVS"]));
+		CheckGameResult(D3D12Util::CompileShader(ssaohlsl, nullptr, "PS", "ps_5_1", mShaders["ssaoPS"]));
 	}
 
 	{
 		std::wstring ssaoblurhlsl = ShaderFileNamePrefix + L"SsaoBlur.hlsl";
-		mShaders["ssaoBlurVS"] = d3dUtil::CompileShader(ssaoblurhlsl, nullptr, "VS", "vs_5_1");
-		mShaders["ssaoBlurPS"] = d3dUtil::CompileShader(ssaoblurhlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(ssaoblurhlsl, nullptr, "VS", "vs_5_1", mShaders["ssaoBlurVS"]));
+		CheckGameResult(D3D12Util::CompileShader(ssaoblurhlsl, nullptr, "PS", "ps_5_1", mShaders["ssaoBlurPS"]));
 	}
 
 	{
 		std::wstring skyhlsl = ShaderFileNamePrefix + L"Sky.hlsl";
-		mShaders["skyVS"] = d3dUtil::CompileShader(skyhlsl, nullptr, "VS", "vs_5_1");
-		mShaders["skyPS"] = d3dUtil::CompileShader(skyhlsl, nullptr, "PS", "ps_5_1");
+		CheckGameResult(D3D12Util::CompileShader(skyhlsl, nullptr, "VS", "vs_5_1", mShaders["skyVS"]));
+		CheckGameResult(D3D12Util::CompileShader(skyhlsl, nullptr, "PS", "ps_5_1", mShaders["skyPS"]));
+	}
+
+	{
+		std::wstring gbufferhlsl = ShaderFileNamePrefix + L"DrawGBuffer.hlsl";
+		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, nullptr, "VS", "vs_5_1", mShaders["gbufferVS"]));
+		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, nullptr, "PS", "ps_5_1", mShaders["gbufferPS"]));	
+	}
+
+	{
+		std::wstring gbufferhlsl = ShaderFileNamePrefix + L"DrawGBuffer.hlsl";
+		CheckGameResult(
+			D3D12Util::CompileShader(gbufferhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedGBufferVS"])
+		);
+	}
+
+	{
+		std::wstring defaultghlsl = ShaderFileNamePrefix + L"DefaultUsingGBuffer.hlsl";
+		CheckGameResult(D3D12Util::CompileShader(defaultghlsl, nullptr, "VS", "vs_5_1", mShaders["defaultGBufferVS"]));
+		CheckGameResult(D3D12Util::CompileShader(defaultghlsl, nullptr, "PS", "ps_5_1", mShaders["defaultGBufferPS"]));
 	}
 
 	mInputLayout = {
@@ -2099,13 +2247,25 @@ GameResult DxRenderer::BuildBasicGeometry() {
 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+	
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(),
+		vertices.data(),
+		vbByteSize,
+		geo->VertexBufferUploader,
+		geo->VertexBufferGPU)
+	);
 
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-
+	CheckGameResult(D3D12Util::CreateDefaultBuffer(
+		md3dDevice.Get(),
+		mCommandList.Get(), 
+		indices.data(), 
+		ibByteSize, 
+		geo->IndexBufferUploader, 
+		geo->IndexBufferGPU)
+	);
+	
 	geo->VertexByteStride = static_cast<UINT>(sizeof(Vertex));
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -2202,23 +2362,37 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
-	quadRitem->mInstances.emplace_back(
-		MathHelper::Identity4x4(),
-		MathHelper::Identity4x4(),
-		0.0f,
-		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		-1,
-		EInstanceRenderState::EID_DrawAlways
-	);
-	quadRitem->mInstances.emplace_back(
-		MathHelper::Identity4x4(),
-		MathHelper::Identity4x4(),
-		0.0f,
-		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-		-1,
-		EInstanceRenderState::EID_DrawAlways
-	);
+	for (size_t i = 0; i < 5; ++i) {
+		quadRitem->mInstances.emplace_back(
+			MathHelper::Identity4x4(),
+			MathHelper::Identity4x4(),
+			0.0f,
+			static_cast<UINT>(quadRitem->mMat->MatCBIndex),
+			-1,
+			EInstanceRenderState::EID_DrawAlways
+		);
+	}
 	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
+	mAllRitems.push_back(std::move(quadRitem));
+
+	quadRitem = std::make_unique<RenderItem>();
+	quadRitem->mObjCBIndex = mNumObjCB++;
+	quadRitem->mMat = mMaterials["default"].get();
+	quadRitem->mGeo = mGeometries["standardGeo"].get();
+	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
+	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
+	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
+	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
+	quadRitem->mInstances.emplace_back(
+		MathHelper::Identity4x4(),
+		MathHelper::Identity4x4(),
+		0.0f,
+		static_cast<UINT>(quadRitem->mMat->MatCBIndex),
+		-1,
+		EInstanceRenderState::EID_DrawAlways
+	);
+	mRitemLayer[RenderLayer::Screen].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -2262,7 +2436,9 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	opaquePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	opaquePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	opaquePsoDesc.DepthStencilState.DepthEnable = true;
+	opaquePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	opaquePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	opaquePsoDesc.SampleMask = UINT_MAX;
 	opaquePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	opaquePsoDesc.NumRenderTargets = 1;
@@ -2299,6 +2475,7 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["skeletonPS"]->GetBufferPointer()),
 		mShaders["skeletonPS"]->GetBufferSize()
 	};
+	skeletonPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	skeletonPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&skeletonPsoDesc, IID_PPV_ARGS(&mPSOs["skeleton"])));
 
@@ -2321,6 +2498,7 @@ GameResult DxRenderer::BuildPSOs() {
 	// Shadow map pass does not have a render target.
 	smapPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	smapPsoDesc.NumRenderTargets = 0;
+	smapPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&smapPsoDesc, IID_PPV_ARGS(&mPSOs["shadow_opaque"])));
 
 	//
@@ -2347,6 +2525,7 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["debugPS"]->GetBufferPointer()),
 		mShaders["debugPS"]->GetBufferSize()
 	};
+	debugPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&debugPsoDesc, IID_PPV_ARGS(&mPSOs["debug"])));
 
 	//
@@ -2361,10 +2540,11 @@ GameResult DxRenderer::BuildPSOs() {
 		reinterpret_cast<BYTE*>(mShaders["drawNormalsPS"]->GetBufferPointer()),
 		mShaders["drawNormalsPS"]->GetBufferSize()
 	};
-	drawNormalsPsoDesc.RTVFormats[0] = Ssao::NormalMapFormat;
+	drawNormalsPsoDesc.RTVFormats[0] = mGBuffer.GetNormalMapFormat();
 	drawNormalsPsoDesc.SampleDesc.Count = 1;
 	drawNormalsPsoDesc.SampleDesc.Quality = 0;
 	drawNormalsPsoDesc.DSVFormat = mDepthStencilFormat;
+	drawNormalsPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&drawNormalsPsoDesc, IID_PPV_ARGS(&mPSOs["drawNormals"])));
 
 	//
@@ -2436,25 +2616,56 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&skyPsoDesc, IID_PPV_ARGS(&mPSOs["sky"])));
 
-	//D3D12_GRAPHICS_PIPELINE_STATE_DESC wavesPsoDesc = opaquePsoDesc;
-	//wavesPsoDesc.VS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesVS"]->GetBufferPointer()),
-	//	mShaders["wavesVS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.HS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesHS"]->GetBufferPointer()),
-	//	mShaders["wavesHS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.DS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesDS"]->GetBufferPointer()),
-	//	mShaders["wavesDS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.PS = {
-	//	reinterpret_cast<BYTE*>(mShaders["wavesPS"]->GetBufferPointer()),
-	//	mShaders["wavesPS"]->GetBufferSize()
-	//};
-	//wavesPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH;
-	//ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&wavesPsoDesc, IID_PPV_ARGS(&mPSOs["waves"])));
+	//
+	// PSO for drwaing gbuffer.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferPsoDesc = opaquePsoDesc;
+	gbufferPsoDesc.VS = {
+		reinterpret_cast<BYTE*>(mShaders["gbufferVS"]->GetBufferPointer()),
+		mShaders["gbufferVS"]->GetBufferSize()
+	};
+	gbufferPsoDesc.PS = {
+		reinterpret_cast<BYTE*>(mShaders["gbufferPS"]->GetBufferPointer()),
+		mShaders["gbufferPS"]->GetBufferSize()
+	};
+	gbufferPsoDesc.NumRenderTargets = GBuffer::NumRenderTargets;
+	gbufferPsoDesc.RTVFormats[0] = mGBuffer.GetDiffuseMapFormat();
+	gbufferPsoDesc.RTVFormats[1] = mGBuffer.GetNormalMapFormat();
+	gbufferPsoDesc.RTVFormats[2] = mGBuffer.GetSpecularMapFormat();
+	gbufferPsoDesc.SampleDesc.Count = 1;
+	gbufferPsoDesc.SampleDesc.Quality = 0;
+	gbufferPsoDesc.DSVFormat = mDepthStencilFormat;
+	gbufferPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&gbufferPsoDesc, IID_PPV_ARGS(&mPSOs["drawGBuffer"])));
+
+	//
+	// PSO for gbuffer for skinned render items.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC skinnedGBufferPsoDesc = gbufferPsoDesc;
+	skinnedGBufferPsoDesc.InputLayout = { mSkinnedInputLayout.data(), static_cast<UINT>(mSkinnedInputLayout.size()) };
+	skinnedGBufferPsoDesc.VS = {
+		reinterpret_cast<BYTE*>(mShaders["skinnedGBufferVS"]->GetBufferPointer()),
+		mShaders["skinnedGBufferVS"]->GetBufferSize()
+	};
+	ReturnIfFailed(
+		md3dDevice->CreateGraphicsPipelineState(&skinnedGBufferPsoDesc, IID_PPV_ARGS(&mPSOs["drawSkinnedGBuffer"]))
+	);
+
+	//
+	// PSO for drawing screen using gbuffer.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferScreenPsoDesc = opaquePsoDesc;
+	gbufferScreenPsoDesc.pRootSignature = mRootSignature.Get();
+	gbufferScreenPsoDesc.VS = {
+		reinterpret_cast<BYTE*>(mShaders["defaultGBufferVS"]->GetBufferPointer()),
+		mShaders["defaultGBufferVS"]->GetBufferSize()
+	};
+	gbufferScreenPsoDesc.PS = {
+		reinterpret_cast<BYTE*>(mShaders["defaultGBufferPS"]->GetBufferPointer()),
+		mShaders["defaultGBufferPS"]->GetBufferSize()
+	};
+	gbufferScreenPsoDesc.DepthStencilState.DepthEnable = false;
+	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&gbufferScreenPsoDesc, IID_PPV_ARGS(&mPSOs["gbufferScreen"])));
 
 	return GameResult(S_OK);
 }
@@ -2471,9 +2682,9 @@ GameResult DxRenderer::BuildFrameResources() {
 }
 
 void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems) {
-	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
-	auto objectCB = mCurrFrameResource->mObjectCB->Resource();
+	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
 
 	// For each render item...
 	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
@@ -2492,23 +2703,23 @@ void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GV
 }
 
 void DxRenderer::DrawSceneToShadowMap() {
-	mCommandList->RSSetViewports(1, &mShadowMap->Viewport());
-	mCommandList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
+	mCommandList->RSSetViewports(1, &mShadowMap.Viewport());
+	mCommandList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
 
 	// Change to DEPTH_WRITE.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Clear the back buffer and depth buffer.
-	mCommandList->ClearDepthStencilView(mShadowMap->Dsv(),
+	mCommandList->ClearDepthStencilView(mShadowMap.Dsv(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	mCommandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+	mCommandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap.Dsv());
 
 	// Bind the pass constant buffer for the shadow map pass.
-	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-	auto passCB = mCurrFrameResource->mPassCB->Resource();
+	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
 	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
 
@@ -2519,42 +2730,65 @@ void DxRenderer::DrawSceneToShadowMap() {
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
-void DxRenderer::DrawNormalsAndDepth() {
+void DxRenderer::DrawGBuffer() {
 	mCommandList->RSSetViewports(1, &mScreenViewport);
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	auto normalMap = mSsao->NormalMap();
-	auto normalMapRtv = mSsao->NormalMapRtv();
+	auto diffuseMap		= mGBuffer.GetDiffuseMap();
+	auto diffuseMapRtv	= mGBuffer.GetDiffuseMapRtv();
+	auto normalMap		= mGBuffer.GetNormalMap();
+	auto normalMapRtv	= mGBuffer.GetNormalMapRtv();
+	auto specMap		= mGBuffer.GetSpecularMap();
+	auto specMapRtv		= mGBuffer.GetSpecularMapRtv();
 
 	// Change to RENDER_TARGET.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		diffuseMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		normalMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		specMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the screen normal map and depth buffer.
-	float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
-	mCommandList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	{
+		float clearValue[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+		mCommandList->ClearRenderTargetView(diffuseMapRtv, clearValue, 0, nullptr);
+
+		clearValue[1] = 0.0f;
+		clearValue[2] = 1.0f;
+		clearValue[3] = 0.0f;
+		mCommandList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
+
+		clearValue[2] = 0.0f;
+		mCommandList->ClearRenderTargetView(specMapRtv, clearValue, 0, nullptr);
+	}
+	mCommandList->ClearDepthStencilView(
+		DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	mCommandList->OMSetRenderTargets(1, &normalMapRtv, true, &DepthStencilView());
+	mCommandList->OMSetRenderTargets(GBuffer::NumRenderTargets, &diffuseMapRtv, true, &DepthStencilView());
 
 	// Bind the constant buffer for this pass.
-	auto passCB = mCurrFrameResource->mPassCB->Resource();
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
 
-	mCommandList->SetPipelineState(mPSOs["drawNormals"].Get());
+	mCommandList->SetPipelineState(mPSOs["drawGBuffer"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
 
-	mCommandList->SetPipelineState(mPSOs["skinnedDrawNormals"].Get());
+	mCommandList->SetPipelineState(mPSOs["drawSkinnedGBuffer"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		diffuseMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		specMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DxRenderer::GetCpuSrv(int inIndex) const {

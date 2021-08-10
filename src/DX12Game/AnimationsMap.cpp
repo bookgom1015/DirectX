@@ -9,12 +9,10 @@ namespace {
 	const double InvLineSize = static_cast<double>(1.0 / LineSize);
 }
 
-AnimationsMap::AnimationsMap(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
+GameResult AnimationsMap::Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
 	md3dDevice = inDevice;
 	mCommandList = inCmdList;
-}
 
-GameResult AnimationsMap::Initialize() {
 	mAnimations.resize(LineSize * LineSize);
 
 	CheckGameResult(BuildResource());
@@ -22,7 +20,10 @@ GameResult AnimationsMap::Initialize() {
 	return GameResult(S_OK);
 }
 
-UINT AnimationsMap::AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves) {
+UINT AnimationsMap::AddAnimation(
+	const std::string& inClipName, 
+	const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves) {
+
 	size_t numFrames = inAnimCurves.size();
 	UINT ret = mCurrIndex;
 
@@ -127,8 +128,8 @@ GameResult AnimationsMap::BuildResource() {
 		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf())
-	));
+		IID_PPV_ARGS(mAnimsMapUploadBuffer.GetAddressOf()))
+	);
 
 	return GameResult(S_OK);
 }

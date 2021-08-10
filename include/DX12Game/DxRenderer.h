@@ -14,6 +14,7 @@
 #include "DX12Game/DxLowRenderer.h"
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
+#include "DX12Game/GBuffer.h"
 
 class Mesh;
 class Animation;
@@ -23,6 +24,7 @@ private:
 	enum RenderLayer : int {
 		Opaque = 0,
 		SkinnedOpaque,
+		Screen,
 		Skeleton,
 		Debug,
 		Sky,
@@ -80,14 +82,20 @@ private:
 	struct DescriptorHeapIndices {
 		UINT mSkyTexHeapIndex;
 		UINT mBlurSkyTexHeapIndex;
+		UINT mDiffuseMapHeapIndex;
+		UINT mNormalMapHeapIndex;
+		UINT mDepthMapHeapIndex;
+		UINT mSpecularMapHeapIndex;
 		UINT mShadowMapHeapIndex;
-		UINT mSsaoHeapIndexStart;
 		UINT mSsaoAmbientMapIndex;
 		UINT mAnimationsMapIndex;
-		UINT mNullCubeSrvIndex;
-		UINT mNullBlurCubeSrvIndex;
+		UINT mNullCubeSrvIndex1;
+		UINT mNullCubeSrvIndex2;
 		UINT mNullTexSrvIndex1;
 		UINT mNullTexSrvIndex2;
+		UINT mNullTexSrvIndex3;
+		UINT mNullTexSrvIndex4;
+		UINT mNullTexSrvIndex5;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -176,6 +184,11 @@ private:
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
 	GameResult BuildSsaoRootSignature();
+
+	void BuildDescriptorHeapIndices(UINT inOffset);
+	void BuildNullShaderResourceViews();
+	void BuildDescriptorsForEachHelperClass();
+
 	GameResult BuildDescriptorHeaps();
 	GameResult BuildShadersAndInputLayout();
 	GameResult BuildBasicGeometry();
@@ -186,10 +199,9 @@ private:
 
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
 
-	//* Builds draw command list for rendering shadow map(depth buffer texture).
 	void DrawSceneToShadowMap();
-	//* Builds draw command list for SSAO.
-	void DrawNormalsAndDepth();
+	//* Builds diffuse map, normal map and depth map.
+	void DrawGBuffer();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int inIndex) const;
@@ -239,8 +251,10 @@ private:
 	PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
 	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
-	std::unique_ptr<ShadowMap> mShadowMap;
-	std::unique_ptr<Ssao> mSsao;
+	GBuffer mGBuffer;
+	ShadowMap mShadowMap;
+	Ssao mSsao;
+	AnimationsMap mAnimsMap;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;
@@ -254,8 +268,6 @@ private:
 	GUnorderedMap<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
 	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToRitem;
 	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToSkeletonRitem;
-
-	std::unique_ptr<AnimationsMap> mAnimsMap;
 
 	// Variables for drawing text on the screen.
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;

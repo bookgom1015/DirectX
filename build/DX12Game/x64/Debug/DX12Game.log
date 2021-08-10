@@ -1,8 +1,8 @@
-﻿  VkLowRenderer.cpp
+﻿  DxRenderer.cpp
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe
-  F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmod64.dll
-  F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmodL64.dll
-  F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmodstudio64.dll
-  F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\fmodstudioL64.dll
-  F:\Visual Studio Projects\Window Projects\DirectX\\lib\dll\libfbxsdk.dll
+  F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmod.dll
+  F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmodL.dll
+  F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmodstudio.dll
+  F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmodstudioL.dll
+  F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\libfbxsdk.dll
   5 File(s) copied

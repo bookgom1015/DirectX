@@ -186,12 +186,19 @@ GameResult FrameResource::Initialize() {
 		)
 	);
 
-	mPassCB = std::make_unique<UploadBuffer<PassConstants>>(mDevice, mPassCount, true);
-	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(mDevice, mObjectCount, true);
-	mSsaoCB = std::make_unique<UploadBuffer<SsaoConstants>>(mDevice, 1, true);
-	mMaterialBuffer = std::make_unique<UploadBuffer<MaterialData>>(mDevice, mMaterialCount, false);
-	mInstanceIdxBuffer = std::make_unique<UploadBuffer<InstanceIdxData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
-	mInstanceBuffer = std::make_unique<UploadBuffer<InstanceData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
+	mPassCB.Initialize(mDevice, mPassCount, true);
+	mObjectCB.Initialize(mDevice, mObjectCount, true);
+	mSsaoCB.Initialize(mDevice, 1, true);
+	mMaterialBuffer.Initialize(mDevice, mMaterialCount, false);
+	mInstanceIdxBuffer.Initialize(mDevice, mObjectCount * mMaxInstanceCount, false);
+	mInstanceDataBuffer.Initialize(mDevice, mObjectCount * mMaxInstanceCount, false);
+
+	//mPassCB = std::make_unique<UploadBuffer<PassConstants>>(mDevice, mPassCount, true);
+	//mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(mDevice, mObjectCount, true);
+	//mSsaoCB = std::make_unique<UploadBuffer<SsaoConstants>>(mDevice, 1, true);
+	//mMaterialBuffer = std::make_unique<UploadBuffer<MaterialData>>(mDevice, mMaterialCount, false);
+	//mInstanceIdxBuffer = std::make_unique<UploadBuffer<InstanceIdxData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
+	//mInstanceBuffer = std::make_unique<UploadBuffer<InstanceData>>(mDevice, mObjectCount * mMaxInstanceCount, false);
 
 	return GameResult(S_OK);
 }

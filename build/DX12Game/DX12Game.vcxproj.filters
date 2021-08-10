@@ -93,9 +93,6 @@
     <ClCompile Include="..\..\src\DX12Game\InputSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\MeshComponent.cpp">
       <Filter>Source Files\Mesh</Filter>
     </ClCompile>
@@ -177,13 +174,16 @@
     <ClCompile Include="..\..\src\DX12Game\Renderer.cpp">
       <Filter>Source Files\Render</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\GBuffer.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\d3dUtil.h">
-      <Filter>Common Files\Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\d3dx12.h">
       <Filter>Common Files\Public</Filter>
@@ -195,12 +195,6 @@
       <Filter>Common Files\Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\MathHelper.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\UploadBuffer.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\Utilities.h">
       <Filter>Common Files\Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\InputSystem.h">
@@ -293,6 +287,15 @@
     <ClInclude Include="..\..\include\DX12Game\Renderer.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\GBuffer.h">
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\D3D12Util.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\GameUploadBuffer.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -339,6 +342,15 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\..\Assets\Shaders\Waves.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\include\DX12Game\GameUploadBuffer.inl">
+      <Filter>Inline Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DefaultUsingGBuffer.hlsl">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

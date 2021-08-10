@@ -109,6 +109,7 @@ private:
 	static GameWorld* sWorld;
 
 	bool bIsCleaned = false;
+	bool bFinishedInit = false;
 
 #ifdef UsingVulkan
 	GLFWwindow* mMainGLFWWindow;

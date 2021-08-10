@@ -17,8 +17,7 @@ enum class CubeMapFace : int {
 
 class ShadowMap {
 public:
-	ShadowMap(ID3D12Device* device,
-		UINT width, UINT height);
+	ShadowMap() = default;
 	virtual ~ShadowMap() = default;
 
 private:
@@ -28,7 +27,7 @@ private:
 	ShadowMap& operator=(ShadowMap&& rhs) = delete;
 
 public:
-	GameResult Initialize();
+	GameResult Initialize(ID3D12Device* inDevice, UINT inWidth, UINT inHeight);
 
 	UINT Width() const;
 	UINT Height() const;
@@ -44,7 +43,7 @@ public:
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
 
-	GameResult OnResize(UINT newWidth, UINT newHeight);
+	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
 private:
 	void BuildDescriptors();

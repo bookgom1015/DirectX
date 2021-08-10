@@ -216,9 +216,12 @@ GameResult DxLowRenderer::CreateSwapChain() {
 }
 
 GameResult DxLowRenderer::OnResize() {
-	assert(md3dDevice);
-	assert(mSwapChain);
-	assert(mDirectCmdListAlloc);
+	if (!md3dDevice)
+		ReturnGameResult(S_FALSE, L"ID3D12Device does not exist");
+	if (!mSwapChain)
+		ReturnGameResult(S_FALSE, L"IDXGISwapChain does not exist");
+	if (!mDirectCmdListAlloc)
+		ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator does not exist");
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
