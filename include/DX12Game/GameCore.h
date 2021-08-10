@@ -90,7 +90,7 @@ public:
 	#define ReturnGameResult(__status, __message)										\
 	{																					\
 		std::wstringstream __wsstream_RGR;												\
-		__wsstream_RGR << L"[HRESULT: 0x" << std::hex << __status << L"] "				\
+		__wsstream_RGR << L"[HRESULT: 0x" << std::hex << __status << L"] " << std::dec	\
 			<< __FILE__ << L"; line: " << __LINE__ << L"; " << __message << std::endl;	\
 		return GameResult(__status, __wsstream_RGR.str());								\
 	}

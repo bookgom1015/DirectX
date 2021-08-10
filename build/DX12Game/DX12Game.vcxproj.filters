@@ -347,5 +347,11 @@
     <None Include="..\..\include\DX12Game\GameUploadBuffer.inl">
       <Filter>Inline Files</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\DefaultUsingGBuffer.hlsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

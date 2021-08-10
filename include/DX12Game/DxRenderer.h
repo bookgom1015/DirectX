@@ -24,6 +24,7 @@ private:
 	enum RenderLayer : int {
 		Opaque = 0,
 		SkinnedOpaque,
+		Screen,
 		Skeleton,
 		Debug,
 		Sky,
@@ -84,6 +85,7 @@ private:
 		UINT mDiffuseMapHeapIndex;
 		UINT mNormalMapHeapIndex;
 		UINT mDepthMapHeapIndex;
+		UINT mSpecularMapHeapIndex;
 		UINT mShadowMapHeapIndex;
 		UINT mSsaoAmbientMapIndex;
 		UINT mAnimationsMapIndex;
@@ -197,10 +199,9 @@ private:
 
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
 
-	//* Builds draw command list for rendering shadow map(depth buffer texture).
 	void DrawSceneToShadowMap();
-	//* Builds draw command list for SSAO.
-	void DrawNormalsAndDepth();
+	//* Builds diffuse map, normal map and depth map.
+	void DrawGBuffer();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int inIndex) const;

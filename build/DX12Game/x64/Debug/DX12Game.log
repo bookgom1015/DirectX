@@ -1,7 +1,4 @@
-﻿  AnimationsMap.cpp
-  D3D12Util.cpp
-  GBuffer.cpp
-  Generating Code...
+﻿  DxRenderer.cpp
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmod.dll
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmodL.dll

@@ -6,7 +6,8 @@ GameResult GBuffer::Initialize(
 	UINT inClientHeight,
 	DXGI_FORMAT inDiffuseMapFormat,
 	DXGI_FORMAT inNormalMapFormat,
-	DXGI_FORMAT inDepthMapFormat) {
+	DXGI_FORMAT inDepthMapFormat,
+	DXGI_FORMAT inSpecularMapFormat) {
 
 	md3dDevice = inDevice;
 
@@ -16,6 +17,7 @@ GameResult GBuffer::Initialize(
 	mDiffuseMapFormat = inDiffuseMapFormat;
 	mNormalMapFormat = inNormalMapFormat;
 	mDepthMapFormat = inDepthMapFormat;
+	mSpecularMapFormat = inSpecularMapFormat;
 
 	CheckGameResult(BuildResources());
 
@@ -40,6 +42,10 @@ void GBuffer::BuildDescriptors(
 
 	mhDepthMapCpuSrv = hCpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
 	mhDepthMapGpuSrv = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+
+	mhSpecularMapCpuSrv = hCpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+	mhSpecularMapGpuSrv = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
+	mhSpecularMapCpuRtv = hCpuRtv.Offset(1, inRtvDescriptorSize);
 
 	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
 	mRtvDescriptorSize = inRtvDescriptorSize;
@@ -86,6 +92,18 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetDepthMapSrv() const {
 	return mhDepthMapGpuSrv;
 }
 
+ID3D12Resource* GBuffer::GetSpecularMap() {
+	return mSpecularMap.Get();
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE GBuffer::GetSpecularMapSrv() const {
+	return mhSpecularMapGpuSrv;
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE GBuffer::GetSpecularMapRtv() const {
+	return mhSpecularMapCpuRtv;
+}
+
 DXGI_FORMAT GBuffer::GetDiffuseMapFormat() const {
 	return mDiffuseMapFormat;
 }
@@ -96,6 +114,10 @@ DXGI_FORMAT GBuffer::GetNormalMapFormat() const {
 
 DXGI_FORMAT GBuffer::GetDepthMapFormat() const {
 	return mDepthMapFormat;
+}
+
+DXGI_FORMAT GBuffer::GetSpecularMapFormat() const {
+	return mSpecularMapFormat;
 }
 
 GameResult GBuffer::BuildResources() {
@@ -152,6 +174,25 @@ GameResult GBuffer::BuildResources() {
 		)
 	);
 
+	//
+	// Create resource for specular map.
+	//
+	rscDesc.Format = mSpecularMapFormat;
+
+	float specClearColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	optClear = CD3DX12_CLEAR_VALUE(mSpecularMapFormat, specClearColor);
+
+	ReturnIfFailed(
+		md3dDevice->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&rscDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			&optClear,
+			IID_PPV_ARGS(mSpecularMap.GetAddressOf())
+		)
+	);
+
 	return GameResult(S_OK);
 }
 
@@ -202,4 +243,18 @@ void GBuffer::BuildGBuffer(ID3D12Resource* inDepthStencilBuffer) {
 	srvDesc.Format = mDepthMapFormat;
 
 	md3dDevice->CreateShaderResourceView(inDepthStencilBuffer, &srvDesc, mhDepthMapCpuSrv);
+
+	//
+	// Create shader resource view for normal map.
+	//
+	srvDesc.Format = mSpecularMapFormat;
+
+	md3dDevice->CreateShaderResourceView(mSpecularMap.Get(), &srvDesc, mhSpecularMapCpuSrv);
+
+	//
+	// Create render target view for normal map.
+	//
+	rtvDesc.Format = mSpecularMapFormat;
+
+	md3dDevice->CreateRenderTargetView(mSpecularMap.Get(), &rtvDesc, mhSpecularMapCpuRtv);
 }

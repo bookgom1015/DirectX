@@ -53,14 +53,15 @@ TextureCube gBlurCubeMap						: register(t1);
 Texture2D gDiffuseMap							: register(t2);
 Texture2D gNormalMap							: register(t3);
 Texture2D gDepthMap								: register(t4);
-Texture2D gShadowMap							: register(t5);
-Texture2D gSsaoMap								: register(t6);
+Texture2D gSpecularMap							: register(t5);
+Texture2D gShadowMap							: register(t6);
+Texture2D gSsaoMap								: register(t7);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D gTextureMaps[64]						: register(t7);
+Texture2D gTextureMaps[64]						: register(t8);
 
-Texture2D gAnimationsDataMap					: register(t71);
+Texture2D gAnimationsDataMap					: register(t72);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
@@ -75,6 +76,7 @@ SamplerState gsamLinearClamp					: register(s3);
 SamplerState gsamAnisotropicWrap				: register(s4);
 SamplerState gsamAnisotropicClamp				: register(s5);
 SamplerComparisonState gsamShadow				: register(s6);
+SamplerState gsamDepthMap						: register(s7);
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0) {
@@ -186,7 +188,7 @@ float CalcShadowFactor(float4 shadowPosH) {
 	}
 
 	return percentLit / 9.0f;
-#endif
+#endif // defined(BLUR_RADIUS_2)
 }
 
 //---------------------------------------------------------------------------------------
@@ -216,4 +218,10 @@ float3 BoxCubeMapLookup(float3 rayOrigin, float3 unitRayDir, float3 boxCenter, f
 	return p + t * unitRayDir;
 }
 
-#endif
+float NdcDepthToViewDepth(float z_ndc) {
+	// z_ndc = A + B/viewZ, where gProj[2,2]=A and gProj[3,2]=B.
+	float viewZ = gProj[3][2] / (z_ndc - gProj[2][2]);
+	return viewZ;
+}
+
+#endif // __COMMON_HLSL__

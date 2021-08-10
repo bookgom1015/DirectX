@@ -47,8 +47,6 @@ struct VertexOut {
 	nointerpolation uint MatIndex	: MATINDEX;
 };
 
-VertexIn TransformUsingSkinnedData(VertexIn vin);
-
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f;
 
@@ -200,8 +198,7 @@ float4 PS(VertexOut pin) : SV_Target{
 	shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 	const float shininess = (1.0f - roughness) * normalMapSample.a;
 	Material mat = { diffuseAlbedo, fresnelR0, shininess };
-	float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
-		bumpedNormalW, toEyeW, shadowFactor);
+	float4 directLight = ComputeLighting(gLights, mat, pin.PosW, bumpedNormalW, toEyeW, shadowFactor);
 
 	float4 litColor = ambient + directLight;
 

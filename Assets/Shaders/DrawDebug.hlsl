@@ -43,15 +43,15 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 
 float4 PS(VertexOut pin) : SV_Target{
 	if (pin.InstID == 0)
-		return float4(gShadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+		return gDiffuseMap.Sample(gsamLinearWrap, pin.TexC);
 	else if (pin.InstID == 1)
-		return float4(gSsaoMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+		return gNormalMap.Sample(gsamLinearWrap, pin.TexC);
 	else if (pin.InstID == 2)
-		return gDiffuseMap.Sample(gsamLinearWrap, pin.TexC).rgba;
-	else if (pin.InstID == 3)
-		return gNormalMap.Sample(gsamLinearWrap, pin.TexC).rgba;
-	else if (pin.InstID == 4)
 		return float4(gDepthMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+	else if (pin.InstID == 3)
+		return float4(gSpecularMap.Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
+	else if (pin.InstID == 4)
+		return float4(gSsaoMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	else
 		return float4(0.0f, 0.0f, 0.0f, 1.0f);
 }

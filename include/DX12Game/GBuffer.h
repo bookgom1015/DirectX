@@ -20,7 +20,8 @@ public:
 		UINT inClientHeight,
 		DXGI_FORMAT inDiffuseMapFormat,
 		DXGI_FORMAT inNormalMapFormat,
-		DXGI_FORMAT inDepthMapFormat);
+		DXGI_FORMAT inDepthMapFormat,
+		DXGI_FORMAT inSpecularMapFormat);
 
 	void BuildDescriptors(
 		ID3D12Resource* inDepthStencilBuffer,
@@ -42,23 +43,33 @@ public:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetDepthMapSrv() const;
 
+	ID3D12Resource* GetSpecularMap();
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetSpecularMapSrv() const;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE GetSpecularMapRtv() const;
+
 	DXGI_FORMAT GetDiffuseMapFormat() const;
 	DXGI_FORMAT GetNormalMapFormat() const;
 	DXGI_FORMAT GetDepthMapFormat() const;
+	DXGI_FORMAT GetSpecularMapFormat() const;
 
 private:
 	GameResult BuildResources();
 	void BuildGBuffer(ID3D12Resource* inDepthStencilBuffer);
+
+public:
+	static const UINT NumRenderTargets = 3;
 
 private:
 	ID3D12Device* md3dDevice;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDiffuseMap = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mNormalMap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> mSpecularMap = nullptr;
 
 	DXGI_FORMAT mDiffuseMapFormat;
 	DXGI_FORMAT mNormalMapFormat;
 	DXGI_FORMAT mDepthMapFormat;
+	DXGI_FORMAT mSpecularMapFormat;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDiffuseMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDiffuseMapGpuSrv;
@@ -70,6 +81,10 @@ private:
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhSpecularMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhSpecularMapGpuSrv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhSpecularMapCpuRtv;
 
 	UINT mCbvSrvUavDescriptorSize;
 	UINT mRtvDescriptorSize;
