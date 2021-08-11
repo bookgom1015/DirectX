@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Common Files">
+      <UniqueIdentifier>{b9ce027e-45cd-44fa-9570-c7a6a77f6856}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Public">
+      <UniqueIdentifier>{0841622d-3685-4d2b-8a09-70ef0581077b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Private">
+      <UniqueIdentifier>{c420692f-0e0a-4cc9-88c1-636d530a257e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\DX12Game">
+      <UniqueIdentifier>{d2d637e9-198e-43e6-93c3-54c8cbf88508}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\common\Camera.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dUtil.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dx12.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GameTimer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\MathHelper.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\UploadBuffer.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\Utilities.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\LowRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\common\Camera.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GameTimer.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\Application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\LowRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
+      <Filter>Source Files\DX12Game</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

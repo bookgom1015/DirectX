@@ -13,7 +13,7 @@ TpsActor::TpsActor()
 	mRunningSpeed(8.0f),
 	mMaxElevation(0.85f),
 	mMinElevation(-0.85f),	
-	mCameraMaxDistance(50.0f),
+	mCameraMaxDistance(5.0f),
 	mCameraCurrDistance(3.0f),
 	mCameraMinDistance(1.0f),
 	mCameraPosY(2.0f),

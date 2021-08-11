@@ -2755,7 +2755,7 @@ void DxRenderer::DrawGBuffer() {
 
 	// Clear the screen normal map and depth buffer.
 	{
-		float clearValue[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+		float clearValue[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 		mCommandList->ClearRenderTargetView(diffuseMapRtv, clearValue, 0, nullptr);
 
 		clearValue[1] = 0.0f;
