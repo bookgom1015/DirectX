@@ -32,7 +32,7 @@ InstanceData::InstanceData(
 	mAnimClipIndex = inAnimClipIndex;
 	mRenderState = inRenderState;
 
-	SetNumFramesDirty(gNumFrameResources);
+	SetFramesDirty(gNumFrameResources);
 }
 
 void InstanceData::SetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
@@ -53,19 +53,24 @@ bool InstanceData::IsUnmatched(UINT inRenderState, EInstanceRenderState inTarget
 
 namespace {
 	const UINT BitShift = 16;
-	const UINT DecreaseOne = 1 << BitShift;
+	const UINT DecreaseOne = (1 << BitShift);
 }
 
-UINT InstanceData::GetNumFramesDirty() const {
-	return (mRenderState >> BitShift);
+bool InstanceData::CheckFrameDirty(UINT inIndex) const {
+	return ((mRenderState >> BitShift) & (1 << inIndex)) != 0;
 }
 
-void InstanceData::SetNumFramesDirty(UINT inNum) {
-	mRenderState |= (inNum << BitShift);
+void InstanceData::SetFramesDirty(UINT inNum) {
+	UINT num = 1;
+
+	for (UINT i = 1; i < inNum; ++i)
+		num |= 1 << i;
+
+	mRenderState |= (num << BitShift);
 }
 
-void InstanceData::DecreaseNumFramesDirty() {
-	mRenderState -= DecreaseOne;
+void InstanceData::UnsetFrameDirty(UINT inIndex) {
+	mRenderState &= ~((1 << inIndex) << BitShift);
 }
 
 PassConstants::PassConstants() {

@@ -62,7 +62,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 		)
 	);
 
-	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 4096, 4096));
+	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 8096, 8096));
 
 	CheckGameResult(
 		mSsao.Initialize(
@@ -154,6 +154,7 @@ GameResult DxRenderer::Update(const GameTimer& gt) {
 	CheckGameResult(UpdateMainPassCB(gt));
 	CheckGameResult(UpdateShadowPassCB(gt));
 	CheckGameResult(UpdateSsaoCB(gt));
+	CheckGameResult(UpdateBlendingRenderItems(gt));
 
 	GVector<std::string> textsToRemove;
 	for (auto& text : mOutputTexts) {
@@ -283,9 +284,10 @@ GameResult DxRenderer::Draw(const GameTimer& gt) {
 
 	mCommandList->SetPipelineState(mPSOs["gbufferScreen"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Screen]);
+
 	//mCommandList->SetPipelineState(mPSOs["opaque"].Get());
 	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
-	//
+	
 	//mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
 	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
 
@@ -366,7 +368,7 @@ void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
 				auto& inst = ritem->mInstances[mInstancesIndex[inRenderItemName]];
 
 				XMStoreFloat4x4(&inst.mWorld, inTransform);
-				inst.SetNumFramesDirty(gNumFrameResources);
+				inst.SetFramesDirty(gNumFrameResources);
 			}
 		}
 
@@ -379,7 +381,7 @@ void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
 					auto& inst = ritem->mInstances[mInstancesIndex[name]];
 
 					XMStoreFloat4x4(&inst.mWorld, inTransform);
-					inst.SetNumFramesDirty(gNumFrameResources);
+					inst.SetFramesDirty(gNumFrameResources);
 				}
 			}
 		}
@@ -398,7 +400,7 @@ void DxRenderer::UpdateInstanceAnimationData(const std::string& inRenderItemName
 					inst.mAnimClipIndex = inAnimClipIdx == -1 ?
 						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap.GetInvLineSize());
 					inst.mTimePos = inTimePos;
-					inst.SetNumFramesDirty(gNumFrameResources);
+					inst.SetFramesDirty(gNumFrameResources);
 				}
 			}
 		}
@@ -414,7 +416,7 @@ void DxRenderer::UpdateInstanceAnimationData(const std::string& inRenderItemName
 					inst.mAnimClipIndex = inAnimClipIdx == -1 ?
 						-1 : static_cast<UINT>(inAnimClipIdx * mAnimsMap.GetInvLineSize());
 					inst.mTimePos = inTimePos;
-					inst.SetNumFramesDirty(gNumFrameResources);
+					inst.SetFramesDirty(gNumFrameResources);
 				}
 			}
 		}
@@ -741,7 +743,8 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 			ritem->mIndexCount = ritem->mGeo->DrawArgs[drawArgs[i]].IndexCount;
 			ritem->mStartIndexLocation = ritem->mGeo->DrawArgs[drawArgs[i]].StartIndexLocation;
 			ritem->mBaseVertexLocation = ritem->mGeo->DrawArgs[drawArgs[i]].BaseVertexLocation;
-			ritem->mAABB = ritem->mGeo->DrawArgs[drawArgs[i]].AABB;
+			ritem->mBoundType = BoundType::AABB;
+			ritem->mBoundingUnion.mAABB = ritem->mGeo->DrawArgs[drawArgs[i]].AABB;
 
 			if (inMesh->GetIsSkeletal())
 				mRitemLayer[RenderLayer::SkinnedOpaque].push_back(ritem.get());
@@ -1216,6 +1219,21 @@ GameResult DxRenderer::AnimateMaterials(const GameTimer& gt) {
 	return GameResult(S_OK);
 }
 
+bool DxRenderer::IsContained(
+	BoundType inType, 
+	const RenderItem::BoundingStruct& inBound,
+	const BoundingFrustum& inFrustum) {
+
+	if (inType == BoundType::AABB)
+		return (inFrustum.Contains(inBound.mAABB) != DirectX::DISJOINT);
+	else if (inType == BoundType::OBB)
+		return (inFrustum.Contains(inBound.mOBB) != DirectX::DISJOINT);
+	else if (inType == BoundType::Sphere)
+		return (inFrustum.Contains(inBound.mSphere) != DirectX::DISJOINT);
+	else
+		return false;
+}
+
 GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
@@ -1249,7 +1267,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 
 			if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
 				InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
-				(localSpaceFrustum.Contains(e->mAABB) != DirectX::DISJOINT)) {
+				IsContained(e->mBoundType, e->mBoundingUnion, localSpaceFrustum)) {
 
 				UINT instIdx = index + iterIdx;
 
@@ -1260,7 +1278,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 
 				// Only update the cbuffer data if the constants have changed.
 				// This needs to be tracked per frame resource.
-				if (i.GetNumFramesDirty() > 0) {
+				if (i.CheckFrameDirty(mCurrFrameResourceIndex)) {
 					InstanceData instData;
 					XMStoreFloat4x4(&instData.mWorld, XMMatrixTranspose(world));
 					XMStoreFloat4x4(&instData.mTexTransform, XMMatrixTranspose(texTransform));
@@ -1271,7 +1289,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
 					currInstBuffer.CopyData(instIdx, instData);
 
 					// Next FrameResource need to be updated too.
-					i.DecreaseNumFramesDirty();
+					i.UnsetFrameDirty(mCurrFrameResourceIndex);
 				}
 
 				++offset;
@@ -1503,6 +1521,13 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
 
 	auto& currSsaoCB = mCurrFrameResource->mSsaoCB;
 	currSsaoCB.CopyData(0, ssaoCB);
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::UpdateBlendingRenderItems(const GameTimer& gt) {
+	auto& opaque = mRitemLayer[RenderLayer::Opaque];
+	auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
 
 	return GameResult(S_OK);
 }
@@ -1950,7 +1975,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 GameResult DxRenderer::BuildShadersAndInputLayout() {
 	const D3D_SHADER_MACRO alphaTestDefines[] = {
 		"ALPHA_TEST", "1",
-		"BLUR_RADIUS_2", "1",
+		"BLUR_RADIUS_3", "1",
 		NULL, NULL
 	};
 
@@ -1961,9 +1986,9 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 
 	{
 		std::wstring defaulthlsl = ShaderFileNamePrefix + L"Default.hlsl";
-		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, nullptr, "VS", "vs_5_1", mShaders["standardVS"]));
+		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, nullptr,			"VS", "vs_5_1", mShaders["standardVS"]));
 		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["opaquePS"]));
-		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedVS"]));
+		CheckGameResult(D3D12Util::CompileShader(defaulthlsl, skinnedDefines,	"VS", "vs_5_1", mShaders["skinnedVS"]));
 	}
 
 	{
@@ -2002,8 +2027,8 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 
 	{
 		std::wstring drawnormalhlsl = ShaderFileNamePrefix + L"DrawNormals.hlsl";
-		CheckGameResult(D3D12Util::CompileShader(
-			drawnormalhlsl, nullptr, "VS", "vs_5_1", mShaders["drawNormalsVS"])
+		CheckGameResult(
+			D3D12Util::CompileShader(drawnormalhlsl, nullptr, "VS", "vs_5_1", mShaders["drawNormalsVS"])
 		);
 		CheckGameResult(
 			D3D12Util::CompileShader(drawnormalhlsl, skinnedDefines, "VS", "vs_5_1", mShaders["skinnedDrawNormalsVS"])
@@ -2033,8 +2058,8 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 
 	{
 		std::wstring gbufferhlsl = ShaderFileNamePrefix + L"DrawGBuffer.hlsl";
-		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, nullptr, "VS", "vs_5_1", mShaders["gbufferVS"]));
-		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, nullptr, "PS", "ps_5_1", mShaders["gbufferPS"]));	
+		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, nullptr,			"VS", "vs_5_1", mShaders["gbufferVS"]));
+		CheckGameResult(D3D12Util::CompileShader(gbufferhlsl, alphaTestDefines, "PS", "ps_5_1", mShaders["gbufferPS"]));	
 	}
 
 	{
@@ -2290,7 +2315,7 @@ GameResult DxRenderer::BuildBasicMaterials() {
 	defaultMat->NormalSrvHeapIndex = 1;
 	defaultMat->SpecularSrvHeapIndex = -1;
 	defaultMat->DispSrvHeapIndex = -1;
-	defaultMat->DiffuseAlbedo = XMFLOAT4(0.5f, 0.5f, 0.5f, 0.5f);
+	defaultMat->DiffuseAlbedo = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
 	defaultMat->FresnelR0 = XMFLOAT3(0.5f, 0.5f, 0.5f);
 	defaultMat->Roughness = 0.5f;
 
@@ -2323,7 +2348,8 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	skyRitem->mIndexCount = skyRitem->mGeo->DrawArgs["sphere"].IndexCount;
 	skyRitem->mStartIndexLocation = skyRitem->mGeo->DrawArgs["sphere"].StartIndexLocation;
 	skyRitem->mBaseVertexLocation = skyRitem->mGeo->DrawArgs["sphere"].BaseVertexLocation;
-	skyRitem->mAABB = skyRitem->mGeo->DrawArgs["sphere"].AABB;
+	skyRitem->mBoundType = BoundType::AABB;
+	skyRitem->mBoundingUnion.mAABB = skyRitem->mGeo->DrawArgs["sphere"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
 	skyRitem->mInstances.emplace_back(
 		world,
@@ -2342,7 +2368,8 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	boxRitem->mIndexCount = boxRitem->mGeo->DrawArgs["box"].IndexCount;
 	boxRitem->mStartIndexLocation = boxRitem->mGeo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->mBaseVertexLocation = boxRitem->mGeo->DrawArgs["box"].BaseVertexLocation;
-	boxRitem->mAABB = boxRitem->mGeo->DrawArgs["box"].AABB;
+	boxRitem->mBoundType = BoundType::AABB;
+	boxRitem->mBoundingUnion.mAABB = boxRitem->mGeo->DrawArgs["box"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 	boxRitem->mInstances.emplace_back(
 		world,
@@ -2361,7 +2388,8 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
-	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
+	quadRitem->mBoundType = BoundType::AABB;
+	quadRitem->mBoundingUnion.mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
 	for (size_t i = 0; i < 5; ++i) {
 		quadRitem->mInstances.emplace_back(
 			MathHelper::Identity4x4(),
@@ -2383,7 +2411,8 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
-	quadRitem->mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
+	quadRitem->mBoundType = BoundType::AABB;
+	quadRitem->mBoundingUnion.mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
 	quadRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(),
@@ -2403,7 +2432,8 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	gridRitem->mIndexCount = gridRitem->mGeo->DrawArgs["grid"].IndexCount;
 	gridRitem->mStartIndexLocation = gridRitem->mGeo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->mBaseVertexLocation = gridRitem->mGeo->DrawArgs["grid"].BaseVertexLocation;
-	gridRitem->mAABB = gridRitem->mGeo->DrawArgs["grid"].AABB;
+	gridRitem->mBoundType = BoundType::AABB;
+	gridRitem->mBoundingUnion.mAABB = gridRitem->mGeo->DrawArgs["grid"].AABB;
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
@@ -2637,6 +2667,30 @@ GameResult DxRenderer::BuildPSOs() {
 	gbufferPsoDesc.DSVFormat = mDepthStencilFormat;
 	gbufferPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&gbufferPsoDesc, IID_PPV_ARGS(&mPSOs["drawGBuffer"])));
+
+	//
+	// PSO for drawing gbuffer with alpha blending.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferAlphaBledingPsoDesc = gbufferPsoDesc;
+	D3D12_RENDER_TARGET_BLEND_DESC gbufferBlendDesc;
+	gbufferBlendDesc.BlendEnable = true;
+	gbufferBlendDesc.LogicOpEnable = false;
+	gbufferBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	gbufferBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	gbufferBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	gbufferBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	gbufferBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	gbufferBlendDesc.SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+	gbufferBlendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	gbufferBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	gbufferAlphaBledingPsoDesc.BlendState.RenderTarget[0] = gbufferBlendDesc;
+	gbufferAlphaBledingPsoDesc.BlendState.RenderTarget[1] = gbufferBlendDesc;
+	gbufferAlphaBledingPsoDesc.BlendState.RenderTarget[2] = gbufferBlendDesc;
+	ReturnIfFailed(
+		md3dDevice->CreateGraphicsPipelineState(
+			&gbufferAlphaBledingPsoDesc, IID_PPV_ARGS(&mPSOs["drawGBufferAlphaBlending"])
+		)
+	);
 
 	//
 	// PSO for gbuffer for skinned render items.

@@ -67,7 +67,7 @@ float4 PS(VertexOut pin) : SV_Target{
 	float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
 
 	// Sample SSAO map.
-	float ambientAccess = gSsaoMap.Sample(gsamLinearClamp, pin.TexC, 0.0f).r;
+	float ambientAccess = gSsaoMap.Sample(gsamLinearWrap, pin.TexC, 0.0f).r;
 	
 	// Light terms. 
 	float4 ambient = ambientAccess * gAmbientLight * diffuseAlbedo;
@@ -77,10 +77,10 @@ float4 PS(VertexOut pin) : SV_Target{
 	float4 shadowPosH = mul(posW, gShadowTransform);
 	shadowFactor[0] = CalcShadowFactor(shadowPosH);
 
-	float4 normalMapSample = gNormalMap.Sample(gsamPointClamp, pin.TexC);
-	float3 normalW = normalMapSample.xyz;
+	float4 normalMapSample = gNormalMap.Sample(gsamAnisotropicWrap, pin.TexC);
+	float3 normalW = normalize(normalMapSample.xyz);
 
-	const float4 specMapSample = gSpecularMap.Sample(gsamLinearClamp, pin.TexC);
+	const float4 specMapSample = gSpecularMap.Sample(gsamLinearWrap, pin.TexC);
 
 	const float roughness = specMapSample.a;
 	const float shininess = (1.0f - roughness) * normalMapSample.a;

@@ -57,7 +57,7 @@ VertexOut VS(uint vid : SV_VertexID) {
     vout.TexC = gTexCoords[vid];
 
     // Quad covering screen in NDC space.
-    vout.PosH = float4(2.0f*vout.TexC.x - 1.0f, 1.0f - 2.0f*vout.TexC.y, 0.0f, 1.0f);
+    vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
  
     // Transform quad corners to view space near plane.
     float4 ph = mul(vout.PosH, gInvProj);
@@ -119,14 +119,14 @@ float4 PS(VertexOut pin) : SV_Target {
 
 	//
 	// Reconstruct full view space position (x,y,z).
-	// Find t such that p = t*pin.PosV.
-	// p.z = t*pin.PosV.z
+	// Find t such that p = t * pin.PosV.
+	// p.z = t * pin.PosV.z
 	// t = p.z / pin.PosV.z
 	//
-	float3 p = (pz/pin.PosV.z)*pin.PosV;
+	float3 p = (pz/pin.PosV.z) * pin.PosV;
 	
 	// Extract random vector and map from [0,1] --> [-1, +1].
-	float3 randVec = 2.0f*gRandomVecMap.SampleLevel(gsamLinearWrap, 4.0f*pin.TexC, 0.0f).rgb - 1.0f;
+	float3 randVec = 2.0f * gRandomVecMap.SampleLevel(gsamLinearWrap, 4.0f * pin.TexC, 0.0f).rgb - 1.0f;
 
 	float occlusionSum = 0.0f;
 	
@@ -155,8 +155,8 @@ float4 PS(VertexOut pin) : SV_Target {
         rz = NdcDepthToViewDepth(rz);
 
 		// Reconstruct full view space position r = (rx,ry,rz).  We know r
-		// lies on the ray of q, so there exists a t such that r = t*q.
-		// r.z = t*q.z ==> t = r.z / q.z
+		// lies on the ray of q, so there exists a t such that r = t * q.
+		// r.z = t * q.z ==> t = r.z / q.z
 
 		float3 r = (rz / q.z) * q;
 		
@@ -175,7 +175,7 @@ float4 PS(VertexOut pin) : SV_Target {
 		float distZ = p.z - r.z;
 		float dp = max(dot(n, normalize(r - p)), 0.0f);
 
-        float occlusion = dp*OcclusionFunction(distZ);
+        float occlusion = dp * OcclusionFunction(distZ);
 
 		occlusionSum += occlusion;
 	}

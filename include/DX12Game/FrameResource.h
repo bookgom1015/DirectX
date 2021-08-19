@@ -55,9 +55,9 @@ public:
 	static bool IsMatched(UINT inRenderState, EInstanceRenderState inTargetState);
 	static bool IsUnmatched(UINT inRenderState, EInstanceRenderState inTargetState);
 
-	UINT GetNumFramesDirty() const;
-	void SetNumFramesDirty(UINT inNum);
-	void DecreaseNumFramesDirty();
+	bool CheckFrameDirty(UINT inIndex) const;
+	void SetFramesDirty(UINT inNum);
+	void UnsetFrameDirty(UINT inIndex);
 };
 
 struct PassConstants {

@@ -33,6 +33,7 @@ struct VertexIn {
 
 struct VertexOut {
 	float4 PosH						: SV_POSITION;
+	float3 PosW						: POSITION;
 	float3 NormalW					: NORMAL;
 	float3 TangentW					: TANGENT;
 	float2 TexC						: TEXCOORD;
@@ -126,6 +127,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 
 	// Transform to homogeneous clip space.
 	float4 posW = mul(float4(vin.PosL, 1.0f), world);
+	vout.PosW = posW;
 	vout.PosH = mul(posW, gViewProj);
 
 	// Output vertex attributes for interpolation across triangle.
@@ -155,13 +157,13 @@ PixelOut PS(VertexOut pin) : SV_Target {
 	pin.NormalW = normalize(pin.NormalW);
 	uint normalMapIndex = matData.NormalMapIndex;
 	float4 normalMapSample = gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
+	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.xyz, pin.NormalW, pin.TangentW);
 
 	float3 fresnelR0 = matData.FresnelR0;
 	float  roughness = matData.Roughness;
 	int specularMapIndex = matData.SpecularMapIndex;
 	if (specularMapIndex != -1)
-		fresnelR0 = gTextureMaps[specularMapIndex].Sample(gsamAnisotropicWrap, pin.TexC).rgb;
+		fresnelR0 = gTextureMaps[specularMapIndex].Sample(gsamLinearWrap, pin.TexC).rgb;
 
 	// NOTE: We use interpolated vertex normal for SSAO.
 

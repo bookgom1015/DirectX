@@ -29,12 +29,12 @@ struct InstanceIdxData {
 };
 
 struct InstanceData {
-	float4x4 World;
-	float4x4 TexTransform;
-	float TimePos;
-	uint MaterialIndex;
-	int AnimClipIndex;
-	uint InstPad0;
+	float4x4	World;
+	float4x4	TexTransform;
+	float		TimePos;
+	uint		MaterialIndex;
+	int			AnimClipIndex;
+	uint		InstPad0;
 };
 
 struct MaterialData {
@@ -48,35 +48,35 @@ struct MaterialData {
 	int			DispMapIndex;
 };
 
-TextureCube gCubeMap							: register(t0);
-TextureCube gBlurCubeMap						: register(t1);
-Texture2D gDiffuseMap							: register(t2);
-Texture2D gNormalMap							: register(t3);
-Texture2D gDepthMap								: register(t4);
-Texture2D gSpecularMap							: register(t5);
-Texture2D gShadowMap							: register(t6);
-Texture2D gSsaoMap								: register(t7);
+TextureCube	gCubeMap								: register(t0);
+TextureCube	gBlurCubeMap							: register(t1);
+Texture2D	gDiffuseMap								: register(t2);
+Texture2D	gNormalMap								: register(t3);
+Texture2D	gDepthMap								: register(t4);
+Texture2D	gSpecularMap							: register(t5);
+Texture2D	gShadowMap								: register(t6);
+Texture2D	gSsaoMap								: register(t7);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D gTextureMaps[64]						: register(t8);
+Texture2D	gTextureMaps[64]						: register(t8);
 
-Texture2D gAnimationsDataMap					: register(t72);
+Texture2D	gAnimationsDataMap						: register(t72);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
-StructuredBuffer<InstanceIdxData> gInstIdxData	: register(t0, space1);
-StructuredBuffer<InstanceData> gInstanceData	: register(t1, space1);
-StructuredBuffer<MaterialData> gMaterialData	: register(t2, space1);
+StructuredBuffer<InstanceIdxData>	gInstIdxData	: register(t0, space1);
+StructuredBuffer<InstanceData>		gInstanceData	: register(t1, space1);
+StructuredBuffer<MaterialData>		gMaterialData	: register(t2, space1);
 
-SamplerState gsamPointWrap						: register(s0);
-SamplerState gsamPointClamp						: register(s1);
-SamplerState gsamLinearWrap						: register(s2);
-SamplerState gsamLinearClamp					: register(s3);
-SamplerState gsamAnisotropicWrap				: register(s4);
-SamplerState gsamAnisotropicClamp				: register(s5);
-SamplerComparisonState gsamShadow				: register(s6);
-SamplerState gsamDepthMap						: register(s7);
+SamplerState			gsamPointWrap				: register(s0);
+SamplerState			gsamPointClamp				: register(s1);
+SamplerState			gsamLinearWrap				: register(s2);
+SamplerState			gsamLinearClamp				: register(s3);
+SamplerState			gsamAnisotropicWrap			: register(s4);
+SamplerState			gsamAnisotropicClamp		: register(s5);
+SamplerComparisonState	gsamShadow					: register(s6);
+SamplerState			gsamDepthMap				: register(s7);
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0) {
@@ -88,23 +88,23 @@ cbuffer cbPerObject : register(b0) {
 
 // Constant data that varies per material.
 cbuffer cbPass : register(b1) {
-	float4x4 gView;
-	float4x4 gInvView;
-	float4x4 gProj;
-	float4x4 gInvProj;
-	float4x4 gViewProj;
-	float4x4 gInvViewProj;
-	float4x4 gViewProjTex;
-	float4x4 gShadowTransform;
-	float3 gEyePosW;
-	float cbPerObjectPad1;
-	float2 gRenderTargetSize;
-	float2 gInvRenderTargetSize;
-	float gNearZ;
-	float gFarZ;
-	float gTotalTime;
-	float gDeltaTime;
-	float4 gAmbientLight;
+	float4x4	gView;
+	float4x4	gInvView;
+	float4x4	gProj;
+	float4x4	gInvProj;
+	float4x4	gViewProj;
+	float4x4	gInvViewProj;
+	float4x4	gViewProjTex;
+	float4x4	gShadowTransform;
+	float3		gEyePosW;
+	float		cbPerObjectPad1;
+	float2		gRenderTargetSize;
+	float2		gInvRenderTargetSize;
+	float		gNearZ;
+	float		gFarZ;
+	float		gTotalTime;
+	float		gDeltaTime;
+	float4		gAmbientLight;
 
 	// Indices [0, NUM_DIR_LIGHTS) are directional lights;
 	// indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
@@ -155,10 +155,11 @@ float CalcShadowFactor(float4 shadowPosH) {
 
 	// Texel size.
 	float dx = 1.0f / (float)width;
-	float twodx = dx + dx;
 
 	float percentLit = 0.0f;
 #if defined(BLUR_RADIUS_2)
+	float twodx = dx + dx;
+
 	const float2 offsets[25] = {
 		float2(-twodx, -twodx), float2(-dx, -twodx), float2(0.0f, -twodx), float2(dx,  -twodx), float2(twodx,  -twodx),
 		float2(-twodx, -dx),    float2(-dx, -dx),    float2(0.0f, -dx),    float2(dx,  -dx),    float2(twodx,  -dx),
@@ -174,6 +175,27 @@ float CalcShadowFactor(float4 shadowPosH) {
 	}
 
 	return percentLit / 25.0f;
+#elif defined(BLUR_RADIUS_3)
+	float twodx = dx + dx;
+	float thrdx = dx + dx + dx;
+
+	const float2 offsets[49] = {
+		float2(-thrdx, -thrdx), float2(-twodx, -thrdx), float2(-dx, -thrdx), float2(0.0f, -thrdx), float2(dx,  -thrdx), float2(twodx,  -thrdx),	float2(thrdx, -thrdx),
+		float2(-thrdx, -twodx), float2(-twodx, -twodx),	float2(-dx, -twodx), float2(0.0f, -twodx), float2(dx,  -twodx), float2(twodx,  -twodx),	float2(thrdx, -twodx),
+		float2(-thrdx, -dx),	float2(-twodx, -dx),    float2(-dx, -dx),    float2(0.0f, -dx),    float2(dx,  -dx),    float2(twodx,  -dx),	float2(thrdx, -dx),
+		float2(-thrdx, 0.0f),	float2(-twodx, 0.0f),   float2(-dx, 0.0f),   float2(0.0f, 0.0f),   float2(dx, 0.0f),    float2(twodx,  0.0f),	float2(thrdx, 0.0f),
+		float2(-thrdx, dx),		float2(-twodx, dx),     float2(-dx, dx),     float2(0.0f, dx),     float2(dx,  dx),     float2(twodx,  dx),		float2(thrdx, dx),
+		float2(-thrdx, twodx),	float2(-twodx, twodx),  float2(-dx, twodx),  float2(0.0f, twodx),  float2(dx,  twodx),  float2(twodx,  twodx),	float2(thrdx, twodx),
+		float2(-thrdx, thrdx),	float2(-twodx, thrdx),  float2(-dx, thrdx),  float2(0.0f, thrdx),  float2(dx,  thrdx),  float2(twodx,  thrdx),	float2(thrdx, thrdx)
+	};
+
+	[unroll]
+	for (int i = 0; i < 49; ++i) {
+		percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
+			shadowPosH.xy + offsets[i], depth).r;
+	}
+
+	return percentLit / 49.0f;
 #else
 	const float2 offsets[9] = {
 		float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),

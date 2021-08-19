@@ -24,11 +24,19 @@ private:
 	enum RenderLayer : int {
 		Opaque = 0,
 		SkinnedOpaque,
+		OpaqueAlphaBlend,
+		SkinnedAlphaBlend,
 		Screen,
 		Skeleton,
 		Debug,
 		Sky,
 		Count
+	};
+
+	enum BoundType : int {
+		AABB = 0,
+		OBB,
+		Sphere
 	};
 
 	// Lightweight structure stores parameters to draw a shape.  This will
@@ -44,9 +52,12 @@ private:
 		// Primitive topology.
 		D3D12_PRIMITIVE_TOPOLOGY mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-		DirectX::BoundingBox mAABB;
-		DirectX::BoundingOrientedBox mOBB;
-		DirectX::BoundingSphere mSphere;
+		BoundType mBoundType;
+		struct BoundingStruct {
+			DirectX::BoundingBox mAABB;
+			DirectX::BoundingOrientedBox mOBB;
+			DirectX::BoundingSphere mSphere;
+		} mBoundingUnion;
 
 		GVector<InstanceData> mInstances;
 
@@ -174,12 +185,16 @@ private:
 	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
 	GameResult AnimateMaterials(const GameTimer& gt);
+
+	bool IsContained(BoundType inType,
+		const RenderItem::BoundingStruct& inBound, const DirectX::BoundingFrustum& inFrustum);
 	GameResult UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
 	GameResult UpdateMaterialBuffer(const GameTimer& gt);
 	GameResult UpdateShadowTransform(const GameTimer& gt);
 	GameResult UpdateMainPassCB(const GameTimer& gt);
 	GameResult UpdateShadowPassCB(const GameTimer& gt);
 	GameResult UpdateSsaoCB(const GameTimer& gt);
+	GameResult UpdateBlendingRenderItems(const GameTimer& gt);
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
@@ -233,7 +248,7 @@ private:
 	GVector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	GVector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
+	GVector<RenderItem*> mRitemLayer[RenderLayer::Count];
 
 	GUnorderedMap<std::string, UINT> mDiffuseSrvHeapIndices;
 	GUnorderedMap<std::string, UINT> mNormalSrvHeapIndices;
