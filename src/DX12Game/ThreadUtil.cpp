@@ -5,6 +5,41 @@ HANDLE ThreadUtil::mhLogFile = CreateFile(L"./tlog.txt",
 
 std::mutex ThreadUtil::mLogFileMutex;
 
+bool ThreadUtil::GetProcessorCount(UINT& outCount, bool inLogic) {
+	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = nullptr;
+	DWORD returnLength = 0;
+
+	if (!GetProcessorInformation(buffer, returnLength))
+		return false;
+
+	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = nullptr;
+	unsigned processorCount = 0;
+	unsigned logicalProcessorCount = 0;
+
+	if (buffer != nullptr) {
+		ptr = buffer;
+		DWORD byteOffset = 0;
+
+		while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
+			switch (ptr->Relationship) {
+			case RelationProcessorCore:
+				++processorCount;
+
+				logicalProcessorCount += CountSetBits(ptr->ProcessorMask);
+			}
+
+			byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+			++ptr;
+		}
+	}
+
+	std::free(buffer);
+
+	outCount = inLogic ? logicalProcessorCount : processorCount;
+
+	return true;
+};
+
 void ThreadUtil::TLogFunc(const std::string& text) {
 	std::wstring wstr;
 	wstr.assign(text.begin(), text.end());
@@ -39,6 +74,63 @@ void ThreadUtil::TLogFunc(const std::wstring& text) {
 	mLogFileMutex.unlock();
 }
 
+DWORD ThreadUtil::CountSetBits(ULONG_PTR bitMask) {
+	DWORD LSHIFT = sizeof(ULONG_PTR) * 8 - 1;
+	DWORD bitSetCount = 0;
+	ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
+	DWORD i;
+
+	for (i = 0; i <= LSHIFT; ++i) {
+		bitSetCount += ((bitMask & bitTest) ? 1 : 0);
+		bitTest /= 2;
+	}
+
+	return bitSetCount;
+}
+
+bool ThreadUtil::GetProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION& outBuffer, DWORD& outReturnLength) {
+	LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(
+		GetModuleHandle(TEXT("kernel32")),
+		"GetLogicalProcessorInformation"
+	);
+
+	if (glpi == NULL) {
+		WErrln(L"GetLogicalProcessorInformation is not supported");
+		return false;
+	}
+
+	BOOL bDone = false;
+
+	do {
+		DWORD rc = glpi(outBuffer, &outReturnLength);
+
+		if (FALSE == rc) {
+			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				if (outBuffer != nullptr)
+					std::free(outBuffer);
+
+				outBuffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)std::malloc(outReturnLength);
+
+				if (outBuffer == nullptr) {
+					WErrln(L"Allocation failure");
+					return false;
+				}
+			}
+			else {
+				std::wstringstream wsstream;
+				wsstream << GetLastError();
+				WErrln(wsstream.str());
+				return false;
+			}
+		}
+		else {
+			bDone = TRUE;
+		}
+	} while (!bDone);
+
+	return true;
+}
+
 TaskTimer::TaskTimer() {
 	__int64 countsPerSec;
 	mSecondsPerCount = QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&countsPerSec));
@@ -69,6 +161,10 @@ float TaskTimer::GetElapsedTime() const {
 
 CVBarrier::CVBarrier(UINT inCount)
 	: mInitCount(inCount), mCurrCount(inCount), mGeneration(0) {}
+
+CVBarrier::~CVBarrier() {
+	WakeUp();
+}
 
 void CVBarrier::Wait() {
 	std::unique_lock<std::mutex> ulock(mMutex);

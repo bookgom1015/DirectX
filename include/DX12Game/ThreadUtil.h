@@ -1,10 +1,11 @@
 #pragma once
 
+#include "DX12Game/StringUtil.h"
+
 #include <atomic>
-#include <mutex>
+#include <functional>
 #include <queue>
-#include <sstream>
-#include <Windows.h>
+#include <string>
 
 #ifndef TLog
 	#define TLog(x, ...)												\
@@ -69,6 +70,9 @@
 #endif
 
 class ThreadUtil {
+private:
+	typedef BOOL(WINAPI *LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+
 public:
 	// PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
 	// PROCESSOR_ARCHITECTURE_ARM		- ARM
@@ -97,8 +101,16 @@ public:
 		return sysInfo.dwNumberOfProcessors;
 	}
 
+	static bool GetProcessorCount(UINT& outCount, bool inLogic = false);
+
 	static void TLogFunc(const std::string& text);
 	static void TLogFunc(const std::wstring& text);
+
+private:
+	// Helper function to count set bits in the processor mask.
+	static DWORD CountSetBits(ULONG_PTR bitMask);
+
+	static bool GetProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION& outBuffer, DWORD& outReturnLength);
 
 private:
 	static HANDLE mhLogFile;
@@ -135,7 +147,7 @@ protected:
 class CVBarrier : public ThreadBarrier{
 public:
 	CVBarrier(UINT inCount);
-	virtual ~CVBarrier() = default;
+	virtual ~CVBarrier();
 
 private:
 	CVBarrier(const CVBarrier& ref) = delete;

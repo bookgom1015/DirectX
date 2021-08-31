@@ -52,7 +52,7 @@ VkLowRenderer::~VkLowRenderer() {
 		CleanUp();
 }
 
-GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight) {
+GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	mMainWindow = inMainWnd;
 	mClientWidth = inClientWidth;
 	mClientHeight = inClientHeight;
@@ -140,7 +140,7 @@ GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<ch
 	return GameResult(S_OK);
 }
 
-GameResult VkLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) {
+GameResult VkLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	// Do nothing.
 	// This is for D3D12.
 

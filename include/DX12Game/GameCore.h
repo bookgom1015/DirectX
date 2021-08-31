@@ -58,7 +58,6 @@ const int gNumFrameResources = 3;
 
 #include "DX12Game/ContainerUtil.h"
 #include "DX12Game/GameTimer.h"
-#include "DX12Game/StringUtil.h"
 #include "DX12Game/ThreadUtil.h"
 
 struct GameResult {
@@ -116,6 +115,20 @@ public:
 			ReturnGameResult(__hr, __wsstream_RIF.str());										\
 		}																						\
 	}
+#endif
+
+#ifndef SyncHost
+	#ifdef MT_World
+		#define SyncHost(__pBarrier)										\
+		{																	\
+			if (__pBarrier != nullptr)										\
+				__pBarrier->Wait();											\
+			else															\
+				ReturnGameResult(S_FALSE, L#__pBarrier L" is nullptr");		\
+		}
+	#else
+		// Do nothing.
+	#endif
 #endif
 
 #include "DX12Game/D3D12Util.h"

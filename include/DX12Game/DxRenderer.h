@@ -107,6 +107,7 @@ private:
 		UINT mNullTexSrvIndex3;
 		UINT mNullTexSrvIndex4;
 		UINT mNullTexSrvIndex5;
+		UINT mNullTexSrvIndex6;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -148,16 +149,17 @@ private:
 	DxRenderer& operator=(DxRenderer&& rhs) = delete;
 
 public:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(HWND hMainWnd, 
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
-	virtual GameResult Update(const GameTimer& gt) override;
-	virtual GameResult Draw(const GameTimer& gt) override;
+	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) override;
+	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
-		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
+				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
-		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
+				UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
 
 	virtual void SetVisible(const std::string& inRenderItemName, bool inState) override;
 	virtual void SetSkeletonVisible(const std::string& inRenderItemName, bool inState) override;
@@ -184,17 +186,20 @@ private:
 	GameResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
-	GameResult AnimateMaterials(const GameTimer& gt);
-
-	bool IsContained(BoundType inType,
-		const RenderItem::BoundingStruct& inBound, const DirectX::BoundingFrustum& inFrustum);
-	GameResult UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
-	GameResult UpdateMaterialBuffer(const GameTimer& gt);
-	GameResult UpdateShadowTransform(const GameTimer& gt);
-	GameResult UpdateMainPassCB(const GameTimer& gt);
-	GameResult UpdateShadowPassCB(const GameTimer& gt);
-	GameResult UpdateSsaoCB(const GameTimer& gt);
-	GameResult UpdateBlendingRenderItems(const GameTimer& gt);
+	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
+	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound, 
+			const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
+	UINT UpdateInstanceDataBuffer(UINT inOffset, const BoundingFrustum& inFrustum,	const RenderItem* inRitem, 
+			GVector<UINT>& outInstIndices, GameUploadBuffer<InstanceData>& outInstDataBuffer);
+	void UpdateInstanceIndexBuffer(UINT inOffset, const GVector<UINT>& inInstIndices, 
+			GameUploadBuffer<InstanceIdxData>& outInstIdxBuffer);
+	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateBlendingRenderItems(const GameTimer& gt, UINT inTid = 0);
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
@@ -213,10 +218,9 @@ private:
 	GameResult BuildFrameResources();
 
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
-
-	void DrawSceneToShadowMap();
-	//* Builds diffuse map, normal map and depth map.
-	void DrawGBuffer();
+	GameResult DrawSceneToShadowMap();
+	GameResult DrawSceneToGBuffer();
+	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int inIndex) const;
@@ -290,4 +294,8 @@ private:
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 
 	GVector<float> mConstantSettings;
+
+#ifdef MT_World
+	std::unique_ptr<CVBarrier> mUpdateBarrier;
+#endif
 };

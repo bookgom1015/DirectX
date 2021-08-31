@@ -18,15 +18,19 @@ public:
 protected:
 	float AspectRatio() const;
 
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) = 0;
-	virtual GameResult Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight) = 0;
+	virtual GameResult Initialize(HWND hMainWnd, 
+		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) = 0;
+	virtual GameResult Initialize(GLFWwindow* 
+		inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) = 0;
 	virtual void CleanUp() = 0;
-	virtual GameResult Update(const GameTimer& gt) = 0;
-	virtual GameResult Draw(const GameTimer& gt) = 0;
+	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) = 0;
+	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) = 0;
 
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) = 0;
 
 protected:
 	UINT mClientWidth = 0;
 	UINT mClientHeight = 0;
+
+	UINT mNumThreads;
 };

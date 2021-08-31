@@ -23,7 +23,8 @@ class GameWorld final {
 public:
 	enum GameState {
 		EPlay,
-		EPaused
+		EPaused,
+		ETerminated
 	};
 
 public:
@@ -45,13 +46,7 @@ public:
 	bool LoadData();
 	void UnloadData();
 	int RunLoop();
-
-#ifndef MT_World
 	int GameLoop();
-#else
-	//* Multi-threaded version of the fuction GameLoop.
-	int MTGameLoop();
-#endif
 
 	void AddActor(Actor* inActor);
 	void RemoveActor(Actor* inActor);
@@ -78,16 +73,9 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-#ifndef MT_World
-	void ProcessInput();
-	void UpdateGame(const GameTimer& gt);
-#else
-	//* After InputSystem handles input data, actor or widget handle it.
-	void MTProcessInput(UINT tid, ThreadBarrier& inBarrier);
-	//* Multi-threaded version of the function UpdateGame.
-	void MTUpdateGame(const GameTimer& gt, UINT tid, ThreadBarrier& inBarrier);
-#endif 
-	void Draw(const GameTimer& gt);
+	void ProcessInput(const GameTimer& gt, UINT inTid = 0);
+	void UpdateGame(const GameTimer& gt, UINT inTid = 0);
+	void Draw(const GameTimer& gt, UINT inTid = 0);
 
 	GameResult InitMainWindow();
 	GameResult OnResize();
@@ -143,13 +131,17 @@ private:
 
 #ifdef MT_World
 	GVector<std::thread> mThreads;
-	GVector<GVector<Actor*>> mMTActors;
-	GVector<GVector<Actor*>> mMTPendingActors;
+	GVector<GVector<Actor*>> mActors;
+	GVector<GVector<Actor*>> mPendingActors;
 
-	GVector<bool> bMTUpdatingActors;
+	GVector<bool> bUpdatingActors;
 	UINT mNextThreadId = 0;
 
 	std::mutex mAddingActorMutex;
+
+	UINT mNumProcessors = 1;
+
+	std::unique_ptr<CVBarrier> mInputBarrier;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;

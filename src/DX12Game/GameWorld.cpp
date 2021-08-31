@@ -77,10 +77,22 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	
 	CheckGameResult(InitMainWindow());
 	
+#ifdef MT_World	
+	if (!ThreadUtil::GetProcessorCount(mNumProcessors, false))
+		ReturnGameResult(S_FALSE, L"Failed to get processor informations");
+
+	mThreads.resize(mNumProcessors);
+	mActors.resize(mNumProcessors);
+	mPendingActors.resize(mNumProcessors);
+	bUpdatingActors.resize(mNumProcessors);
+
+	mInputBarrier = std::make_unique<CVBarrier>(mNumProcessors);
+#endif 
+
 #ifdef UsingVulkan
-	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight));
+	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight, mNumProcessors));
 #else
-	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
+	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, mNumProcessors));
 #endif
 	
 	if (!mAudioSystem->Initialize())
@@ -92,14 +104,6 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 
 	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
-
-#ifdef MT_World
-	size_t numProcessors = (size_t)ThreadUtil::GetNumberOfProcessors();
-	mThreads.resize(numProcessors);
-	mMTActors.resize(numProcessors);
-	mMTPendingActors.resize(numProcessors);
-	bMTUpdatingActors.resize(numProcessors);
-#endif 
 
 	bFinishedInit = true;
 
@@ -200,7 +204,7 @@ bool GameWorld::LoadData() {
 #endif
 
 #ifdef MT_World
-	for (auto& actors : mMTActors) {
+	for (auto& actors : mActors) {
 		for (auto& actor : actors)
 			actor->OnLoadingData();
 	}
@@ -216,7 +220,7 @@ bool GameWorld::LoadData() {
 
 void GameWorld::UnloadData() {
 #ifdef MT_World
-	for (auto& actors : mMTActors) {
+	for (auto& actors : mActors) {
 		for (auto actor : actors)
 			actor->OnUnloadingData();
 
@@ -245,56 +249,22 @@ int GameWorld::RunLoop() {
 		return -1;
 	}
 
-#ifdef MT_World
-	int status = MTGameLoop();
-#else
 	int status = GameLoop();
-#endif
 
 	UnloadData();
 
 	return status;
 }
 
-#ifndef MT_World
 int GameWorld::GameLoop() {
+	MSG msg = { 0 };
 	float beginTime = 0.0f;
 	float endTime;
 	float elapsedTime;
 
 	mTimer.Reset();
-
-#ifndef UsingVulkan
-	MSG msg = { 0 };
-
-	while (msg.message != WM_QUIT) {
-		// If there are Window messages then process them
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		// Otherwise, do animation/game stuff
-		else {
-			mTimer.Tick();
-
-			endTime = mTimer.TotalTime();
-			elapsedTime = endTime - beginTime;
-
-			if (elapsedTime > mTimer.GetLimitFrameRate()) {
-				beginTime = endTime;
-				if (!mAppPaused) {
-					CalculateFrameStats();
-					ProcessInput();
-				}
-				UpdateGame(mTimer);
-				if (!mAppPaused)
-					Draw(mTimer);
-			}
-		}
-	}
-
-	return static_cast<int>(msg.wParam);
-#else // UsingVulkan
+	
+#ifdef UsingVulkan
 	while (!glfwWindowShouldClose(mMainGLFWWindow)) {
 		glfwPollEvents();
 		if (glfwGetKey(mMainGLFWWindow, GLFW_KEY_ESCAPE))
@@ -316,83 +286,77 @@ int GameWorld::GameLoop() {
 				Draw(mTimer);
 		}
 	}
+#else
+	#ifdef MT_World
+		CVBarrier barrier(mNumProcessors);
+	
+		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
+			mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
+				while (inMsg.message != WM_QUIT) {
+					inBarrier.Wait();
 
-	return 0;
+					if (mGameState == GameState::ETerminated)
+						break;
+	
+					if (!mAppPaused)
+						ProcessInput(mTimer, inTid);
+
+					UpdateGame(mTimer, inTid);
+
+					if (!mAppPaused)
+						Draw(mTimer, inTid);
+				}
+			}, std::ref(msg), i + 1, std::ref(barrier));
+		}
+	#endif // MT_World
+		while (msg.message != WM_QUIT) {
+			// If there are Window messages then process them
+			if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+			// Otherwise, do animation/game stuff
+			else {
+				mTimer.Tick();
+	
+				endTime = mTimer.TotalTime();
+				elapsedTime = endTime - beginTime;
+	
+				if (elapsedTime > mTimer.GetLimitFrameRate()) {
+					barrier.Wait();
+					beginTime = endTime;
+	
+					if (!mAppPaused) {
+						CalculateFrameStats();
+						ProcessInput(mTimer, 0);
+					}
+					
+					UpdateGame(mTimer, 0);
+
+					if (!mAppPaused)
+						Draw(mTimer, 0);
+				}
+			}
+		}	
+	#ifdef MT_World
+		mGameState = GameState::ETerminated;
+		barrier.WakeUp();
+	
+		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i)
+			mThreads[i].join();
+	#endif
 #endif // UsingVulkan
-}
-#else // MT_World
-int GameWorld::MTGameLoop() {
-	MSG msg = { 0 };
-	float beginTime = 0.0f;
-	float endTime;
-	float elapsedTime;
-
-	mTimer.Reset();
-
-	UINT numProcessors = static_cast<UINT>(ThreadUtil::GetNumberOfProcessors());
-	CVBarrier barrier(numProcessors);
-
-	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
-		mThreads[i] = std::thread([this](const MSG& inMsg, UINT tid, ThreadBarrier& inBarrier) -> void {
-			while (inMsg.message != WM_QUIT) {
-				inBarrier.Wait();
-
-				if (!mAppPaused)
-					MTProcessInput(tid, std::ref(inBarrier));
-
-				MTUpdateGame(mTimer, tid, std::ref(inBarrier));
-			}
-		}, std::ref(msg), i + 1, std::ref(barrier));
-	}
-
-	while (msg.message != WM_QUIT) {
-		// If there are Window messages then process them
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		// Otherwise, do animation/game stuff
-		else {
-			mTimer.Tick();
-
-			endTime = mTimer.TotalTime();
-			elapsedTime = endTime - beginTime;
-
-			if (elapsedTime > mTimer.GetLimitFrameRate()) {
-				barrier.Wait();
-				beginTime = endTime;
-
-				if (!mAppPaused) {
-					CalculateFrameStats();
-					MTProcessInput(0, std::ref(barrier));
-				}	
-
-				MTUpdateGame(mTimer, 0, std::ref(barrier));
-
-				if (!mAppPaused)
-					Draw(mTimer);
-			}
-		}
-	}
-
-	barrier.WakeUp();
-
-	for (UINT i = 0, end = numProcessors - 1; i < end; ++i) {
-		mThreads[i].join();
-	}
-
 	return static_cast<int>(msg.wParam);
 }
-#endif // MT_World
 
 void GameWorld::AddActor(Actor* inActor) {
 #ifdef MT_World
 	mAddingActorMutex.lock();
 	inActor->SetOwnerThreadID(mNextThreadId);
-	if (bMTUpdatingActors[mNextThreadId])
-		mMTPendingActors[mNextThreadId].push_back(inActor);
+	if (bUpdatingActors[mNextThreadId])
+		mPendingActors[mNextThreadId].push_back(inActor);
 	else
-		mMTActors[mNextThreadId].push_back(inActor);
+		mActors[mNextThreadId].push_back(inActor);
 	++mNextThreadId;
 	if (mNextThreadId >= mThreads.size())
 		mNextThreadId = 0;
@@ -408,7 +372,7 @@ void GameWorld::AddActor(Actor* inActor) {
 void GameWorld::RemoveActor(Actor* inActor) {
 #ifdef MT_World
 	UINT tid = inActor->GetOwnerThreadID();
-	auto& actors = mMTActors[tid];
+	auto& actors = mActors[tid];
 	auto iter = std::find(actors.begin(), actors.end(), inActor);
 	if (iter != actors.end()) {
 		std::iter_swap(iter, actors.end() - 1);
@@ -478,113 +442,67 @@ HWND GameWorld::GetMainWindowsHandle() const {
 	return mhMainWnd;
 }
 
-#ifndef MT_World
-void GameWorld::ProcessInput() {
-	mInputSystem->PrepareForUpdate();
-
-	mInputSystem->SetRelativeMouseMode(true);
-
-	mInputSystem->Update();
-	const InputState& state = mInputSystem->GetState();
-
-	if (mGameState == GameState::EPlay) {
-		for (auto actor : mActors) {
-			if (actor->GetState() == Actor::ActorState::EActive)
-				actor->ProcessInput(state);
-		}
-	}
-}
-
-void GameWorld::UpdateGame(const GameTimer& gt) {
-	// Update all actors.
-	if (mGameState != GameState::EPaused) {
-		bUpdatingActors = true;
-		for (auto actor : mActors)
-			actor->Update(gt);
-		bUpdatingActors = false;
-
-		// Move any pending actors to mActors.
-		for (auto actor : mPendingActors)
-			mActors.push_back(actor);
-
-		mPendingActors.clear();
-
-		// Add any dead actors to a temp vector.
-		GVector<Actor*> deadActors;
-		for (auto actor : mActors) {
-			if (actor->GetState() == Actor::ActorState::EDead)
-				deadActors.push_back(actor);
-		}
-
-		// Delete dead actors(which removes them from mActors).
-		for (auto actor : deadActors)
-			delete actor;
-	}
-
-	mRenderer->Update(gt);
-	mAudioSystem->Update(gt);
-}
-#else
-void GameWorld::MTProcessInput(UINT tid, ThreadBarrier& inBarrier) {
-	if (tid == 0) {
+void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
+	if (inTid == 0) {
 		mInputSystem->PrepareForUpdate();
 		mInputSystem->SetRelativeMouseMode(true);
 		mInputSystem->Update();
 	}
-	inBarrier.Wait();
+
+#ifdef MT_World
+	mInputBarrier->Wait();
+#endif
 
 	const InputState& state = mInputSystem->GetState();
 
 	if (mGameState == GameState::EPlay) {
-		auto& actors = mMTActors[tid];
+		auto& actors = mActors[inTid];
 
 		for (auto& actor : actors) {
 			if (actor->GetState() == Actor::ActorState::EActive)
 				actor->ProcessInput(state);
 		}
 	}
-}
-
-void GameWorld::MTUpdateGame(const GameTimer& gt, UINT tid, ThreadBarrier& inBarrier) {
-	if (mGameState != GameState::EPaused) {
-		auto& actors = mMTActors[tid];
-		auto& pendingActors = mMTPendingActors[tid];
-
-		// Update all actors.
-		bMTUpdatingActors[tid] = true;
-		for (auto actor : actors)
-			actor->Update(gt);
-		bMTUpdatingActors[tid] = false;
-
-		// Move any pending actors to mActors.
-		for (auto actor : pendingActors)
-			actors.push_back(actor);
-
-		pendingActors.clear();
-
-		// Add any dead actors to a temp vector.
-		GVector<Actor*> deadActors;
-		for (auto actor : actors) {
-			if (actor->GetState() == Actor::ActorState::EDead)
-				deadActors.push_back(actor);
-		}
-
-		// Delete dead actors(which removes them from mActors).
-		for (auto actor : deadActors)
-			delete actor;
-
-		inBarrier.Wait();
-
-		if (tid == 0) {
-			mRenderer->Update(gt);
-			mAudioSystem->Update(gt);
-		}
+	else {
+		// To do for UI.
 	}
 }
-#endif
 
-void GameWorld::Draw(const GameTimer& gt) {
-	mRenderer->Draw(gt);
+void GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
+	auto& actors = mActors[inTid];
+	auto& pendingActors = mPendingActors[inTid];
+
+	// Update all actors.
+	bUpdatingActors[inTid] = true;
+	for (auto actor : actors)
+		actor->Update(gt);
+	bUpdatingActors[inTid] = false;
+
+	// Move any pending actors to mActors.
+	for (auto actor : pendingActors)
+		actors.push_back(actor);
+
+	pendingActors.clear();
+
+	// Add any dead actors to a temp vector.
+	GVector<Actor*> deadActors;
+	for (auto actor : actors) {
+		if (actor->GetState() == Actor::ActorState::EDead)
+			deadActors.push_back(actor);
+	}
+
+	// Delete dead actors(which removes them from mActors).
+	for (auto actor : deadActors)
+		delete actor;
+
+	mRenderer->Update(gt, inTid);
+
+	if (inTid == 0)
+		mAudioSystem->Update(gt);
+}
+
+void GameWorld::Draw(const GameTimer& gt, UINT inTid) {
+	mRenderer->Draw(gt, inTid);
 }
 
 #ifdef UsingVulkan
@@ -601,7 +519,28 @@ namespace {
 #endif
 
 GameResult GameWorld::InitMainWindow() {
-#ifndef UsingVulkan
+#ifdef UsingVulkan
+	glfwInit();
+
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
+	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
+
+	auto primaryMonitor = glfwGetPrimaryMonitor();
+	const auto vidmode = glfwGetVideoMode(primaryMonitor);
+
+	mPrimaryMonitorWidth = static_cast<UINT>(vidmode->width);
+	mPrimaryMonitorHeight = static_cast<UINT>(vidmode->height);
+
+	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
+	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
+
+	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
+
+	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
+#else
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWndProc;
@@ -636,27 +575,6 @@ GameResult GameWorld::InitMainWindow() {
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
-#else
-	glfwInit();
-
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
-	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
-
-	auto primaryMonitor = glfwGetPrimaryMonitor();
-	const auto vidmode = glfwGetVideoMode(primaryMonitor);
-
-	mPrimaryMonitorWidth = static_cast<UINT>(vidmode->width);
-	mPrimaryMonitorHeight = static_cast<UINT>(vidmode->height);
-
-	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
-	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
-
-	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
-	
-	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
 #endif
 
 	return GameResult(S_OK);
@@ -670,6 +588,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	case WM_ACTIVATE:
 		if (LOWORD(wParam) == WA_INACTIVE) {
 			mAppPaused = true;
+			mGameState = GameState::EPaused;
 			mTimer.SetLimitFrameRate(GameTimer::ELimitFrameRate30f);
 			mPrevBusVolume = mAudioSystem->GetBusVolume("bus:/");
 			mAudioSystem->SetBusVolume("bus:/", 0.0f);
@@ -677,6 +596,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		}
 		else {
 			mAppPaused = false;
+			mGameState = GameState::EPlay;			
 			mTimer.SetLimitFrameRate(mLimitFrameRate);
 			mAudioSystem->SetBusVolume("bus:/", mPrevBusVolume);
 			mInputSystem->IgnoreMouseInput();
@@ -692,28 +612,32 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			HRESULT hr = S_OK;
 			if (mRenderer->IsValid()) {
 				if (wParam == SIZE_MINIMIZED) {
-					mAppPaused = true;
+					mAppPaused = true;					
 					mMinimized = true;
 					mMaximized = false;
+					mGameState = GameState::EPaused;
 				}
 				else if (wParam == SIZE_MAXIMIZED) {
-					mAppPaused = false;
+					mAppPaused = false;					
 					mMinimized = false;
 					mMaximized = true;
+					mGameState = GameState::EPlay;
 					hr = OnResize().hr;
 				}
 				else if (wParam == SIZE_RESTORED) {
 					// Restoring from minimized state?
 					if (mMinimized) {
-						mAppPaused = false;
+						mAppPaused = false;						
 						mMinimized = false;
+						mGameState = GameState::EPlay;
 						hr = OnResize().hr;
 					}
 
 					// Restoring from maximized state?
 					else if (mMaximized) {
-						mAppPaused = false;
+						mAppPaused = false;						
 						mMaximized = false;
+						mGameState = GameState::EPlay;
 						hr = OnResize().hr;
 					}
 					else if (mResizing) {
@@ -738,6 +662,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	case WM_ENTERSIZEMOVE:
 		mAppPaused = true;
 		mResizing = true;
+		mGameState = GameState::EPaused;
 		mTimer.Stop();
 		return 0;
 
@@ -746,6 +671,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	case WM_EXITSIZEMOVE:
 		mAppPaused = false;
 		mResizing = false;
+		mGameState = GameState::EPlay;
 		mTimer.Start();
 		return OnResize().hr;
 

@@ -25,14 +25,14 @@ cbuffer cbRootConstants : register(b1) {
 };
  
 // Nonnumeric values cannot be added to a cbuffer.
-Texture2D gNormalMap    : register(t0);
-Texture2D gDepthMap     : register(t1);
-Texture2D gRandomVecMap : register(t2);
+Texture2D gNormalMap			: register(t0);
+Texture2D gDepthMap				: register(t1);
+Texture2D gRandomVecMap			: register(t2);
 
-SamplerState gsamPointClamp : register(s0);
-SamplerState gsamLinearClamp : register(s1);
-SamplerState gsamDepthMap : register(s2);
-SamplerState gsamLinearWrap : register(s3);
+SamplerState gsamPointClamp		: register(s0);
+SamplerState gsamLinearClamp	: register(s1);
+SamplerState gsamDepthMap		: register(s2);
+SamplerState gsamLinearWrap		: register(s3);
 
 static const int gSampleCount = 14;
  
