@@ -3,8 +3,10 @@
 #include "DX12Game/LowRenderer.h"
 
 class DxLowRenderer : public LowRenderer {
-public:
+protected:
 	DxLowRenderer();
+
+public:
 	virtual ~DxLowRenderer();
 
 private:
@@ -15,7 +17,7 @@ private:
 
 protected:
 	virtual GameResult Initialize(HWND hMainWnd, 
-		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
@@ -38,7 +40,7 @@ protected:
 
 private:
 	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
-		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 
 	GameResult InitDirect3D();
 	GameResult CreateCommandObjects();
@@ -63,7 +65,7 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
 #ifdef MT_World
 	GVector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCommandAllocators;
-	GVector< Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
+	GVector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
 #else
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;

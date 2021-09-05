@@ -19,7 +19,7 @@ struct VertexOut {
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout;
 
-	InstanceData instData = gInstanceData[gInstanceIndex * gMaxInstanceDataCount + instanceID];
+	InstanceData instData = gInstanceData[gObjectIndex * gMaxInstanceCount + instanceID];
 	float4x4 world = instData.World;
 
 	// Use local vertex position as cubemap lookup vector.

@@ -1,4 +1,7 @@
 ﻿  DxRenderer.cpp
+  GameWorld.cpp
+  Generating Code...
+f:\visual studio projects\window projects\directx\include\dx12game\containerutil.inl(228): warning C4172: returning address of local variable or temporary
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmod.dll
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmodL.dll

@@ -3,8 +3,8 @@
 
 using namespace DirectX;
 
-ObjectConstants::ObjectConstants(UINT inInstanceIndex /* = 0 */) {
-	mInstanceIndex = inInstanceIndex;
+ObjectConstants::ObjectConstants(UINT inObjectIndex /* = 0 */) {
+	mObjectIndex = inObjectIndex;
 	mObjectPad0 = 0;
 	mObjectPad1 = 0;
 	mObjectPad2 = 0;

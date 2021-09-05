@@ -19,7 +19,6 @@ const int gNumFrameResources = 3;
 #define NOMINMAX
 
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <cfloat>
 #include <comdef.h>

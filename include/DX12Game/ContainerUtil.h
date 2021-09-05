@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <deque>
 #include <memory>
 #include <optional>
@@ -7,8 +8,118 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef GARRAY
+	#define GARRAY GArray<T, N>
+#endif
+
+#ifndef GARRAY_SIZE_TYPE
+	#define GARRAY_SIZE_TYPE typename GARRAY::SizeType
+#endif
+
+#ifndef GARRAY_TEMPLATE
+	#define GARRAY_TEMPLATE template <typename T, size_t N>
+#endif
+
+#ifndef GARRAY_ITERATOR
+	#define GARRAY_ITERATOR typename GARRAY::Iterator
+#endif
+
+#ifndef GARRAY_CONST_ITERATOR
+	#define GARRAY_CONST_ITERATOR typename GARRAY::ConstIterator
+#endif
+
+#ifndef GARRAY_REVERSE_ITERATOR
+	#define GARRAY_REVERSE_ITERATOR typename GARRAY::ReverseIterator
+#endif
+
+#ifndef GARRAY_CONST_REVERSE_ITERATOR
+	#define GARRAY_CONST_REVERSE_ITERATOR typename GARRAY::ConstReverseIterator
+#endif
+
+template <typename T, size_t N>
+class GArray {
+public:
+	using SizeType = size_t;
+	using Array = typename std::array<T, N>;
+	using Iterator = typename Array::iterator;
+	using ConstIterator = typename Array::const_iterator;
+	using ReverseIterator = std::reverse_iterator<Iterator>;
+	using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
+	using Reference = T&;
+	using ConstReference = const T&;
+
+public:
+	GArray() = default;
+	virtual ~GArray() = default;
+
+public:
+	///
+	// Element access
+	///
+	Reference at(SizeType inPos);
+	constexpr ConstReference at(SizeType inPos) const;
+
+	Reference operator[](SizeType inPos) noexcept;
+	constexpr ConstReference operator[](SizeType inPos) const;
+
+	Reference front();
+	constexpr ConstReference front() const;
+
+	Reference back();
+	constexpr ConstReference back() const;
+
+	T* data() noexcept;
+	const T* data() const noexcept;
+
+	///
+	//  Iterators
+	///
+	Iterator begin() noexcept;
+	ConstIterator begin() const noexcept;
+	ConstIterator cbegin() const noexcept;
+
+	Iterator end() noexcept;
+	ConstIterator end() const noexcept;
+	ConstIterator cend() const noexcept;
+
+	ReverseIterator rbegin() noexcept;
+	ConstReverseIterator rbegin() const noexcept;
+	ConstReverseIterator crbegin() const noexcept;
+
+	ReverseIterator rend() noexcept;
+	ConstReverseIterator rend() const noexcept;
+	ConstReverseIterator crend() const noexcept;
+
+	///
+	// Capacity
+	///
+	constexpr bool empty() const noexcept;
+
+	constexpr SizeType size() const noexcept;
+
+	constexpr SizeType max_size() const noexcept;
+
+	///
+	// Operations
+	///
+	void fill(const T& inValue);
+
+	void swap(Array& inOther) noexcept;
+
+private:
+	Array mArray;
+};
+
 #ifndef GVECTOR
 	#define GVECTOR GVector<T, Allocator>
+#endif
+
+#ifndef GVECTOR_ALLOCATOR_TYPE
+	#define GVECTOR_ALLOCATOR_TYPE typename GVECTOR::AllocatorType
+#endif
+
+#ifndef GVECTOR_SIZE_TYPE
+	#define GVECTOR_SIZE_TYPE typename GVECTOR::SizeType
 #endif
 
 #ifndef GVECTOR_TEMPLATE
@@ -31,68 +142,123 @@
 	#define GVECTOR_CONST_REVERSE_ITERATOR typename GVECTOR::ConstReverseIterator
 #endif
 
+#ifndef GVECTOR_REFERENCE
+	#define GVECTOR_REFERENCE typename GVECTOR::Reference
+#endif
+
+#ifndef GVECTOR_CONST_REFERENCE
+	#define GVECTOR_CONST_REFERENCE typename GVECTOR::ConstReference
+#endif
+
 template <typename T, typename Allocator = std::allocator<T>>
 class GVector {
-private:
+public:
 	using SizeType = size_t;
+	using AllocatorType = Allocator;
 	using Vector = typename std::vector<T, Allocator>;
 	using Iterator = typename Vector::iterator;
 	using ConstIterator = typename Vector::const_iterator;
 	using ReverseIterator = std::reverse_iterator<Iterator>;
 	using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
+	using Reference = T&;
+	using ConstReference = const T&;
+	using RightValue = T&&;
+	using InitializerList = std::initializer_list<T>;
 
 public:
 	GVector() = default;
 	GVector(SizeType inSize);
-	GVector(std::initializer_list<T> inList);
+	GVector(InitializerList inList);
 	virtual ~GVector() = default;
 
 public:
-	Vector& operator=(std::initializer_list<T> inList);
+	GVector& operator=(InitializerList inList);
 
-	T& at(SizeType inPos);
-	const T& at(SizeType inPos) const;
-	T& operator[](SizeType inIdx);
-	const T& operator[](SizeType inIdx) const;
-	T& front();
-	const T& front() const;
-	T& back();
-	const T& back() const;
+	void assgin(SizeType inCount, ConstReference inValue);
+	template <typename InputIt> void assign(InputIt inFirst, InputIt inLast);
+	void assgin(InitializerList inIList);
+
+	AllocatorType get_allocator() const noexcept;
+
+public:
+	///
+	// Element access
+	///
+	Reference at(SizeType inPos);
+	constexpr ConstReference at(SizeType inPos) const;
+
+	Reference operator[](SizeType inIdx);
+	constexpr ConstReference operator[](SizeType inIdx) const;
+
+	Reference front();
+	constexpr ConstReference front() const;
+
+	Reference back();
+	constexpr ConstReference back() const;
+
 	T* data() noexcept;
 	const T* data() const noexcept;
 
+	///
+	// Iterators
+	///
 	Iterator begin() noexcept;
 	ConstIterator begin() const noexcept;
 	ConstIterator cbegin() const noexcept;
+
 	Iterator end() noexcept;
 	ConstIterator end() const noexcept;
 	ConstIterator cend() const noexcept;
+
 	ReverseIterator rbegin() noexcept;
+	ConstReverseIterator rbegin() const noexcept;
 	ConstReverseIterator crbegin() const noexcept;
+
 	ReverseIterator rend() noexcept;
+	ConstReverseIterator rend() const noexcept;
 	ConstReverseIterator crend() const noexcept;
 
+	///
+	// Capacity
+	///
 	bool empty() const noexcept;
+
 	SizeType size() const noexcept;
+
 	SizeType max_size() const noexcept;
+
 	void reserve(SizeType inNewCapacity);
+
 	SizeType capacity() const noexcept;
+
 	void shrink_to_fit();
 
+	///
+	// Modifiers
+	///
 	void clear() noexcept;
-	Iterator insert(ConstIterator inPos, const T& inValue);
-	Iterator insert(ConstIterator inPos, T&& inValue);
-	Iterator insert(ConstIterator inWhere, const SizeType inCount, const T& inVal);
-	Iterator insert(ConstIterator inWhere, Iterator inFirst, Iterator inLast);
-	Iterator insert(ConstIterator inWhere, std::initializer_list<T> inList);
+
+	Iterator insert(ConstIterator inPos, ConstReference inValue);
+	Iterator insert(ConstIterator inPos, RightValue inValue);
+	Iterator insert(ConstIterator inPos, const SizeType inCount, ConstReference inVal);
+	template <class InputIt> Iterator insert(ConstIterator inPos, InputIt inFirst, InputIt inLast);
+	Iterator insert(ConstIterator inPos, InitializerList inList);
+
 	template <typename... Args>	Iterator emplace(ConstIterator inPos, Args&&... inArgs);
+
 	Iterator erase(ConstIterator inPos);
 	Iterator erase(ConstIterator inFirst, ConstIterator inLast);
-	void push_back(const T& inValue);
-	void push_back(T&& inValue);
+
+	void push_back(ConstReference inValue);
+	void push_back(RightValue inValue);
+
 	template <typename... Args>	decltype(auto) emplace_back(Args&&... inArgs);
+
 	void pop_back();
+
 	void resize(SizeType inCount);
+	void resize(SizeType inCount, ConstReference inValue);
+
 	void swap(GVector& inOther);
 
 private:

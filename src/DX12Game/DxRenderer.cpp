@@ -16,8 +16,6 @@ namespace {
 	const std::wstring ShaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
 	const std::wstring FontFileNamePrefix = L"./../../../../Assets/Fonts/";
 
-	const UINT MaxInstanceCount = 128;
-
 	const float DefaultFontSize = 32;
 	const float InvDefaultFontSize = 1.0f / DefaultFontSize;
 
@@ -49,6 +47,9 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 #ifdef MT_World
 	mUpdateBarrier = std::make_unique<CVBarrier>(mNumThreads);
+
+	mInstIndicesSet.resize(mNumThreads);
+	mNumInstances.resize(mNumThreads);
 #endif
 
 	// Reset the command list to prep for initialization commands.
@@ -160,11 +161,11 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 	SyncHost(mUpdateBarrier)
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid, mUpdateBarrier.get()));
 
 	SyncHost(mUpdateBarrier)
 	
 	if (inTid == 0) {
-		CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt));
 		CheckGameResult(UpdateMaterialBuffers(gt));
 		CheckGameResult(UpdateShadowTransform(gt));
 		CheckGameResult(UpdateMainPassCB(gt));
@@ -1186,21 +1187,34 @@ bool DxRenderer::IsContained(
 		return false;
 }
 
-UINT DxRenderer::UpdateInstanceDataBuffer(
-		UINT inOffset,
-		const BoundingFrustum& inFrustum,
-		const RenderItem* inRitem,
-		GVector<UINT>& outInstIndices,
-		GameUploadBuffer<InstanceData>& outInstDataBuffer) {
-	UINT visibleObjectCount = 0;
-	UINT idx = 0;
+void DxRenderer::UpdateEachRitems() {
+	auto& currObjectCB = mCurrFrameResource->mObjectCB;
+	auto& currInstDataBuffer = mCurrFrameResource->mInstanceDataBuffer;
+	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
 
+	for (auto& e : mAllRitems) {
+		UINT offset = e->mObjCBIndex * MaxInstanceCount;
+		UINT accum = 0;
+		UINT cnt = 0;
+
+		//
+
+		e->mNumInstancesToDraw = accum;
+
+		ObjectConstants objConstants;
+		objConstants.mObjectIndex = e->mObjCBIndex;
+
+		currObjectCB.CopyData(e->mObjCBIndex, objConstants);
+	}
+}
+
+void DxRenderer::UpdateEachInstances() {
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
-	for (GVector<InstanceData>::Iterator i, end; i != end; ++i) {
-		XMMATRIX world = XMLoadFloat4x4(&i->mWorld);
-		XMMATRIX texTransform = XMLoadFloat4x4(&i->mTexTransform);
+	for (auto& i : e->mInstances) {
+		XMMATRIX world = XMLoadFloat4x4(&i.mWorld);
+		XMMATRIX texTransform = XMLoadFloat4x4(&i.mTexTransform);
 
 		XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
@@ -1209,138 +1223,52 @@ UINT DxRenderer::UpdateInstanceDataBuffer(
 
 		// Transform the camera frustum from view space to the object's local space.
 		BoundingFrustum localSpaceFrustum;
-		inFrustum.Transform(localSpaceFrustum, viewToLocal);
+		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-		if (InstanceData::IsMatched(i->mRenderState, EInstanceRenderState::EID_DrawAlways) ||
-			InstanceData::IsMatched(i->mRenderState, EInstanceRenderState::EID_Visible) &&
-			IsContained(inRitem->mBoundType, inRitem->mBoundingUnion, localSpaceFrustum)) {
+		if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
+			InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
+			IsContained(e->mBoundType, e->mBoundingUnion, localSpaceFrustum)) {
 
-			UINT instDataIdx = inOffset + idx;
+			UINT instDataIdx = offset + cnt;
 
-			outInstIndices.push_back(instDataIdx);
+			InstanceIdxData instIdxData;
+			instIdxData.mInstanceIdx = instDataIdx;
+
+			currInstIdxBuffer.CopyData(offset + accum, instIdxData);
 
 			// Only update the cbuffer data if the constants have changed.
 			// This needs to be tracked per frame resource.
-			if (i->CheckFrameDirty(mCurrFrameResourceIndex)) {
+			if (i.CheckFrameDirty(mCurrFrameResourceIndex)) {
 				InstanceData instData;
 				XMStoreFloat4x4(&instData.mWorld, XMMatrixTranspose(world));
 				XMStoreFloat4x4(&instData.mTexTransform, XMMatrixTranspose(texTransform));
-				instData.mTimePos = i->mTimePos;
-				instData.mAnimClipIndex = i->mAnimClipIndex;
-				instData.mMaterialIndex = i->mMaterialIndex;
+				instData.mTimePos = i.mTimePos;
+				instData.mAnimClipIndex = i.mAnimClipIndex;
+				instData.mMaterialIndex = i.mMaterialIndex;
 
-				outInstDataBuffer.CopyData(instDataIdx, instData);
+				currInstDataBuffer.CopyData(instDataIdx, instData);
 
 				// Next FrameResource need to be updated too.
-				i->UnsetFrameDirty(mCurrFrameResourceIndex);
+				i.UnsetFrameDirty(mCurrFrameResourceIndex);
 			}
 
+			++accum;
 			++visibleObjectCount;
 		}
 
-		++idx;
-	}
-
-	return visibleObjectCount;
-}
-
-void DxRenderer::UpdateInstanceIndexBuffer(
-		UINT inOffset,
-		const GVector<UINT>& inInstIndices, 
-		GameUploadBuffer<InstanceIdxData>& outInstIdxBuffer) {
-	UINT idx = 0;
-
-	for (auto data : inInstIndices) {
-		InstanceIdxData instIdxData = { data };
-		outInstIdxBuffer.CopyData(inOffset + idx, data);
-
-		++idx;
+		++cnt;
 	}
 }
 
-GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
-	XMMATRIX view = mMainCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+
 
 	UINT visibleObjectCount = 0;
 
-	auto& currObjectCB = mCurrFrameResource->mObjectCB;
-	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
-	auto& currInstDataBuffer = mCurrFrameResource->mInstanceDataBuffer;
-
-	for (auto& e : mAllRitems) {
-		UINT offset = e->mObjCBIndex * MaxInstanceCount;
-		
-		/*
-		for (auto& i : e->mInstances) {
-			XMMATRIX world = XMLoadFloat4x4(&i.mWorld);
-			XMMATRIX texTransform = XMLoadFloat4x4(&i.mTexTransform);
-
-			XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
-
-			// View space to the object's local space.
-			XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
-
-			// Transform the camera frustum from view space to the object's local space.
-			BoundingFrustum localSpaceFrustum;
-			mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
-
-			if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
-				InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
-				IsContained(e->mBoundType, e->mBoundingUnion, localSpaceFrustum)) {
-
-				UINT instIdx = offset + instDataIdx;
-
-				InstanceIdxData instIdxData;
-				instIdxData.mInstanceIdx = instIdx;
-
-				currInstIdxBuffer.CopyData(offset + instRefIdx, instIdxData);
-
-				// Only update the cbuffer data if the constants have changed.
-				// This needs to be tracked per frame resource.
-				if (i.CheckFrameDirty(mCurrFrameResourceIndex)) {
-					InstanceData instData;
-					XMStoreFloat4x4(&instData.mWorld, XMMatrixTranspose(world));
-					XMStoreFloat4x4(&instData.mTexTransform, XMMatrixTranspose(texTransform));
-					instData.mTimePos = i.mTimePos;
-					instData.mAnimClipIndex = i.mAnimClipIndex;
-					instData.mMaterialIndex = i.mMaterialIndex;
-
-					currInstBuffer.CopyData(instIdx, instData);
-
-					// Next FrameResource need to be updated too.
-					i.UnsetFrameDirty(mCurrFrameResourceIndex);
-				}
-
-				++instRefIdx;
-				++visibleObjectCount;
-			}
-
-			++instDataIdx;
-		}
-		*/
-
-		UINT numInstances = 0;
-		GVector<UINT> instIndices;
-
-		for (UINT i = 0; i < mNumThreads; ++i) {
-			numInstances += UpdateInstanceDataBuffer(offset, mCamFrustum, e.get(), instIndices, currInstDataBuffer);
-		}
-
-		for (UINT i = 0; i < mNumThreads; ++i) {
-			UpdateInstanceIndexBuffer(offset, instIndices, currInstIdxBuffer);
-		}
-
-		e->mNumInstancesToDraw = numInstances;
-
-		ObjectConstants objConstants;
-		objConstants.mInstanceIndex = e->mObjCBIndex;
-
-		currObjectCB.CopyData(e->mObjCBIndex, objConstants);
-	}
+	UpdateEachRitems();
 
 	AddOutputText(
 		"TEXT_VOC",

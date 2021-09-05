@@ -38,7 +38,7 @@ struct VertexOut {
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f;
 
-	InstanceIdxData instIdxData = gInstIdxData[gInstanceIndex * gMaxInstanceDataCount + instanceID];
+	InstanceIdxData instIdxData = gInstIdxData[gObjectIndex * gMaxInstanceCount + instanceID];
 	InstanceData instData = gInstanceData[instIdxData.InstIdx];
 
 	vout.PosL		= vin.PosL;

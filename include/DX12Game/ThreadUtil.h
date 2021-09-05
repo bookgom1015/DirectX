@@ -74,12 +74,18 @@ private:
 	typedef BOOL(WINAPI *LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
 
 public:
-	// PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
-	// PROCESSOR_ARCHITECTURE_ARM		- ARM
-	// PROCESSOR_ARCHITECTURE_ARM64		- ARM64
-	// PROCESSOR_ARCHITECTURE_IA64		- Intel Itanium - based
-	// PROCESSOR_ARCHITECTURE_INTEL		- x86
-	// PROCESSOR_ARCHITECTURE_UNKNOWN	-Unknown architecture.
+	ThreadUtil() = default;
+	virtual ~ThreadUtil() = default;
+
+public:
+	static bool Initialize();
+
+	//* PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
+	//* PROCESSOR_ARCHITECTURE_ARM			- ARM
+	//* PROCESSOR_ARCHITECTURE_ARM64		- ARM64
+	//* PROCESSOR_ARCHITECTURE_IA64			- Intel Itanium - based
+	//* PROCESSOR_ARCHITECTURE_INTEL		- x86
+	//* PROCESSOR_ARCHITECTURE_UNKNOWN		- Unknown architecture.
 	static inline WORD GetProcessArchitecture() {
 		SYSTEM_INFO sysInfo;
 		GetSystemInfo(&sysInfo);
@@ -94,20 +100,14 @@ public:
 		return sysInfo.dwPageSize;
 	}
 
-	static inline DWORD GetNumberOfProcessors() {
-		SYSTEM_INFO sysInfo;
-		GetSystemInfo(&sysInfo);
-
-		return sysInfo.dwNumberOfProcessors;
-	}
-
-	static bool GetProcessorCount(UINT& outCount, bool inLogic = false);
+	static UINT GetProcessorCount(bool inLogic = false);
+	static void GetProcessorCaches(UINT& outL1Cache, UINT& outL2Cache, UINT& outL3Cache);
 
 	static void TLogFunc(const std::string& text);
 	static void TLogFunc(const std::wstring& text);
 
 private:
-	// Helper function to count set bits in the processor mask.
+	//* Helper function to count set bits in the processor mask.
 	static DWORD CountSetBits(ULONG_PTR bitMask);
 
 	static bool GetProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION& outBuffer, DWORD& outReturnLength);
@@ -116,6 +116,12 @@ private:
 	static HANDLE mhLogFile;
 
 	static std::mutex mLogFileMutex;
+
+	static UINT mPhysicalProcessorCount;
+	static UINT mLogicalProcessorCount;
+	static UINT mProcessorL1CacheCount;
+	static UINT mProcessorL2CacheCount;
+	static UINT mProcessorL3CacheCount;
 };
 
 class TaskTimer {

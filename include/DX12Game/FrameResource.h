@@ -9,13 +9,13 @@ enum EInstanceRenderState : UINT {
 
 struct ObjectConstants {
 public:
-	UINT mInstanceIndex;
+	UINT mObjectIndex;
 	UINT mObjectPad0;
 	UINT mObjectPad1;
 	UINT mObjectPad2;
 
 public:
-	ObjectConstants(UINT inInstanceIndex = 0);
+	ObjectConstants(UINT inObjectIndex = 0);
 };
 
 struct InstanceIdxData {

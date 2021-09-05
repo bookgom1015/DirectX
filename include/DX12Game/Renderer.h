@@ -12,6 +12,9 @@ class Renderer {
 protected:
 	Renderer() = default;
 
+public:
+	virtual ~Renderer() = default;
+
 private:
 	Renderer(const Renderer& inRef) = delete;
 	Renderer(Renderer&& inRVal) = delete;
@@ -19,13 +22,10 @@ private:
 	Renderer& operator=(Renderer&& inRVal) = delete;
 
 public:
-	virtual ~Renderer() = default;
-
-public:
-	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
-		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) = 0;
+	virtual void UpdateWorldTransform(const std::string& inRenderItemName, 
+				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) = 0;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
-		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal) = 0;
+				UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal) = 0;
 
 	virtual void SetVisible(const std::string& inRenderItemName, bool inState) = 0;
 	virtual void SetSkeletonVisible(const std::string& inRenderItemName, bool inState) = 0;
@@ -38,7 +38,7 @@ public:
 	virtual GameResult UpdateAnimationsMap() = 0;
 
 	void AddOutputText(const std::string& inNameId, const std::wstring& inText,
-		float inX = 0.0f, float inY = 0.0f, float inScale = 1.0f, float inLifeTime = -1.0f);
+			float inX = 0.0f, float inY = 0.0f, float inScale = 1.0f, float inLifeTime = -1.0f);
 	void RemoveOutputText(const std::string& inName);
 
 	GameCamera* GetMainCamera() const;

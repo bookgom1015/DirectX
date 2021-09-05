@@ -189,11 +189,7 @@ private:
 	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
 	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound, 
 			const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
-	UINT UpdateInstanceDataBuffer(UINT inOffset, const BoundingFrustum& inFrustum,	const RenderItem* inRitem, 
-			GVector<UINT>& outInstIndices, GameUploadBuffer<InstanceData>& outInstDataBuffer);
-	void UpdateInstanceIndexBuffer(UINT inOffset, const GVector<UINT>& inInstIndices, 
-			GameUploadBuffer<InstanceIdxData>& outInstIdxBuffer);
-	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
 	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
@@ -245,8 +241,8 @@ private:
 	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
 	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
+	GVector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
+	GVector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
 
 	// List of all the render items.
 	GVector<std::unique_ptr<RenderItem>> mAllRitems;
@@ -295,7 +291,12 @@ private:
 
 	GVector<float> mConstantSettings;
 
+	const UINT MaxInstanceCount = 128;
+
 #ifdef MT_World
 	std::unique_ptr<CVBarrier> mUpdateBarrier;
+
+	GVector<GVector<UINT>> mInstIndicesSet;
+	GVector<UINT> mNumInstances;
 #endif
 };

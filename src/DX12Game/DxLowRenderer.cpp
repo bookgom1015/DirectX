@@ -4,7 +4,8 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-DxLowRenderer::DxLowRenderer() {}
+DxLowRenderer::DxLowRenderer()
+	: LowRenderer() {}
 
 DxLowRenderer::~DxLowRenderer() {
 	if (!bIsCleaned)
@@ -372,7 +373,7 @@ GameResult DxLowRenderer::OnResize() {
 void DxLowRenderer::LogAdapters() {
 	UINT i = 0;
 	IDXGIAdapter* adapter = nullptr;
-	std::vector<IDXGIAdapter*> adapterList;
+	GVector<IDXGIAdapter*> adapterList;
 	while (mdxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
 		DXGI_ADAPTER_DESC desc;
 		adapter->GetDesc(&desc);
@@ -416,7 +417,7 @@ void DxLowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inF
 	// Call with nullptr to get list count.
 	inOutput->GetDisplayModeList(inFormat, flags, &count, nullptr);
 
-	std::vector<DXGI_MODE_DESC> modelList(count);
+	GVector<DXGI_MODE_DESC> modelList(count);
 	inOutput->GetDisplayModeList(inFormat, flags, &count, &modelList[0]);
 
 	for (auto& x : modelList) {

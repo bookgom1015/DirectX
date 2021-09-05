@@ -528,7 +528,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	UINT numProcessors = static_cast<UINT>(ThreadUtil::GetNumberOfProcessors());
+	UINT numProcessors = ThreadUtil::GetProcessorCount(false);
 
 	GVector<UINT> eachPolygonCounts(numProcessors);	
 	const UINT lineSize = vertexCounter / numProcessors;

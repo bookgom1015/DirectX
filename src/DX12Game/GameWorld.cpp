@@ -75,11 +75,13 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mClientWidth = inWidth;
 	mClientHeight = inHeight;
 	
-	CheckGameResult(InitMainWindow());
-	
+	CheckGameResult(InitMainWindow());	
+
 #ifdef MT_World	
-	if (!ThreadUtil::GetProcessorCount(mNumProcessors, false))
-		ReturnGameResult(S_FALSE, L"Failed to get processor informations");
+	if (!ThreadUtil::Initialize())
+		ReturnGameResult(S_FALSE, L"Failed to initialize ThreadUtil");
+
+	mNumProcessors = ThreadUtil::GetProcessorCount(false);
 
 	mThreads.resize(mNumProcessors);
 	mActors.resize(mNumProcessors);

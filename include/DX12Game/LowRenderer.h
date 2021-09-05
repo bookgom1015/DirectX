@@ -6,14 +6,14 @@ class LowRenderer {
 protected:
 	LowRenderer() = default;
 
+public:
+	virtual ~LowRenderer() = default;
+
 private:
 	LowRenderer(const LowRenderer& inRef) = delete;
 	LowRenderer(LowRenderer&& inRVal) = delete;
 	LowRenderer& operator=(const LowRenderer& inRef) = delete;
 	LowRenderer& operator=(LowRenderer&& inRVal) = delete;
-
-public:
-	virtual ~LowRenderer() = default;
 
 protected:
 	float AspectRatio() const;

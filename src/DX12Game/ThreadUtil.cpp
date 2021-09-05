@@ -5,40 +5,65 @@ HANDLE ThreadUtil::mhLogFile = CreateFile(L"./tlog.txt",
 
 std::mutex ThreadUtil::mLogFileMutex;
 
-bool ThreadUtil::GetProcessorCount(UINT& outCount, bool inLogic) {
+UINT ThreadUtil::mPhysicalProcessorCount = 0;
+UINT ThreadUtil::mLogicalProcessorCount = 0;
+UINT ThreadUtil::mProcessorL1CacheCount = 0;
+UINT ThreadUtil::mProcessorL2CacheCount = 0;
+UINT ThreadUtil::mProcessorL3CacheCount = 0;
+
+bool ThreadUtil::Initialize() {
 	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = nullptr;
 	DWORD returnLength = 0;
 
 	if (!GetProcessorInformation(buffer, returnLength))
 		return false;
 
-	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = nullptr;
-	unsigned processorCount = 0;
-	unsigned logicalProcessorCount = 0;
+	PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+	DWORD byteOffset = 0;
+	PCACHE_DESCRIPTOR cache = {};
+	mPhysicalProcessorCount = 0;
+	mLogicalProcessorCount = 0;
+	mProcessorL1CacheCount = 0;
+	mProcessorL2CacheCount = 0;
+	mProcessorL3CacheCount = 0;
 
-	if (buffer != nullptr) {
-		ptr = buffer;
-		DWORD byteOffset = 0;
+	while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
+		switch (ptr->Relationship) {
+		case RelationCache:
+			// Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache. 
+			cache = &ptr->Cache;
+			if (cache->Level == 1)
+				++mProcessorL1CacheCount;
+			else if (cache->Level == 2)
+				++mProcessorL2CacheCount;
+			else if (cache->Level == 3)
+				++mProcessorL3CacheCount;
+			break;
+		case RelationProcessorCore:
+			++mPhysicalProcessorCount;
 
-		while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
-			switch (ptr->Relationship) {
-			case RelationProcessorCore:
-				++processorCount;
-
-				logicalProcessorCount += CountSetBits(ptr->ProcessorMask);
-			}
-
-			byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-			++ptr;
+			// A hyperthreaded core supplies more than one logical processor.
+			mLogicalProcessorCount += CountSetBits(ptr->ProcessorMask);
 		}
+
+		byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+		++ptr;
 	}
 
 	std::free(buffer);
 
-	outCount = inLogic ? logicalProcessorCount : processorCount;
-
 	return true;
+}
+
+UINT ThreadUtil::GetProcessorCount(bool inLogic) {
+	return inLogic ? mLogicalProcessorCount : mPhysicalProcessorCount;
 };
+
+void ThreadUtil::GetProcessorCaches(UINT& outL1Cache, UINT& outL2Cache, UINT& outL3Cache) {
+	outL1Cache = mProcessorL1CacheCount;
+	outL1Cache = mProcessorL1CacheCount;
+	outL1Cache = mProcessorL1CacheCount;
+}
 
 void ThreadUtil::TLogFunc(const std::string& text) {
 	std::wstring wstr;
