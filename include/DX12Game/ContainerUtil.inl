@@ -55,6 +55,7 @@ GARRAY_TEMPLATE
 const T* GARRAY::data() const noexcept {
 	return mArray.data();
 }
+/// Element access
 
 ///
 //  Iterators
@@ -118,6 +119,7 @@ GARRAY_TEMPLATE
 GARRAY_CONST_REVERSE_ITERATOR GARRAY::crend() const noexcept {
 	return mArray.crend();
 }
+///  Iterators
 
 ///
 // Capacity
@@ -136,6 +138,7 @@ GARRAY_TEMPLATE
 constexpr GARRAY_SIZE_TYPE GARRAY::max_size() const noexcept {
 	return mArray.max_size();
 }
+/// Capacity
 
 ///
 // Operations
@@ -149,6 +152,7 @@ GARRAY_TEMPLATE
 void GARRAY::swap(Array& inOther) noexcept {
 	mArray.swap(inOther);
 }
+/// Operations
 
 ///
 // Constructions
@@ -162,6 +166,7 @@ GVECTOR_TEMPLATE
 GVECTOR::GVector(InitializerList inList) {
 	mVector.insert(mVector.begin(), inList.begin(), inList.end());
 }
+/// Constructions
 
 ///
 // Member functions
@@ -192,6 +197,7 @@ GVECTOR_TEMPLATE
 GVECTOR_ALLOCATOR_TYPE GVECTOR::get_allocator() const noexcept {
 	return mVector.get_allocator();
 }
+/// Member functions
 
 ///
 // Element access
@@ -264,6 +270,7 @@ GVECTOR_TEMPLATE
 T* GVECTOR::data() noexcept {
 	return const_cast<T*>(std::as_const(*this).data());
 }
+/// Element access
 
 GVECTOR_TEMPLATE
 const T* GVECTOR::data() const noexcept {
@@ -322,6 +329,7 @@ GVECTOR_TEMPLATE
 GVECTOR_CONST_REVERSE_ITERATOR GVECTOR::crend() const noexcept {
 	return mVector.crend();
 }
+/// Iterators 
 
 ///
 // Capacity
@@ -355,6 +363,7 @@ GVECTOR_TEMPLATE
 void GVECTOR::shrink_to_fit() {
 	mVector.shrink_to_fit();
 }
+/// Capacity
 
 ///
 // Modifiers
@@ -456,6 +465,7 @@ GVECTOR_TEMPLATE
 void GVECTOR::swap(GVector& inOther) {
 	mVector.swap(inOther.mVector);
 }
+/// Modifiers
 
 UNORDERED_TEMPLATE
 typename UNORDEREDMAP& UNORDEREDMAP::operator=(const GUnorderedMap& inOther) {
@@ -469,6 +479,9 @@ typename UNORDEREDMAP& UNORDEREDMAP::operator=(GUnorderedMap&& inOther) {
 	return (*this);
 }
 
+///
+// Iterators
+///
 UNORDERED_TEMPLATE
 UNORDERED_ITERATOR UNORDEREDMAP::begin() noexcept {
 	return mUnorderedMap.begin();
@@ -498,7 +511,11 @@ UNORDERED_TEMPLATE
 UNORDERED_CONST_ITERATOR UNORDEREDMAP::cend() const noexcept {
 	return mUnorderedMap.cend();
 }
+/// Iterators
 
+///
+// Capacity
+///
 UNORDERED_TEMPLATE
 bool UNORDEREDMAP::empty() const noexcept {
 	return mUnorderedMap.empty();
@@ -513,7 +530,12 @@ UNORDERED_TEMPLATE
 typename UNORDEREDMAP::SizeType UNORDEREDMAP::max_size() const noexcept {
 	return mUnorderedMap.max_size();
 }
+/// Capacity
 
+
+///
+// Modifiers
+///
 UNORDERED_TEMPLATE
 void UNORDEREDMAP::clear() noexcept {
 	mUnorderedMap.clear();
@@ -545,7 +567,11 @@ UNORDERED_TEMPLATE
 typename UNORDEREDMAP::SizeType UNORDEREDMAP::erase(const KeyType& inKey) {
 	return mUnorderedMap.erase(inKey);
 }
+/// Modifiers
 
+///
+// Lookup
+///
 UNORDERED_TEMPLATE
 ValType& UNORDEREDMAP::at(const KeyType& inKey) {
 	return const_cast<ValType&>(std::as_const(*this).at(inKey));
@@ -597,7 +623,11 @@ UNORDERED_TEMPLATE
 std::pair<UNORDERED_CONST_ITERATOR, UNORDERED_CONST_ITERATOR> UNORDEREDMAP::equal_range(const KeyType& inKey) const {
 	return mUnorderedMap.equal_range(inKey);
 }
+/// Lookup
 
+///
+// Bucket interface
+///
 UNORDERED_TEMPLATE
 UNORDERED_LOCAL_ITERATOR UNORDEREDMAP::begin(SizeType inBucket) {
 	return mUnorderedMap.begin(inBucket);
@@ -627,5 +657,6 @@ UNORDERED_TEMPLATE
 UNORDERED_LOCAL_CONST_ITERATOR UNORDEREDMAP::cend(SizeType inBucket) const {
 	return mUnorderedMap.cend(inBucket);
 }
+/// Bucket interface
 
 #endif // __CONTAINERUTIL_INL__

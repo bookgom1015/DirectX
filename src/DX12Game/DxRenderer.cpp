@@ -49,6 +49,23 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mUpdateBarrier = std::make_unique<CVBarrier>(mNumThreads);
 
 	mNumInstances.resize(mNumThreads);
+	mEachUpdateFunctions.resize(mNumThreads);
+
+	{
+		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc mainPassCB = &DxRenderer::UpdateMainPassCB;
+		mEachUpdateFunctions[i++].push_back(mainPassCB);
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc shadowPassCB = &DxRenderer::UpdateShadowPassCB;
+		mEachUpdateFunctions[i++].push_back(shadowPassCB);
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc ssaoCB = &DxRenderer::UpdateSsaoCB;
+		mEachUpdateFunctions[i++].push_back(ssaoCB);
+	}
 #endif
 
 	// Reset the command list to prep for initialization commands.
@@ -161,17 +178,17 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
 	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid, mUpdateBarrier.get()));
+	CheckGameResult(UpdateMaterialBuffers(gt, inTid, mUpdateBarrier.get()));
+	
+	if (inTid == 0)
+		CheckGameResult(UpdateShadowTransform(gt));		
 
 	SyncHost(mUpdateBarrier)
+
+	for (auto& func : mEachUpdateFunctions[inTid])
+		func(*this, std::ref(gt), inTid, mUpdateBarrier.get());
 	
 	if (inTid == 0) {
-		CheckGameResult(UpdateMaterialBuffers(gt));
-		CheckGameResult(UpdateShadowTransform(gt));
-		CheckGameResult(UpdateMainPassCB(gt));
-		CheckGameResult(UpdateShadowPassCB(gt));
-		CheckGameResult(UpdateSsaoCB(gt));
-		CheckGameResult(UpdateBlendingRenderItems(gt));
-
 		GVector<std::string> textsToRemove;
 		for (auto& text : mOutputTexts) {
 			float& lifeTime = text.second.second.w;
@@ -505,8 +522,8 @@ GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>
 	for (const auto& matList : inMaterials) {
 		const auto& materialIn = matList.second;
 
-		auto iter = mMaterials.find(materialIn.MaterialName);
-		if (iter != mMaterials.cend())
+		auto iter = mMaterialRefs.find(materialIn.MaterialName);
+		if (iter != mMaterialRefs.cend())
 			continue;
 
 		auto material = std::make_unique<Material>();
@@ -521,7 +538,8 @@ GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>
 		material->FresnelR0 = materialIn.FresnelR0;
 		material->Roughness = materialIn.Roughness;
 
-		mMaterials[materialIn.MaterialName] = std::move(material);
+		mMaterialRefs[materialIn.MaterialName] = material.get();
+		mMaterials.push_back(std::move(material));
 	}
 
 	return GameResult(S_OK);
@@ -624,13 +642,13 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 			auto ritem = std::make_unique<RenderItem>();
 			ritem->mObjCBIndex = mNumObjCB++;
 
-			ritem->mMat = mMaterials["default"].get();
+			ritem->mMat = mMaterialRefs["default"];
 			if (!materials.empty()) {
 				auto iter = materials.find(drawArgs[i]);
 				if (iter != materials.cend()) {
-					auto matIter = mMaterials.find(iter->second.MaterialName);
-					if (matIter != mMaterials.cend())
-						ritem->mMat = matIter->second.get();
+					auto matIter = mMaterialRefs.find(iter->second.MaterialName);
+					if (matIter != mMaterialRefs.cend())
+						ritem->mMat = matIter->second;
 				}
 			}
 
@@ -889,7 +907,7 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 	else {
 		auto ritem = std::make_unique<RenderItem>();
 		ritem->mObjCBIndex = mNumObjCB++;
-		ritem->mMat = mMaterials["default"].get();
+		ritem->mMat = mMaterialRefs["default"];
 		ritem->mGeo = mGeometries[inMesh->GetMeshName() + "_skeleton"].get();
 		ritem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 		ritem->mIndexCount = ritem->mGeo->DrawArgs["skeleton"].IndexCount;
@@ -1275,7 +1293,8 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UI
 		currObjectCB.CopyData(ritem->mObjCBIndex, objConstants);
 	}
 	
-	inBarrier->Wait();
+	if (inBarrier != nullptr)
+		inBarrier->Wait();
 
 	if (inTid == 0) {
 		UINT visibleObjectCount = 0;
@@ -1298,10 +1317,18 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UI
 GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	auto& currMaterialBuffer = mCurrFrameResource->mMaterialBuffer;
 
-	for (auto& e : mMaterials) {
+	UINT numMaterials = static_cast<UINT>(mMaterials.size());
+	UINT eachNumMaterials = numMaterials / mNumThreads;
+	UINT remaining = numMaterials % mNumThreads;
+	
+	UINT begin = inTid * eachNumMaterials + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumMaterials + (inTid < remaining ? 1 : 0);
+	
+	for (UINT i = begin; i < end; ++i) {	
+		Material* mat = mMaterials[i].get();
+
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
 		// data changes, it needs to be updated for each FrameResource.
-		Material* mat = e.second.get();
 		if (mat->NumFramesDirty > 0) {
 			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 
@@ -1324,7 +1351,7 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid, Th
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1380,7 +1407,7 @@ GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1432,7 +1459,7 @@ GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	XMMATRIX view = XMLoadFloat4x4(&mLightingVars.mLightView);
 	XMMATRIX proj = XMLoadFloat4x4(&mLightingVars.mLightProj);
 
@@ -1462,7 +1489,7 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1499,13 +1526,6 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 
 	auto& currSsaoCB = mCurrFrameResource->mSsaoCB;
 	currSsaoCB.CopyData(0, ssaoCB);
-
-	return GameResult(S_OK);
-}
-
-GameResult DxRenderer::UpdateBlendingRenderItems(const GameTimer& gt, UINT inTid) {
-	auto& opaque = mRitemLayer[RenderLayer::Opaque];
-	auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
 
 	return GameResult(S_OK);
 }
@@ -2323,9 +2343,12 @@ GameResult DxRenderer::BuildBasicMaterials() {
 	skyMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	skyMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	skyMat->Roughness = 1.0f;
+	
+	mMaterialRefs[defaultMat->Name] = defaultMat.get();
+	mMaterials.push_back(std::move(defaultMat));
 
-	mMaterials[defaultMat->Name] = std::move(defaultMat);
-	mMaterials[skyMat->Name] = std::move(skyMat);
+	mMaterialRefs[skyMat->Name] = skyMat.get();
+	mMaterials.push_back(std::move(skyMat));
 
 	return GameResult(S_OK);
 }
@@ -2336,7 +2359,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto skyRitem = std::make_unique<RenderItem>();
 	skyRitem->mObjCBIndex = mNumObjCB++;
-	skyRitem->mMat = mMaterials["sky"].get();
+	skyRitem->mMat = mMaterialRefs["sky"];
 	skyRitem->mGeo = mGeometries["standardGeo"].get();
 	skyRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	skyRitem->mIndexCount = skyRitem->mGeo->DrawArgs["sphere"].IndexCount;
@@ -2356,7 +2379,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	boxRitem->mObjCBIndex = mNumObjCB++;
-	boxRitem->mMat = mMaterials["default"].get();
+	boxRitem->mMat = mMaterialRefs["default"];
 	boxRitem->mGeo = mGeometries["standardGeo"].get();
 	boxRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem->mIndexCount = boxRitem->mGeo->DrawArgs["box"].IndexCount;
@@ -2376,7 +2399,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto quadRitem = std::make_unique<RenderItem>();
 	quadRitem->mObjCBIndex = mNumObjCB++;
-	quadRitem->mMat = mMaterials["default"].get();
+	quadRitem->mMat = mMaterialRefs["default"];
 	quadRitem->mGeo = mGeometries["standardGeo"].get();
 	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
@@ -2399,7 +2422,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	quadRitem = std::make_unique<RenderItem>();
 	quadRitem->mObjCBIndex = mNumObjCB++;
-	quadRitem->mMat = mMaterials["default"].get();
+	quadRitem->mMat = mMaterialRefs["default"];
 	quadRitem->mGeo = mGeometries["standardGeo"].get();
 	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
@@ -2420,7 +2443,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->mObjCBIndex = mNumObjCB++;
-	gridRitem->mMat = mMaterials["default"].get();
+	gridRitem->mMat = mMaterialRefs["default"];
 	gridRitem->mGeo = mGeometries["standardGeo"].get();
 	gridRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->mIndexCount = gridRitem->mGeo->DrawArgs["grid"].IndexCount;

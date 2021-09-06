@@ -21,6 +21,9 @@ class Animation;
 
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
+	using UpdateFunc = std::function<void(DxRenderer&, const GameTimer&, UINT, ThreadBarrier*)>;
+
+private:
 	enum RenderLayer : int {
 		Opaque = 0,
 		SkinnedOpaque,
@@ -200,11 +203,10 @@ private:
 	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
 	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
-	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
-	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
-	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
-	GameResult UpdateBlendingRenderItems(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
+	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
+	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
+	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
 	/// Update functions
 
 	GameResult LoadBasicTextures();
@@ -246,9 +248,13 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
 	GUnorderedMap<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	GUnorderedMap<std::string, std::unique_ptr<Material>> mMaterials;
+
+	GVector<std::unique_ptr<Material>> mMaterials;
+	GUnorderedMap<std::string, Material*> mMaterialRefs;
+
 	GUnorderedMap<std::string, std::unique_ptr<Texture>> mTextures;
 	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
+
 	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
 	GVector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
@@ -307,5 +313,6 @@ private:
 	std::unique_ptr<CVBarrier> mUpdateBarrier;
 
 	GVector<UINT> mNumInstances;
+	GVector<GVector<UpdateFunc>> mEachUpdateFunctions;
 #endif
 };

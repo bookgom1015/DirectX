@@ -70,6 +70,7 @@ public:
 
 	T* data() noexcept;
 	const T* data() const noexcept;
+	/// Element access
 
 	///
 	//  Iterators
@@ -89,15 +90,15 @@ public:
 	ReverseIterator rend() noexcept;
 	ConstReverseIterator rend() const noexcept;
 	ConstReverseIterator crend() const noexcept;
+	///  Iterators
 
 	///
 	// Capacity
 	///
 	constexpr bool empty() const noexcept;
-
 	constexpr SizeType size() const noexcept;
-
 	constexpr SizeType max_size() const noexcept;
+	/// Capacity
 
 	///
 	// Operations
@@ -105,6 +106,7 @@ public:
 	void fill(const T& inValue);
 
 	void swap(Array& inOther) noexcept;
+	/// Operations
 
 private:
 	Array mArray;
@@ -198,6 +200,7 @@ public:
 
 	T* data() noexcept;
 	const T* data() const noexcept;
+	/// Element access
 
 	///
 	// Iterators
@@ -217,14 +220,13 @@ public:
 	ReverseIterator rend() noexcept;
 	ConstReverseIterator rend() const noexcept;
 	ConstReverseIterator crend() const noexcept;
+	/// Iterators
 
 	///
 	// Capacity
 	///
 	bool empty() const noexcept;
-
 	SizeType size() const noexcept;
-
 	SizeType max_size() const noexcept;
 
 	void reserve(SizeType inNewCapacity);
@@ -232,6 +234,7 @@ public:
 	SizeType capacity() const noexcept;
 
 	void shrink_to_fit();
+	/// Capacity
 
 	///
 	// Modifiers
@@ -260,6 +263,7 @@ public:
 	void resize(SizeType inCount, ConstReference inValue);
 
 	void swap(GVector& inOther);
+	/// Modifiers
 
 private:
 	Vector mVector;
@@ -296,6 +300,7 @@ template <typename KeyType,
 		  typename KeyEql = std::equal_to<KeyType>,
 		  typename Allocator = std::pmr::polymorphic_allocator<std::pair<const KeyType, ValType>>>
 class GUnorderedMap {
+public:
 	using SizeType = size_t;
 	using UnorderedMap = typename std::unordered_map<KeyType, ValType, Hasher, KeyEql, Allocator>;
 	using Iterator = typename UnorderedMap::iterator;
@@ -311,40 +316,66 @@ public:
 	GUnorderedMap& operator=(const GUnorderedMap& inOther);
 	GUnorderedMap& operator=(GUnorderedMap&& inOther);
 
+public:
+	///
+	// Iterators
+	///
 	Iterator begin() noexcept;
 	ConstIterator begin() const noexcept;
 	ConstIterator cbegin() const noexcept;
+
 	Iterator end() noexcept;
 	ConstIterator end() const noexcept;
 	ConstIterator cend() const noexcept;
+	/// Iterators
 
+	///
+	// Capacity
+	///
 	bool empty() const noexcept;
 	SizeType size() const noexcept;
 	SizeType max_size() const noexcept;
+	/// Capacity
 
+	///
+	// Modifiers
+	///
 	void clear() noexcept;
 	template <typename... Args> std::pair<Iterator, bool> emplace(Args&&... inArgs);
 	template <typename... Args> Iterator emplace_hint(ConstIterator inHint, Args&&... inArgs);
 	Iterator erase(ConstIterator inPos);
 	Iterator erase(ConstIterator inFirst, ConstIterator inLast);
+	SizeType erase(const KeyType& inKey);
+	/// Modifiers
 
+	///
+	// Lookup
+	///
 	ValType& at(const KeyType& inKey);
 	const ValType& at(const KeyType& inKey) const;
+
 	ValType& operator[](const KeyType& inKey);
 	ValType& operator[](KeyType&& inKey);
 	SizeType count(const KeyType& inKey) const;
+
 	Iterator find(const KeyType& inKey);
 	ConstIterator find(const KeyType& inKey) const;
+
 	std::pair<Iterator, Iterator> equal_range(const KeyType& inKey);
 	std::pair<ConstIterator, ConstIterator> equal_range(const KeyType& inKey) const;
-	SizeType erase(const KeyType& inKey);
+	/// Lookup
 
+	///
+	// Bucket interface
+	///
 	LocalIterator begin(SizeType inBucket);
 	LocalConstIterator begin(SizeType inBucket) const;
 	LocalConstIterator cbegin(SizeType inBucket) const;
+
 	LocalIterator end(SizeType inBucket);
 	LocalConstIterator end(SizeType inBucket) const;
 	LocalConstIterator cend(SizeType inBucket) const;
+	/// Bucket interface
 
 private:
 	UnorderedMap mUnorderedMap;
