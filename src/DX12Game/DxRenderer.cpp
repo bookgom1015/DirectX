@@ -48,7 +48,6 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 #ifdef MT_World
 	mUpdateBarrier = std::make_unique<CVBarrier>(mNumThreads);
 
-	mInstIndicesSet.resize(mNumThreads);
 	mNumInstances.resize(mNumThreads);
 #endif
 
@@ -1167,15 +1166,11 @@ GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialI
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AnimateMaterials(const GameTimer& gt, UINT inTid) {
-	return GameResult(S_OK);
-}
-
-bool DxRenderer::IsContained(
-	BoundType inType, 
-	const RenderItem::BoundingStruct& inBound,
-	const BoundingFrustum& inFrustum, 
-	UINT inTid) {
+///
+// Update helper classes
+///
+bool DxRenderer::IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
+		const BoundingFrustum& inFrustum, UINT inTid) {
 
 	if (inType == BoundType::AABB)
 		return (inFrustum.Contains(inBound.mAABB) != DirectX::DISJOINT);
@@ -1187,32 +1182,18 @@ bool DxRenderer::IsContained(
 		return false;
 }
 
-void DxRenderer::UpdateEachRitems() {
-	auto& currObjectCB = mCurrFrameResource->mObjectCB;
+UINT DxRenderer::UpdateEachInstances(RenderItem* inRitem) {
 	auto& currInstDataBuffer = mCurrFrameResource->mInstanceDataBuffer;
 	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
 
-	for (auto& e : mAllRitems) {
-		UINT offset = e->mObjCBIndex * MaxInstanceCount;
-		UINT accum = 0;
-		UINT cnt = 0;
-
-		//
-
-		e->mNumInstancesToDraw = accum;
-
-		ObjectConstants objConstants;
-		objConstants.mObjectIndex = e->mObjCBIndex;
-
-		currObjectCB.CopyData(e->mObjCBIndex, objConstants);
-	}
-}
-
-void DxRenderer::UpdateEachInstances() {
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
-	for (auto& i : e->mInstances) {
+	UINT offset = inRitem->mObjCBIndex * MaxInstanceCount;
+	UINT accum = 0;
+	UINT cnt = 0;
+
+	for (auto& i : inRitem->mInstances) {
 		XMMATRIX world = XMLoadFloat4x4(&i.mWorld);
 		XMMATRIX texTransform = XMLoadFloat4x4(&i.mTexTransform);
 
@@ -1227,7 +1208,7 @@ void DxRenderer::UpdateEachInstances() {
 
 		if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
 			InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
-			IsContained(e->mBoundType, e->mBoundingUnion, localSpaceFrustum)) {
+			IsContained(inRitem->mBoundType, inRitem->mBoundingUnion, localSpaceFrustum)) {
 
 			UINT instDataIdx = offset + cnt;
 
@@ -1253,36 +1234,70 @@ void DxRenderer::UpdateEachInstances() {
 			}
 
 			++accum;
-			++visibleObjectCount;
 		}
 
 		++cnt;
 	}
+
+	return accum;
+}
+/// Update helper classes
+
+///
+// Update functions
+///
+GameResult DxRenderer::AnimateMaterials(const GameTimer& gt, UINT inTid) {
+	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
+	auto& currObjectCB = mCurrFrameResource->mObjectCB;
 
+	UINT numRitems = static_cast<UINT>(mAllRitems.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
 
-	UINT visibleObjectCount = 0;
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
-	UpdateEachRitems();
+	for (UINT i = begin; i < end; ++i) {
+		auto ritem = mAllRitems[i].get();
 
-	AddOutputText(
-		"TEXT_VOC",
-		L"voc: " + std::to_wstring(visibleObjectCount),
-		static_cast<float>(mScreenViewport.Width * 0.01f),
-		static_cast<float>(mScreenViewport.Height * 0.09f),
-		16.0f
-	);
+		mNumInstances[inTid] = UpdateEachInstances(ritem);
+		ritem->mNumInstancesToDraw = mNumInstances[inTid];
+
+		ObjectConstants objConstants;
+		objConstants.mObjectIndex = ritem->mObjCBIndex;
+
+		currObjectCB.CopyData(ritem->mObjCBIndex, objConstants);
+	}
+	
+	inBarrier->Wait();
+
+	if (inTid == 0) {
+		UINT visibleObjectCount = 0;
+
+		for (UINT i = 0; i < mNumThreads; ++i)
+			visibleObjectCount += mNumInstances[i];
+
+		AddOutputText(
+			"TEXT_VOC",
+			L"voc: " + std::to_wstring(visibleObjectCount),
+			static_cast<float>(mScreenViewport.Width * 0.01f),
+			static_cast<float>(mScreenViewport.Height * 0.09f),
+			16.0f
+		);
+	}
 
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
+GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid, ThreadBarrier* inBarrier) {
 	auto& currMaterialBuffer = mCurrFrameResource->mMaterialBuffer;
+
 	for (auto& e : mMaterials) {
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
 		// data changes, it needs to be updated for each FrameResource.
@@ -1494,6 +1509,7 @@ GameResult DxRenderer::UpdateBlendingRenderItems(const GameTimer& gt, UINT inTid
 
 	return GameResult(S_OK);
 }
+/// Update functions
 
 GameResult DxRenderer::LoadBasicTextures() {
 	GVector<std::string> texNames = {

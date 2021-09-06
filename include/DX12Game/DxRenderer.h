@@ -186,16 +186,26 @@ private:
 	GameResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
 
-	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
-	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound, 
+	///
+	// Update helper classes
+	///
+	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
 			const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
+	UINT UpdateEachInstances(RenderItem* inRitem);
+	/// Update helper classes
+
+	///
+	// Update functions
+	///
+	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
 	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateBlendingRenderItems(const GameTimer& gt, UINT inTid = 0);
+	/// Update functions
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
@@ -296,7 +306,6 @@ private:
 #ifdef MT_World
 	std::unique_ptr<CVBarrier> mUpdateBarrier;
 
-	GVector<GVector<UINT>> mInstIndicesSet;
 	GVector<UINT> mNumInstances;
 #endif
 };
