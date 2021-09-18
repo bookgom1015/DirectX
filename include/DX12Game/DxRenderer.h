@@ -21,7 +21,7 @@ class Animation;
 
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
-	using UpdateFunc = std::function<void(DxRenderer&, const GameTimer&, UINT, ThreadBarrier*)>;
+	using UpdateFunc = std::function<void(DxRenderer&, const GameTimer&, UINT)>;
 
 private:
 	enum RenderLayer : int {
@@ -178,6 +178,9 @@ protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
 
 private:
+	GameResult ResetFrameResourceCmdListAlloc();
+	GameResult ClearViews();
+
 	void DrawTexts();
 	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 	GameResult LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
@@ -201,12 +204,12 @@ private:
 	// Update functions
 	///
 	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
-	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
-	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0, ThreadBarrier* inBarrier = nullptr);
+	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
 	/// Update functions
 
 	GameResult LoadBasicTextures();
@@ -225,9 +228,11 @@ private:
 	GameResult BuildPSOs();
 	GameResult BuildFrameResources();
 
-	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
-	GameResult DrawSceneToShadowMap();
-	GameResult DrawSceneToGBuffer();
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);	
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, 
+			const GVector<RenderItem*>& inRitems, UINT inBegin, UINT inEnd);
+	GameResult DrawSceneToShadowMap(UINT inTid = 0);
+	GameResult DrawSceneToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
@@ -310,7 +315,8 @@ private:
 	const UINT MaxInstanceCount = 128;
 
 #ifdef MT_World
-	std::unique_ptr<CVBarrier> mUpdateBarrier;
+	std::unique_ptr<CVBarrier> mCVBarrier;
+	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
 
 	GVector<UINT> mNumInstances;
 	GVector<GVector<UpdateFunc>> mEachUpdateFunctions;

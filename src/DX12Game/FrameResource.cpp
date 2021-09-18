@@ -184,7 +184,6 @@ FrameResource::FrameResource(ID3D12Device* inDevice,
 }
 
 GameResult FrameResource::Initialize(UINT inNumThreads) {
-#ifdef MT_World
 	mCmdListAllocs.resize(inNumThreads);
 
 	for (UINT i = 0; i < inNumThreads; ++i) {
@@ -195,14 +194,6 @@ GameResult FrameResource::Initialize(UINT inNumThreads) {
 			)
 		);
 	}
-#else
-	ReturnIfFailed(
-		mDevice->CreateCommandAllocator(
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(mCmdListAlloc.GetAddressOf())
-		)
-	);
-#endif
 
 	mPassCB.Initialize(mDevice, mPassCount, true);
 	mObjectCB.Initialize(mDevice, mObjectCount, true);

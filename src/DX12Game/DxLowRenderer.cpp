@@ -111,7 +111,6 @@ ID3D12Device* DxLowRenderer::GetDevice() const {
 	return md3dDevice.Get();
 }
 
-#ifdef MT_World
 const GVector<ComPtr<ID3D12GraphicsCommandList>>& DxLowRenderer::GetCommandLists() const {
 	return mCommandLists;
 }
@@ -119,11 +118,6 @@ const GVector<ComPtr<ID3D12GraphicsCommandList>>& DxLowRenderer::GetCommandLists
 ID3D12GraphicsCommandList* DxLowRenderer::GetCommandList(UINT inIdx) const {
 	return mCommandLists[inIdx].Get();
 }
-#else
-ID3D12GraphicsCommandList* DxLowRenderer::GetCommandList() const {
-	return mCommandList.Get();
-}
-#endif
 
 GameResult DxLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	// Do nothing.
@@ -144,6 +138,9 @@ GameResult DxLowRenderer::InitDirect3D() {
 #endif
 
 	ReturnIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory)));
+
+	// Does not support fullscreen mode.
+	ReturnIfFailed(mdxgiFactory->MakeWindowAssociation(mhMainWnd, DXGI_MWA_NO_ALT_ENTER));
 
 	// Try to create hardware device.
 	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&md3dDevice));
@@ -192,14 +189,13 @@ GameResult DxLowRenderer::CreateCommandObjects() {
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	ReturnIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
 
-#ifdef MT_World
 	mCommandAllocators.resize(mNumThreads);
 	mCommandLists.resize(mNumThreads);
 
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		ReturnIfFailed(
 			md3dDevice->CreateCommandAllocator(
-				D3D12_COMMAND_LIST_TYPE_DIRECT, 
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
 				IID_PPV_ARGS(mCommandAllocators[i].GetAddressOf())
 			)
 		);
@@ -215,27 +211,9 @@ GameResult DxLowRenderer::CreateCommandObjects() {
 		);
 
 		// Start off in a closed state.  This is because the first time we refer 
-		// to the command list we will Reset it, and it needs to be closed before
-		// calling Reset.
+		//  to the command list we will Reset it, and it needs to be closed before calling Reset.
 		mCommandLists[i]->Close();
 	}
-#else
-	ReturnIfFailed(md3dDevice->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf())
-	));
-
-	ReturnIfFailed(md3dDevice->CreateCommandList(
-		0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-		mDirectCmdListAlloc.Get(),	// Associated command allocator
-		nullptr,					// Initial PipelineStateObject
-		IID_PPV_ARGS(mCommandList.GetAddressOf())
-	));
-
-	// Start off in a closed state.  This is because the first time we refer 
-	// to the command list we will Reset it, and it needs to be closed before
-	// calling Reset.
-	mCommandList->Close();
-#endif
 
 	return GameResult(S_OK);
 }
@@ -285,12 +263,8 @@ GameResult DxLowRenderer::OnResize() {
 	// Flush before changing any resources.
 	FlushCommandQueue();
 
-#ifdef MT_World
 	for (UINT i = 0; i < mNumThreads; ++i)
 		ReturnIfFailed(mCommandLists[i]->Reset(mCommandAllocators[i].Get(), nullptr));
-#else
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-#endif
 
 	// Resize the previous resources we will be creating.
 	for (int i = 0; i < SwapChainBufferCount; ++i)
@@ -337,13 +311,8 @@ GameResult DxLowRenderer::OnResize() {
 	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
 
 	// Transition the resource from its initial state to be used as a depth buffer.
-#ifdef MT_World
 	mCommandLists[0]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-#else
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-#endif
 
 	// Execute the resize commands.
 #ifdef MT_World

@@ -31,12 +31,8 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	ID3D12Device* GetDevice() const;
-#ifdef MT_World
 	const GVector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>>& GetCommandLists() const;
-	ID3D12GraphicsCommandList* GetCommandList(UINT inIdx) const;
-#else
-	ID3D12GraphicsCommandList* GetCommandList() const;
-#endif
+	ID3D12GraphicsCommandList* GetCommandList(UINT inIdx = 0) const;
 
 private:
 	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
@@ -63,13 +59,8 @@ protected:
 	UINT64 mCurrentFence = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
-#ifdef MT_World
 	GVector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCommandAllocators;
 	GVector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
-#else
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
-#endif
 
 	static const int SwapChainBufferCount = 2;
 	int mCurrBackBuffer = 0;

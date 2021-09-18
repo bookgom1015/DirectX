@@ -137,7 +137,7 @@ bool GameWorld::LoadData() {
 	tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
 	
 	XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
-	
+
 	Actor* monkeyActor = new Actor();
 	monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
 	monkeyActor->SetQuaternion(rotateYPi);
@@ -203,7 +203,73 @@ bool GameWorld::LoadData() {
 				return false;
 		}
 	}
-#endif
+
+	Actor* krapivaActor;
+	MeshComponent* krapivaMeshComp;	
+	int numKrapivas = 5;
+	for (int i = -numKrapivas; i <= numKrapivas; ++i) {
+		for (int j = -numKrapivas; j <= numKrapivas; ++j) {
+			if (i == 0 && j == 0)
+				continue;
+
+			krapivaActor = new Actor();
+
+			XMVECTOR pos = XMVectorSet(
+				static_cast<float>(7 * i), 0.0f,
+				static_cast<float>(7 * j), 1.0f
+			);
+			XMVECTOR offset = XMVectorSet(
+				5.0f * MathHelper::RandF() - 2.5f, 
+				0.0f, 
+				5.0f * MathHelper::RandF() - 2.5f, 
+				0.0f
+			);
+
+			krapivaActor->SetPosition(pos + offset);
+			krapivaActor->SetQuaternion(XMQuaternionRotationAxis(
+				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
+			);
+
+			krapivaMeshComp = new MeshComponent(krapivaActor);
+			if (!krapivaMeshComp->LoadMesh("krapiva", "krapiva.fbx"))
+				return false;
+		}
+	}
+
+	Actor* fernActor;
+	MeshComponent* fernMeshComp;
+	int numFern = 5;
+	for (int i = -numFern; i <= numFern; ++i) {
+		for (int j = -numFern; j <= numFern; ++j) {
+			if (i == 0 && j == 0)
+				continue;
+
+			fernActor = new Actor();
+
+			XMVECTOR pos = XMVectorSet(
+				static_cast<float>(13 * i), 0.0f,
+				static_cast<float>(13 * j), 1.0f
+			);
+			XMVECTOR offset = XMVectorSet(
+				6.0f * MathHelper::RandF() - 3.0f,
+				0.0f,
+				6.0f * MathHelper::RandF() - 3.0f,
+				0.0f
+			);
+
+			fernActor->SetPosition(pos + offset);
+			fernActor->SetQuaternion(XMQuaternionRotationAxis(
+				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
+			);
+
+			fernMeshComp = new MeshComponent(fernActor);
+			if (!fernMeshComp->LoadMesh("fern", "fern.fbx"))
+				return false;
+		}
+	}
+#endif // UsingVulkan
 
 #ifdef MT_World
 	for (auto& actors : mActors) {

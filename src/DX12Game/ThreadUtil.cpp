@@ -202,36 +202,36 @@ void CVBarrier::Wait() {
 		return;
 	}
 
-	while (!bWakeUp && currGen == mGeneration)
+	while (currGen == mGeneration)
 		mConditionalVar.wait(ulock);
 }
 
 void CVBarrier::WakeUp() {
 	++mGeneration;
-	bWakeUp = true;
 	mConditionalVar.notify_all();
 }
 
 SpinlockBarrier::SpinlockBarrier(UINT inCount) 
 	: mInitCount(inCount), mCurrCount(inCount), mGeneration(0) {}
 
-void SpinlockBarrier::Wait() {
-	UINT currGen = mGeneration.load();
+void SpinlockBarrier::Wait() {	
+	std::unique_lock<std::mutex> ulock(mMutex);
+	std::uint64_t currGen = mGeneration;
 
 	if (--mCurrCount == 0) {
-		if (mGeneration.compare_exchange_weak(currGen, currGen + 1))
-			mCurrCount = mInitCount;
-
+		++mGeneration;
+		mCurrCount = mInitCount;
 		return;
 	}
 
-	while (!bWakeUp && (currGen == mGeneration) && (mCurrCount != 0))
+	ulock.unlock();
+
+	while (currGen == mGeneration)
 		std::this_thread::yield();
 }
 
 void SpinlockBarrier::WakeUp() {
 	++mGeneration;
-	bWakeUp = true;
 }
 
 ThreadPool::ThreadPool(size_t inNumThreads) {

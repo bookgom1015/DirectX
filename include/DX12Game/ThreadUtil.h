@@ -145,9 +145,6 @@ class ThreadBarrier {
 public:
 	virtual void Wait() = 0;
 	virtual void WakeUp() = 0;
-
-protected:
-	bool bWakeUp = false;
 };
 
 class CVBarrier : public ThreadBarrier{
@@ -191,9 +188,12 @@ public:
 	void WakeUp() override final;
 
 private:
+	std::mutex mMutex;
+	std::condition_variable mConditionalVar;
 	UINT mInitCount;
-	std::atomic<UINT> mCurrCount;
-	std::atomic<UINT> mGeneration;
+	UINT mCurrCount;
+	std::uint64_t mGeneration;
+
 };
 
 class ThreadPool {
