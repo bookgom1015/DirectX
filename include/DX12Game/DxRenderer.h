@@ -154,6 +154,8 @@ private:
 public:
 	virtual GameResult Initialize(HWND hMainWnd, 
 				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
+	GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, 
+				CVBarrier* inCV, SpinlockBarrier* inSpinlock, UINT inNumThreads = 1);
 	virtual void CleanUp() override;
 	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
@@ -231,7 +233,12 @@ private:
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);	
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, 
 			const GVector<RenderItem*>& inRitems, UINT inBegin, UINT inEnd);
+
+	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
+	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSceneToShadowMap(UINT inTid = 0);
+	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
+	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToRenderTarget();
 
@@ -315,10 +322,18 @@ private:
 	const UINT MaxInstanceCount = 128;
 
 #ifdef MT_World
-	std::unique_ptr<CVBarrier> mCVBarrier;
-	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
+	CVBarrier* mCVBarrier;
+	SpinlockBarrier* mSpinlockBarrier;
 
 	GVector<UINT> mNumInstances;
 	GVector<GVector<UpdateFunc>> mEachUpdateFunctions;
+
+	GVector<float> mWaitTimers;
+	GVector<float> mUpdateObjTimers;
+	GVector<float> mMaterialTimers;
+	GVector<float> mFuncTimers;
+	float mShadowTimer;
+	float mTextTimer;
+	UINT mAccum;
 #endif
 };

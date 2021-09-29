@@ -30,11 +30,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 			return static_cast<int>(result.hr);
 		}
 
-		int status = game.RunLoop();
+		result = game.RunLoop();
 
 		game.CleanUp();
 
-		return status;
+		return static_cast<int>(result.hr);
 	}
 	catch (std::exception& e) {
 		std::wstringstream wsstream;
@@ -88,13 +88,25 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mPendingActors.resize(mNumProcessors);
 	bUpdatingActors.resize(mNumProcessors);
 
-	mInputBarrier = std::make_unique<CVBarrier>(mNumProcessors);
+	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
+	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
+
+	mRenderUpdateTimers.resize(mNumProcessors, 0.0f);
+	mActorUpdateTimers.resize(mNumProcessors, 0.0f);
+	mAudioUpdateTimers.resize(mNumProcessors, 0.0f);
+	mInnerUpdateGameTimers.resize(mNumProcessors, 0.0f);
+	mOuterUpdateGameTimers.resize(mNumProcessors, 0.0f);
 #endif 
 
 #ifdef UsingVulkan
 	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight, mNumProcessors));
 #else
-	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, mNumProcessors));
+	#ifdef MT_World
+		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, 
+			mCVBarrier.get(), mSpinlockBarrier.get(), mNumProcessors));
+	#else
+		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, mNumProcessors));
+	#endif
 #endif
 	
 	if (!mAudioSystem->Initialize())
@@ -125,6 +137,31 @@ void GameWorld::CleanUp() {
 
 	glfwTerminate();
 #endif
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / mAccum;
+		Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mActorUpdateTimers[i] = mActorUpdateTimers[i] * 1000.0f / mAccum;
+		Logln("Actor Update Time[", std::to_string(i), "]: ", std::to_string(mActorUpdateTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mAudioUpdateTimers[i] = mAudioUpdateTimers[i] * 1000.0f / mAccum;
+		Logln("Audio Update Time[", std::to_string(i), "]: ", std::to_string(mAudioUpdateTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mInnerUpdateGameTimers[i] = mInnerUpdateGameTimers[i] * 1000.0f / mAccum;
+		Logln("Inner Update Game Time[", std::to_string(i), "]: ", std::to_string(mInnerUpdateGameTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mOuterUpdateGameTimers[i] = mOuterUpdateGameTimers[i] * 1000.0f / mAccum;
+		Logln("Outer Update Game Time[", std::to_string(i), "]: ", std::to_string(mOuterUpdateGameTimers[i]), " ms");
+	}
 
 	bIsCleaned = true;
 }
@@ -180,7 +217,7 @@ bool GameWorld::LoadData() {
 		return false;
 	leoniMeshComp->SetClipName("Idle");
 	leoniMeshComp->SetSkeleletonVisible(false);
-	
+
 	Actor* treeActor;
 	MeshComponent* treeMeshComp;
 	int numTrees = 5;
@@ -203,7 +240,7 @@ bool GameWorld::LoadData() {
 				return false;
 		}
 	}
-
+	
 	Actor* krapivaActor;
 	MeshComponent* krapivaMeshComp;	
 	int numKrapivas = 5;
@@ -211,9 +248,9 @@ bool GameWorld::LoadData() {
 		for (int j = -numKrapivas; j <= numKrapivas; ++j) {
 			if (i == 0 && j == 0)
 				continue;
-
+	
 			krapivaActor = new Actor();
-
+	
 			XMVECTOR pos = XMVectorSet(
 				static_cast<float>(7 * i), 0.0f,
 				static_cast<float>(7 * j), 1.0f
@@ -224,19 +261,19 @@ bool GameWorld::LoadData() {
 				5.0f * MathHelper::RandF() - 2.5f, 
 				0.0f
 			);
-
+	
 			krapivaActor->SetPosition(pos + offset);
 			krapivaActor->SetQuaternion(XMQuaternionRotationAxis(
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
 			);
-
+	
 			krapivaMeshComp = new MeshComponent(krapivaActor);
 			if (!krapivaMeshComp->LoadMesh("krapiva", "krapiva.fbx"))
 				return false;
 		}
 	}
-
+	
 	Actor* fernActor;
 	MeshComponent* fernMeshComp;
 	int numFern = 5;
@@ -244,9 +281,9 @@ bool GameWorld::LoadData() {
 		for (int j = -numFern; j <= numFern; ++j) {
 			if (i == 0 && j == 0)
 				continue;
-
+	
 			fernActor = new Actor();
-
+	
 			XMVECTOR pos = XMVectorSet(
 				static_cast<float>(13 * i), 0.0f,
 				static_cast<float>(13 * j), 1.0f
@@ -257,13 +294,13 @@ bool GameWorld::LoadData() {
 				6.0f * MathHelper::RandF() - 3.0f,
 				0.0f
 			);
-
+	
 			fernActor->SetPosition(pos + offset);
 			fernActor->SetQuaternion(XMQuaternionRotationAxis(
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
 			);
-
+	
 			fernMeshComp = new MeshComponent(fernActor);
 			if (!fernMeshComp->LoadMesh("fern", "fern.fbx"))
 				return false;
@@ -304,27 +341,26 @@ void GameWorld::UnloadData() {
 #endif
 }
 
-int GameWorld::RunLoop() {
+GameResult GameWorld::RunLoop() {
 	if (!LoadData()) {
 		WErrln(L"LoadData() returned an error code");
 		return -1;
 	}
 
-	GameResult resizeStatus = OnResize();
-	if (resizeStatus.hr != S_OK) {
-		WErrln(L"OnResize() returned an error code from RunLoop()");
-		WErrln(resizeStatus.msg);
+	GameResult result = OnResize();
+	if (result.hr != S_OK) {
+		WLogln(result.msg);
 		return -1;
 	}
 
-	int status = GameLoop();
+	result = GameLoop();
 
 	UnloadData();
 
-	return status;
+	return result;
 }
 
-int GameWorld::GameLoop() {
+GameResult GameWorld::GameLoop() {
 	MSG msg = { 0 };
 	float beginTime = 0.0f;
 	float endTime;
@@ -360,20 +396,28 @@ int GameWorld::GameLoop() {
 	
 		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
 			mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
-				while (inMsg.message != WM_QUIT) {
-					inBarrier.Wait();
-
-					if (mGameState == GameState::ETerminated)
-						break;
+				while (mGameState != GameState::ETerminated) {
+					inBarrier.Wait();				
 	
 					if (!mAppPaused)
 						ProcessInput(mTimer, inTid);
 
-					UpdateGame(mTimer, inTid);
+					TaskTimer timer;
+					timer.SetBeginTime();
+
+					BreakIfFailed(UpdateGame(mTimer, inTid));
+
+					timer.SetEndTime();
+					mOuterUpdateGameTimers[inTid] += timer.GetElapsedTime();
 
 					if (!mAppPaused)
-						Draw(mTimer, inTid);
+						BreakIfFailed(Draw(mTimer, inTid));
 				}
+
+				mGameState = GameState::ETerminated;
+				inBarrier.Terminate();
+				mCVBarrier->Terminate();
+				mSpinlockBarrier->Terminate();
 			}, std::ref(msg), i + 1, std::ref(barrier));
 		}
 	#endif // MT_World
@@ -391,30 +435,41 @@ int GameWorld::GameLoop() {
 				elapsedTime = endTime - beginTime;
 	
 				if (elapsedTime > mTimer.GetLimitFrameRate()) {
-					barrier.Wait();
+					barrier.Wait();					
+
 					beginTime = endTime;
 	
 					if (!mAppPaused) {
 						CalculateFrameStats();
 						ProcessInput(mTimer, 0);
 					}
+
+					TaskTimer timer;
+					timer.SetBeginTime();
 					
-					UpdateGame(mTimer, 0);
+					BreakIfFailed(UpdateGame(mTimer, 0));
+
+					timer.SetEndTime();
+					mOuterUpdateGameTimers[0] += timer.GetElapsedTime();
+
+					++mAccum;
 
 					if (!mAppPaused)
-						Draw(mTimer, 0);
+						BreakIfFailed(Draw(mTimer, 0));
 				}
 			}
 		}	
 	#ifdef MT_World
 		mGameState = GameState::ETerminated;
-		barrier.WakeUp();
+		barrier.Terminate();
+		mCVBarrier->Terminate();
+		mSpinlockBarrier->Terminate();
 	
 		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i)
 			mThreads[i].join();
 	#endif
 #endif // UsingVulkan
-	return static_cast<int>(msg.wParam);
+	return GameResult(static_cast<HRESULT>(msg.wParam));
 }
 
 void GameWorld::AddActor(Actor* inActor) {
@@ -518,7 +573,7 @@ void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
 	}
 
 #ifdef MT_World
-	mInputBarrier->Wait();
+	mCVBarrier->Wait();
 #endif
 
 	const InputState& state = mInputSystem->GetState();
@@ -536,7 +591,13 @@ void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
 	}
 }
 
-void GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
+GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
+	TaskTimer iTimer;
+	iTimer.SetBeginTime();
+
+	TaskTimer timer;
+	timer.SetBeginTime();
+
 	auto& actors = mActors[inTid];
 	auto& pendingActors = mPendingActors[inTid];
 
@@ -563,14 +624,34 @@ void GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 	for (auto actor : deadActors)
 		delete actor;
 
-	mRenderer->Update(gt, inTid);
+	timer.SetEndTime();
+	mActorUpdateTimers[inTid] += timer.GetElapsedTime();
+
+	timer.SetBeginTime();
+
+	CheckGameResult(mRenderer->Update(gt, inTid));
+
+	timer.SetEndTime();
+	mRenderUpdateTimers[inTid] += timer.GetElapsedTime();
+
+	timer.SetBeginTime();
 
 	if (inTid == 0)
 		mAudioSystem->Update(gt);
+
+	timer.SetEndTime();
+	mAudioUpdateTimers[inTid] += timer.GetElapsedTime();
+
+	iTimer.SetEndTime();
+	mInnerUpdateGameTimers[inTid] += iTimer.GetElapsedTime();
+
+	return GameResult(S_OK);
 }
 
-void GameWorld::Draw(const GameTimer& gt, UINT inTid) {
-	mRenderer->Draw(gt, inTid);
+GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
+	CheckGameResult(mRenderer->Draw(gt, inTid));
+
+	return GameResult(S_OK);
 }
 
 #ifdef UsingVulkan

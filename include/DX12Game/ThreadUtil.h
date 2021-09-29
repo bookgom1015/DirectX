@@ -145,6 +145,10 @@ class ThreadBarrier {
 public:
 	virtual void Wait() = 0;
 	virtual void WakeUp() = 0;
+	virtual void Terminate() = 0;
+
+protected:
+	bool bTerminated = false;
 };
 
 class CVBarrier : public ThreadBarrier{
@@ -162,6 +166,7 @@ private:
 public:
 	void Wait() override final;
 	void WakeUp() override final;
+	void Terminate() override final;
 
 private:
 	std::mutex mMutex;
@@ -186,6 +191,7 @@ private:
 public:
 	void Wait() override final;
 	void WakeUp() override final;
+	void Terminate() override final;
 
 private:
 	std::mutex mMutex;

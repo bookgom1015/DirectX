@@ -45,8 +45,8 @@ public:
 	void CleanUp();
 	bool LoadData();
 	void UnloadData();
-	int RunLoop();
-	int GameLoop();
+	GameResult RunLoop();
+	GameResult GameLoop();
 
 	void AddActor(Actor* inActor);
 	void RemoveActor(Actor* inActor);
@@ -74,8 +74,8 @@ public:
 
 private:
 	void ProcessInput(const GameTimer& gt, UINT inTid = 0);
-	void UpdateGame(const GameTimer& gt, UINT inTid = 0);
-	void Draw(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateGame(const GameTimer& gt, UINT inTid = 0);
+	GameResult Draw(const GameTimer& gt, UINT inTid = 0);
 
 	GameResult InitMainWindow();
 	GameResult OnResize();
@@ -141,7 +141,15 @@ private:
 
 	UINT mNumProcessors = 1;
 
-	std::unique_ptr<CVBarrier> mInputBarrier;
+	std::unique_ptr<CVBarrier> mCVBarrier;
+	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
+
+	GVector<float> mRenderUpdateTimers;
+	GVector<float> mActorUpdateTimers;
+	GVector<float> mAudioUpdateTimers;
+	GVector<float> mInnerUpdateGameTimers;
+	GVector<float> mOuterUpdateGameTimers;
+	UINT mAccum = 0;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;

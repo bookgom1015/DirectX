@@ -70,17 +70,25 @@ public:
 		msg = _msg;
 	}
 
-	GameResult(const GameResult& src) {
-		hr = src.hr;
-		msg = src.msg;
+	GameResult(const GameResult& inRef) {
+		hr = inRef.hr;
+		msg = inRef.msg;
 	}
 
-	GameResult(GameResult&& src) {
-		if (this == &src)
+	GameResult(GameResult&& inRVal) {
+		if (this == &inRVal)
 			return;
 
-		hr = src.hr;
-		msg = std::move(src.msg);
+		hr = inRVal.hr;
+		msg = std::move(inRVal.msg);
+	}
+
+public:
+	GameResult& operator=(const GameResult& inRef) {
+		hr = inRef.hr;
+		msg = inRef.msg;
+
+		return *this;
 	}
 };
 
@@ -106,13 +114,23 @@ public:
 #ifndef ReturnIfFailed
 	#define ReturnIfFailed(__statement)															\
 	{																							\
-		HRESULT __hr = (__statement);															\
-		if (FAILED(__hr)) {																		\
+		HRESULT __return_hr = (__statement);													\
+		if (FAILED(__return_hr)) {																\
 			std::wstringstream __wsstream_RIF;													\
-			_com_error __err(__hr);																\
+			_com_error __err(__return_hr);														\
 			__wsstream_RIF << L#__statement << L" failed; message: " << __err.ErrorMessage();	\
-			ReturnGameResult(__hr, __wsstream_RIF.str());										\
+			ReturnGameResult(__return_hr, __wsstream_RIF.str());								\
 		}																						\
+	}
+#endif
+
+#ifndef BreakIfFailed
+#define BreakIfFailed(__statement)				\
+	{											\
+		GameResult __result = (__statement);	\
+		if (FAILED(__result.hr)) {				\
+			break;								\
+		}										\
 	}
 #endif
 

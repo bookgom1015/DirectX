@@ -202,12 +202,17 @@ void CVBarrier::Wait() {
 		return;
 	}
 
-	while (currGen == mGeneration)
+	while (!bTerminated && currGen == mGeneration)
 		mConditionalVar.wait(ulock);
 }
 
 void CVBarrier::WakeUp() {
 	++mGeneration;
+	mConditionalVar.notify_all();
+}
+
+void CVBarrier::Terminate() {
+	bTerminated = true;
 	mConditionalVar.notify_all();
 }
 
@@ -226,12 +231,16 @@ void SpinlockBarrier::Wait() {
 
 	ulock.unlock();
 
-	while (currGen == mGeneration)
+	while (!bTerminated && currGen == mGeneration)
 		std::this_thread::yield();
 }
 
 void SpinlockBarrier::WakeUp() {
 	++mGeneration;
+}
+
+void SpinlockBarrier::Terminate() {
+	bTerminated = true;	
 }
 
 ThreadPool::ThreadPool(size_t inNumThreads) {

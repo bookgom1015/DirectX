@@ -15,7 +15,7 @@ namespace {
 	const std::wstring TextureFileNamePrefix = L"./../../../../Assets/Textures/";
 	const std::wstring ShaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
 	const std::wstring FontFileNamePrefix = L"./../../../../Assets/Fonts/";
-
+	
 	const float DefaultFontSize = 32;
 	const float InvDefaultFontSize = 1.0f / DefaultFontSize;
 
@@ -46,11 +46,16 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	CheckGameResult(DxLowRenderer::Initialize(hMainWnd, inClientWidth, inClientHeight, inNumThreads));
 
 #ifdef MT_World
-	mCVBarrier = std::make_unique<CVBarrier>(mNumThreads);
-	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumThreads);
-
 	mNumInstances.resize(mNumThreads);
 	mEachUpdateFunctions.resize(mNumThreads);
+
+	mWaitTimers.resize(mNumThreads, 0.0f);
+	mUpdateObjTimers.resize(mNumThreads, 0.0f);
+	mMaterialTimers.resize(mNumThreads, 0.0f);
+	mFuncTimers.resize(mNumThreads, 0.0f);
+	mShadowTimer = 0.0f;
+	mTextTimer = 0.0f;
+	mAccum = 0;
 
 	{
 		UINT i = 1;
@@ -152,13 +157,65 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	return GameResult(S_OK);
 }
 
+GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight,
+			CVBarrier* inCV, SpinlockBarrier* inSpinlock, UINT inNumThreads) {
+	CheckGameResult(Initialize(hMainWnd, inClientWidth, inClientHeight, inNumThreads));
+
+	mCVBarrier = inCV;
+	mSpinlockBarrier = inSpinlock;
+
+	return GameResult(S_OK);
+}
+
 void DxRenderer::CleanUp() {
 	DxLowRenderer::CleanUp();
+
+	float accumsf = static_cast<float>(mAccum);
+
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mWaitTimers[i] /= accumsf;
+		mUpdateObjTimers[i] /= accumsf;
+		mMaterialTimers[i] /= accumsf;
+		mFuncTimers[i] /= accumsf;
+	}
+	mShadowTimer /= accumsf;
+	mTextTimer /= accumsf;
+
+	float waitTimer = 0.0f;
+	float updateTimer = 0.0f;
+	float materialTimer = 0.0f;
+	float funcTimer = 0.0f;
+
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		waitTimer += mWaitTimers[i];
+		updateTimer += mUpdateObjTimers[i];
+		materialTimer += mMaterialTimers[i];
+		funcTimer += mFuncTimers[i];
+	}
+
+	float numThreadsf = static_cast<float>(mNumThreads);
+
+	waitTimer = waitTimer * 1000.0f / numThreadsf;
+	updateTimer = updateTimer * 1000.0f / numThreadsf;
+	materialTimer = materialTimer * 1000.0f / numThreadsf;
+	funcTimer = funcTimer * 1000.0f / numThreadsf;
+	mShadowTimer *= 1000.0f;
+	mTextTimer *= 1000.0f;
+
+	Logln("Wait Time: ", std::to_string(waitTimer), " ms");
+	Logln("Update Object Time: ", std::to_string(updateTimer), " ms");
+	Logln("Material Time: ", std::to_string(materialTimer), " ms");
+	Logln("Func Time: ", std::to_string(mShadowTimer), " ms");
+	Logln("Shadow Time: ", std::to_string(funcTimer), " ms");
+	Logln("Text Time: ", std::to_string(mTextTimer), " ms");
 
 	bIsCleaned = true;
 }
 
 GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
+	TaskTimer timer;
+	timer.SetBeginTime();
+
 	if (inTid == 0) {
 		// Cycle through the circular frame resource array.
 		mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
@@ -174,21 +231,49 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 		}
 	}
 
-	SyncHost(mCVBarrier)
+	SyncHost(mCVBarrier);
+
+	timer.SetEndTime();
+	mWaitTimers[inTid] += timer.GetElapsedTime();
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
-	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));
-	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
-	
-	if (inTid == 0)
-		CheckGameResult(UpdateShadowTransform(gt));		
 
-	SyncHost(mCVBarrier)
+	timer.SetBeginTime();
+
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));
+
+	timer.SetEndTime();
+	mUpdateObjTimers[inTid] += timer.GetElapsedTime();
+
+	timer.SetBeginTime();
+
+	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
+
+	timer.SetEndTime();
+	mMaterialTimers[inTid] += timer.GetElapsedTime();
+	
+	if (inTid == 0) {
+		timer.SetBeginTime();
+
+		CheckGameResult(UpdateShadowTransform(gt));
+
+		timer.SetEndTime();
+		mShadowTimer += timer.GetElapsedTime();
+	}
+
+	SyncHost(mCVBarrier);
+
+	timer.SetBeginTime();
 
 	for (auto& func : mEachUpdateFunctions[inTid])
 		func(*this, std::ref(gt), inTid);
+
+	timer.SetEndTime();
+	mFuncTimers[inTid] += timer.GetElapsedTime();
 	
 	if (inTid == 0) {
+		timer.SetBeginTime();
+
 		GVector<std::string> textsToRemove;
 		for (auto& text : mOutputTexts) {
 			float& lifeTime = text.second.second.w;
@@ -203,7 +288,12 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 		for (const auto& text : textsToRemove)
 			mOutputTexts.erase(text);
+
+		timer.SetEndTime();
+		mTextTimer += timer.GetElapsedTime();
 	}
+
+	++mAccum;
 
 	return GameResult(S_OK);
 }
@@ -2849,27 +2939,7 @@ void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList,
 	}
 }
 
-GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
-	if (inTid == 0) {
-		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
-		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-
-		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
-
-		// Change to DEPTH_WRITE.
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
-			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-		// Done recording commands.
-		ReturnIfFailed(cmdList->Close());
-
-		// Add the command list to the queue for execution.
-		ID3D12CommandList* cmdsLists[] = { cmdList };
-		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-	}
-	
-	SyncHost(mCVBarrier);
-
+GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
 
@@ -2950,32 +3020,13 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
 	DrawRenderItems(cmdList, opaque, begin, end);
-
-	//
-	// Draw shadow for skinned opaque.
-	//
-	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
-
-	numRitems = static_cast<UINT>(skinnedOpaque.size());
-	eachNumRitems = numRitems / mNumThreads;
-	remaining = numRitems % mNumThreads;
-
-	begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
-	end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
-
-	cmdList->SetPipelineState(mPSOs["skinnedShadow_opaque"].Get());
-	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
-
-	cmdList->SetPipelineState(mPSOs["skinnedShadow_opaque"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
 #endif // MT_World
 
 	// Done recording commands.
 	ReturnIfFailed(cmdList->Close());
 
-#ifdef MT_Worlds
 	SyncHost(mSpinlockBarrier);
 
 	if (inTid == 0) {
@@ -2985,13 +3036,139 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["skinnedShadow_opaque"].Get()));
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind the pass constant buffer for the shadow map pass.
+	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind null SRV for shadow map pass.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
+	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap.Dsv());
+
+#ifdef MT_World
+	//
+	// Draw shadow for skinned opaque.
+	//
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+
+	UINT numRitems = static_cast<UINT>(skinnedOpaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
 #else
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { cmdList };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+#endif // MT_World
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
 
 	SyncHost(mSpinlockBarrier);
-#endif
+
+	if (inTid == 0) {
+		GVector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change to DEPTH_WRITE.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+	
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawOpaqueToShadowMap(inTid));
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSkinnedOpaqueToShadowMap(inTid));
+
+	SyncHost(mCVBarrier);
 
 	if (inTid == 0) {
 		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
@@ -3014,36 +3191,7 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
-	auto diffuseMap = mGBuffer.GetDiffuseMap();
-	auto diffuseMapRtv = mGBuffer.GetDiffuseMapRtv();
-	auto normalMap = mGBuffer.GetNormalMap();
-	auto specMap = mGBuffer.GetSpecularMap();
-
-	if (inTid == 0) {
-		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
-		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-
-		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
-
-		// Change to RENDER_TARGET.
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			diffuseMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			normalMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			specMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-		// Done recording commands.
-		ReturnIfFailed(cmdList->Close());
-
-		// Add the command list to the queue for execution.
-		ID3D12CommandList* cmdsLists[] = { cmdList };
-		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-	}
-
-	SyncHost(mCVBarrier);
-
+GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
 
@@ -3106,7 +3254,7 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	cmdList->RSSetScissorRects(1, &mScissorRect);
 
 	// Specify the buffers we are going to render to.
-	cmdList->OMSetRenderTargets(GBuffer::NumRenderTargets, &diffuseMapRtv, true, &DepthStencilView());
+	cmdList->OMSetRenderTargets(GBuffer::NumRenderTargets, &mGBuffer.GetDiffuseMapRtv(), true, &DepthStencilView());
 
 #ifdef MT_World
 	//
@@ -3122,32 +3270,13 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
 	DrawRenderItems(cmdList, opaque, begin, end);
-
-	//
-	// Draw gbuffer for skinned opaque.
-	//
-	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
-
-	numRitems = static_cast<UINT>(skinnedOpaque.size());
-	eachNumRitems = numRitems / mNumThreads;
-	remaining = numRitems % mNumThreads;
-
-	begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
-	end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
-
-	cmdList->SetPipelineState(mPSOs["drawSkinnedGBuffer"].Get());
-	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
-
-	cmdList->SetPipelineState(mPSOs["drawSkinnedGBuffer"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
 #endif
 
 	// Done recording commands.
 	ReturnIfFailed(cmdList->Close());
 
-#ifdef MT_Worlds
 	SyncHost(mSpinlockBarrier);
 
 	if (inTid == 0) {
@@ -3157,13 +3286,145 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["drawSkinnedGBuffer"].Get()));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind the constant buffer for this pass.
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind null SRV for gbuffer.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mScreenViewport);
+	cmdList->RSSetScissorRects(1, &mScissorRect);
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(GBuffer::NumRenderTargets, &mGBuffer.GetDiffuseMapRtv(), true, &DepthStencilView());
+
+#ifdef MT_World
+	//
+	// Draw gbuffer for skinned opaque.
+	//
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+
+	UINT numRitems = static_cast<UINT>(skinnedOpaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
 #else
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { cmdList };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+#endif
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
 
 	SyncHost(mSpinlockBarrier);
-#endif
+
+	if (inTid == 0) {
+		GVector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
+	auto diffuseMap = mGBuffer.GetDiffuseMap();
+	auto normalMap = mGBuffer.GetNormalMap();
+	auto specMap = mGBuffer.GetSpecularMap();
+
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change to RENDER_TARGET.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			diffuseMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			normalMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			specMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawOpaqueToGBuffer(inTid));
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSkinnedOpaqueToGBuffer(inTid));
+
+	SyncHost(mCVBarrier);
 
 	if (inTid == 0) {
 		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
