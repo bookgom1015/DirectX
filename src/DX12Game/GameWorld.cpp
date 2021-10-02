@@ -91,11 +91,12 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
 	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
 
-	mRenderUpdateTimers.resize(mNumProcessors, 0.0f);
 	mActorUpdateTimers.resize(mNumProcessors, 0.0f);
+	mRenderUpdateTimers.resize(mNumProcessors, 0.0f);	
 	mAudioUpdateTimers.resize(mNumProcessors, 0.0f);
 	mInnerUpdateGameTimers.resize(mNumProcessors, 0.0f);
 	mOuterUpdateGameTimers.resize(mNumProcessors, 0.0f);
+	mDrawTimers.resize(mNumProcessors, 0.0f);
 #endif 
 
 #ifdef UsingVulkan
@@ -137,16 +138,15 @@ void GameWorld::CleanUp() {
 
 	glfwTerminate();
 #endif
-
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / mAccum;
-		Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
-	}
-
 	for (UINT i = 0; i < mNumProcessors; ++i) {
 		mActorUpdateTimers[i] = mActorUpdateTimers[i] * 1000.0f / mAccum;
 		Logln("Actor Update Time[", std::to_string(i), "]: ", std::to_string(mActorUpdateTimers[i]), " ms");
 	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / mAccum;
+		Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
+	}	
 
 	for (UINT i = 0; i < mNumProcessors; ++i) {
 		mAudioUpdateTimers[i] = mAudioUpdateTimers[i] * 1000.0f / mAccum;
@@ -161,6 +161,11 @@ void GameWorld::CleanUp() {
 	for (UINT i = 0; i < mNumProcessors; ++i) {
 		mOuterUpdateGameTimers[i] = mOuterUpdateGameTimers[i] * 1000.0f / mAccum;
 		Logln("Outer Update Game Time[", std::to_string(i), "]: ", std::to_string(mOuterUpdateGameTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumProcessors; ++i) {
+		mDrawTimers[i] = mDrawTimers[i] * 1000.0f / mAccum;
+		Logln("Draw Time[", std::to_string(i), "]: ", std::to_string(mDrawTimers[i]), " ms");
 	}
 
 	bIsCleaned = true;
@@ -435,7 +440,10 @@ GameResult GameWorld::GameLoop() {
 				elapsedTime = endTime - beginTime;
 	
 				if (elapsedTime > mTimer.GetLimitFrameRate()) {
-					barrier.Wait();					
+					barrier.Wait();
+
+					if (mGameState == GameState::ETerminated)
+						break;
 
 					beginTime = endTime;
 	
@@ -649,7 +657,13 @@ GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 }
 
 GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
+	TaskTimer timer;
+	timer.SetBeginTime();
+
 	CheckGameResult(mRenderer->Draw(gt, inTid));
+
+	timer.SetEndTime();
+	mDrawTimers[inTid] += timer.GetElapsedTime();
 
 	return GameResult(S_OK);
 }

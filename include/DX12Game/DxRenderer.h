@@ -328,12 +328,9 @@ private:
 	GVector<UINT> mNumInstances;
 	GVector<GVector<UpdateFunc>> mEachUpdateFunctions;
 
-	GVector<float> mWaitTimers;
-	GVector<float> mUpdateObjTimers;
-	GVector<float> mMaterialTimers;
-	GVector<float> mFuncTimers;
-	float mShadowTimer;
-	float mTextTimer;
-	UINT mAccum;
+	GVector<float> mDxRenderUpdateTimers;
+	GVector<float> mDxDrawTimers;
+	UINT mUpdateAccum;
+	UINT mDrawAccum;
 #endif
 };

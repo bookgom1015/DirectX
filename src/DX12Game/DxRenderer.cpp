@@ -49,13 +49,10 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mNumInstances.resize(mNumThreads);
 	mEachUpdateFunctions.resize(mNumThreads);
 
-	mWaitTimers.resize(mNumThreads, 0.0f);
-	mUpdateObjTimers.resize(mNumThreads, 0.0f);
-	mMaterialTimers.resize(mNumThreads, 0.0f);
-	mFuncTimers.resize(mNumThreads, 0.0f);
-	mShadowTimer = 0.0f;
-	mTextTimer = 0.0f;
-	mAccum = 0;
+	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
+	mDxDrawTimers.resize(mNumThreads, 0.0f);
+	mUpdateAccum = 0;
+	mDrawAccum = 0;
 
 	{
 		UINT i = 1;
@@ -169,52 +166,24 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 void DxRenderer::CleanUp() {
 	DxLowRenderer::CleanUp();
-
-	float accumsf = static_cast<float>(mAccum);
-
+	
 	for (UINT i = 0; i < mNumThreads; ++i) {
-		mWaitTimers[i] /= accumsf;
-		mUpdateObjTimers[i] /= accumsf;
-		mMaterialTimers[i] /= accumsf;
-		mFuncTimers[i] /= accumsf;
-	}
-	mShadowTimer /= accumsf;
-	mTextTimer /= accumsf;
-
-	float waitTimer = 0.0f;
-	float updateTimer = 0.0f;
-	float materialTimer = 0.0f;
-	float funcTimer = 0.0f;
-
-	for (UINT i = 0; i < mNumThreads; ++i) {
-		waitTimer += mWaitTimers[i];
-		updateTimer += mUpdateObjTimers[i];
-		materialTimer += mMaterialTimers[i];
-		funcTimer += mFuncTimers[i];
+		mDxRenderUpdateTimers[i] = mDxRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mUpdateAccum);
+		mDxDrawTimers[i] = mDxDrawTimers[i] * 1000.0f / static_cast<float>(mDrawAccum);
 	}
 
-	float numThreadsf = static_cast<float>(mNumThreads);
+	for (UINT i = 0; i < mNumThreads; ++i)
+		Logln("Dx Render Update Time[", std::to_string(i), "]: ", std::to_string(mDxRenderUpdateTimers[i]), " ms");
 
-	waitTimer = waitTimer * 1000.0f / numThreadsf;
-	updateTimer = updateTimer * 1000.0f / numThreadsf;
-	materialTimer = materialTimer * 1000.0f / numThreadsf;
-	funcTimer = funcTimer * 1000.0f / numThreadsf;
-	mShadowTimer *= 1000.0f;
-	mTextTimer *= 1000.0f;
-
-	Logln("Wait Time: ", std::to_string(waitTimer), " ms");
-	Logln("Update Object Time: ", std::to_string(updateTimer), " ms");
-	Logln("Material Time: ", std::to_string(materialTimer), " ms");
-	Logln("Func Time: ", std::to_string(mShadowTimer), " ms");
-	Logln("Shadow Time: ", std::to_string(funcTimer), " ms");
-	Logln("Text Time: ", std::to_string(mTextTimer), " ms");
+	for (UINT i = 0; i < mNumThreads; ++i)
+		Logln("Dx Draw Time[", std::to_string(i), "]: ", std::to_string(mDxDrawTimers[i]), " ms");
 
 	bIsCleaned = true;
 }
 
 GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
-	TaskTimer timer;
-	timer.SetBeginTime();
+	TaskTimer oTimer;
+	oTimer.SetBeginTime();
 
 	if (inTid == 0) {
 		// Cycle through the circular frame resource array.
@@ -233,47 +202,19 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	SyncHost(mCVBarrier);
 
-	timer.SetEndTime();
-	mWaitTimers[inTid] += timer.GetElapsedTime();
-
 	CheckGameResult(AnimateMaterials(gt, inTid));
-
-	timer.SetBeginTime();
-
-	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));
-
-	timer.SetEndTime();
-	mUpdateObjTimers[inTid] += timer.GetElapsedTime();
-
-	timer.SetBeginTime();
-
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));	
 	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
 
-	timer.SetEndTime();
-	mMaterialTimers[inTid] += timer.GetElapsedTime();
-	
-	if (inTid == 0) {
-		timer.SetBeginTime();
-
+	if (inTid == 0)
 		CheckGameResult(UpdateShadowTransform(gt));
-
-		timer.SetEndTime();
-		mShadowTimer += timer.GetElapsedTime();
-	}
 
 	SyncHost(mCVBarrier);
 
-	timer.SetBeginTime();
-
 	for (auto& func : mEachUpdateFunctions[inTid])
 		func(*this, std::ref(gt), inTid);
-
-	timer.SetEndTime();
-	mFuncTimers[inTid] += timer.GetElapsedTime();
 	
 	if (inTid == 0) {
-		timer.SetBeginTime();
-
 		GVector<std::string> textsToRemove;
 		for (auto& text : mOutputTexts) {
 			float& lifeTime = text.second.second.w;
@@ -288,17 +229,20 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 		for (const auto& text : textsToRemove)
 			mOutputTexts.erase(text);
-
-		timer.SetEndTime();
-		mTextTimer += timer.GetElapsedTime();
 	}
 
-	++mAccum;
+	oTimer.SetEndTime();
+	mDxRenderUpdateTimers[inTid] += oTimer.GetElapsedTime();
+
+	++mUpdateAccum;
 
 	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
+	TaskTimer oTimer;
+	oTimer.SetBeginTime();
+
 	if (inTid == 0) {
 		CheckGameResult(ResetFrameResourceCmdListAlloc());
 		CheckGameResult(ClearViews());
@@ -316,6 +260,11 @@ GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
 
 	if (inTid == 0)
 		CheckGameResult(DrawSceneToRenderTarget());
+
+	oTimer.SetEndTime();
+	mDxDrawTimers[inTid] += oTimer.GetElapsedTime();
+
+	++mDrawAccum;
 
 	return GameResult(S_OK);
 }

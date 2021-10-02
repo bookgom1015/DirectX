@@ -144,11 +144,12 @@ private:
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
 
-	GVector<float> mRenderUpdateTimers;
 	GVector<float> mActorUpdateTimers;
+	GVector<float> mRenderUpdateTimers;
 	GVector<float> mAudioUpdateTimers;
 	GVector<float> mInnerUpdateGameTimers;
 	GVector<float> mOuterUpdateGameTimers;
+	GVector<float> mDrawTimers;
 	UINT mAccum = 0;
 #else
 	GVector<Actor*> mActors;
