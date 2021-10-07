@@ -171,18 +171,16 @@ public:
 	GVector() = default;
 	GVector(SizeType inSize);
 	GVector(InitializerList inList);
+	GVector& operator=(InitializerList inList);
 	virtual ~GVector() = default;
 
 public:
-	GVector& operator=(InitializerList inList);
-
 	void assgin(SizeType inCount, ConstReference inValue);
 	template <typename InputIt> void assign(InputIt inFirst, InputIt inLast);
 	void assgin(InitializerList inIList);
 
 	AllocatorType get_allocator() const noexcept;
 
-public:
 	///
 	// Element access
 	///
@@ -254,6 +252,124 @@ public:
 
 	void push_back(ConstReference inValue);
 	void push_back(RightValue inValue);
+
+	template <typename... Args>	decltype(auto) emplace_back(Args&&... inArgs);
+
+	void pop_back();
+
+	void resize(SizeType inCount);
+	void resize(SizeType inCount, ConstReference inValue);
+
+	void swap(GVector& inOther);
+	/// Modifiers
+
+private:
+	Vector mVector;
+};
+
+#ifndef GVECTOR_BOOL
+	#define GVECTOR_BOOL GVector<bool, std::allocator<bool>> 
+#endif
+
+///
+// GVector specialization for boolean
+///
+template <>
+class GVector<bool, std::allocator<bool>> {
+public:
+	using SizeType = size_t;
+	using AllocatorType = std::allocator<bool>;
+	using Vector = typename std::vector<bool, AllocatorType>;
+	using Iterator = typename Vector::iterator;
+	using ConstIterator = typename Vector::const_iterator;
+	using ReverseIterator = std::reverse_iterator<Iterator>;
+	using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
+	using Reference = bool&;
+	using ConstReference = const bool&;
+	using InitializerList = std::initializer_list<bool>;
+
+public:
+	GVector() = default;
+	GVector(SizeType inSize);
+	GVector(InitializerList inList);
+	GVector& operator=(InitializerList inList);
+	virtual ~GVector() = default;
+
+public:
+	void assgin(SizeType inCount, ConstReference inValue);
+	template <typename InputIt> void assign(InputIt inFirst, InputIt inLast);
+	void assgin(InitializerList inIList);
+
+	AllocatorType get_allocator() const noexcept;
+
+	///
+	// Element access
+	///
+	Reference at(SizeType inPos);
+	ConstReference at(SizeType inPos) const;
+
+	Reference operator[](SizeType inIdx);
+	ConstReference operator[](SizeType inIdx) const;
+
+	Reference front();
+	ConstReference front() const;
+
+	Reference back();
+	ConstReference back() const;
+	/// Element access
+
+	///
+	// Iterators
+	///
+	Iterator begin() noexcept;
+	ConstIterator begin() const noexcept;
+	ConstIterator cbegin() const noexcept;
+
+	Iterator end() noexcept;
+	ConstIterator end() const noexcept;
+	ConstIterator cend() const noexcept;
+
+	ReverseIterator rbegin() noexcept;
+	ConstReverseIterator rbegin() const noexcept;
+	ConstReverseIterator crbegin() const noexcept;
+
+	ReverseIterator rend() noexcept;
+	ConstReverseIterator rend() const noexcept;
+	ConstReverseIterator crend() const noexcept;
+	/// Iterators
+
+	///
+	// Capacity
+	///
+	bool empty() const noexcept;
+	SizeType size() const noexcept;
+	SizeType max_size() const noexcept;
+
+	void reserve(SizeType inNewCapacity);
+
+	SizeType capacity() const noexcept;
+
+	void shrink_to_fit();
+	/// Capacity
+
+	///
+	// Modifiers
+	///
+	void clear() noexcept;
+
+	Iterator insert(ConstIterator inPos, ConstReference inValue);
+	//Iterator insert(ConstIterator inPos, RightValue inValue);
+	Iterator insert(ConstIterator inPos, const SizeType inCount, ConstReference inVal);
+	template <class InputIt> Iterator insert(ConstIterator inPos, InputIt inFirst, InputIt inLast);
+	Iterator insert(ConstIterator inPos, InitializerList inList);
+
+	template <typename... Args>	Iterator emplace(ConstIterator inPos, Args&&... inArgs);
+
+	Iterator erase(ConstIterator inPos);
+	Iterator erase(ConstIterator inFirst, ConstIterator inLast);
+
+	void push_back(ConstReference inValue);
+	//void push_back(RightValue inValue);
 
 	template <typename... Args>	decltype(auto) emplace_back(Args&&... inArgs);
 

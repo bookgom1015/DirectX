@@ -50,9 +50,15 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mEachUpdateFunctions.resize(mNumThreads);
 
 	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
+	mWaitTimers.resize(mNumThreads, 0.0f);
+	mUpdateObjTimers.resize(mNumThreads, 0.0f);
+	mUpdateShwTimers.resize(mNumThreads, 0.0f);
+
 	mDxDrawTimers.resize(mNumThreads, 0.0f);
-	mUpdateAccum = 0;
-	mDrawAccum = 0;
+
+	mUpdateAccums.resize(mNumThreads, 0);
+
+	mDrawAccums.resize(mNumThreads, 0);
 
 	{
 		UINT i = 1;
@@ -89,11 +95,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 8096, 8096));
 
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), cmdList));
@@ -112,13 +114,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
 
 	// Execute the initialization commands.
-#ifdef MT_World
 	ExecuteCommandLists();
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-#endif
 
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
@@ -168,22 +164,39 @@ void DxRenderer::CleanUp() {
 	DxLowRenderer::CleanUp();
 	
 	for (UINT i = 0; i < mNumThreads; ++i) {
-		mDxRenderUpdateTimers[i] = mDxRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mUpdateAccum);
-		mDxDrawTimers[i] = mDxDrawTimers[i] * 1000.0f / static_cast<float>(mDrawAccum);
+		mDxRenderUpdateTimers[i] = mDxRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Dx Render Update Time[", std::to_string(i), "]: ", std::to_string(mDxRenderUpdateTimers[i]), " ms");
 	}
 
-	for (UINT i = 0; i < mNumThreads; ++i)
-		Logln("Dx Render Update Time[", std::to_string(i), "]: ", std::to_string(mDxRenderUpdateTimers[i]), " ms");
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mWaitTimers[i] = mWaitTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Wait Time[", std::to_string(i), "]: ", std::to_string(mWaitTimers[i]), " ms");
+	}
 
-	for (UINT i = 0; i < mNumThreads; ++i)
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mUpdateObjTimers[i] = mUpdateObjTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Update Obj Time[", std::to_string(i), "]: ", std::to_string(mUpdateObjTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mUpdateShwTimers[i] = mUpdateShwTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Update Shw Time[", std::to_string(i), "]: ", std::to_string(mUpdateShwTimers[i]), " ms");
+	}
+
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mDxDrawTimers[i] = mDxDrawTimers[i] * 1000.0f / static_cast<float>(mDrawAccums[i]);
 		Logln("Dx Draw Time[", std::to_string(i), "]: ", std::to_string(mDxDrawTimers[i]), " ms");
+	}
 
 	bIsCleaned = true;
 }
 
 GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
-	TaskTimer oTimer;
-	oTimer.SetBeginTime();
+	TaskTimer iTimer;
+	iTimer.SetBeginTime();
+
+	TaskTimer timer;
+	timer.SetBeginTime();
 
 	if (inTid == 0) {
 		// Cycle through the circular frame resource array.
@@ -200,14 +213,29 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 		}
 	}
 
+	timer.SetEndTime();
+	mWaitTimers[inTid] += timer.GetElapsedTime();
+
 	SyncHost(mCVBarrier);
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
+
+	timer.SetBeginTime();
+
 	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));	
+
+	timer.SetEndTime();
+	mUpdateObjTimers[inTid] += timer.GetElapsedTime();
+
 	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
+
+	timer.SetBeginTime();
 
 	if (inTid == 0)
 		CheckGameResult(UpdateShadowTransform(gt));
+
+	timer.SetEndTime();
+	mUpdateShwTimers[inTid] += timer.GetElapsedTime();
 
 	SyncHost(mCVBarrier);
 
@@ -231,10 +259,10 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 			mOutputTexts.erase(text);
 	}
 
-	oTimer.SetEndTime();
-	mDxRenderUpdateTimers[inTid] += oTimer.GetElapsedTime();
+	iTimer.SetEndTime();
+	mDxRenderUpdateTimers[inTid] += iTimer.GetElapsedTime();
 
-	++mUpdateAccum;
+	++mUpdateAccums[inTid];
 
 	return GameResult(S_OK);
 }
@@ -264,7 +292,7 @@ GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
 	oTimer.SetEndTime();
 	mDxDrawTimers[inTid] += oTimer.GetElapsedTime();
 
-	++mDrawAccum;
+	++mDrawAccums[inTid];
 
 	return GameResult(S_OK);
 }
@@ -394,11 +422,7 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 	CheckGameResult(FlushCommandQueue());
 
 	// Reset the command list to prep for initialization commands.
-#ifdef MT_World
 	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
-#else
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-#endif
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = meshName;
@@ -431,13 +455,9 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 		CheckGameResult(AddSkeletonGeometry(inMesh));
 
 	// Execute the initialization commands.
-#ifdef MT_World
 	ReturnIfFailed(mCommandLists[0]->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };	
-#endif
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -450,11 +470,7 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 }
 
 void DxRenderer::DrawTexts() {
-#ifdef MT_World
 	mSpriteBatch->Begin(mCommandLists[0].Get());
-#else
-	mSpriteBatch->Begin(mCommandList.Get());
-#endif
 
 	auto origin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -600,22 +616,14 @@ UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& i
 
 GameResult DxRenderer::UpdateAnimationsMap() {
 	// Reset the command list to prep for initialization commands.
-#ifdef MT_World
 	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
-#else
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-#endif
 
 	mAnimsMap.UpdateAnimationsMap();
 
 	// Execute the initialization commands.
-#ifdef MT_World
 	ReturnIfFailed(mCommandLists[0]->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-#endif
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -650,7 +658,6 @@ GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
 }
 
 GameResult DxRenderer::ResetFrameResourceCmdListAlloc() {
-#ifdef MT_World
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		auto cmdListAlloc = mCurrFrameResource->mCmdListAllocs[i];
 
@@ -658,25 +665,13 @@ GameResult DxRenderer::ResetFrameResourceCmdListAlloc() {
 		// We can only reset when the associated command lists have finished execution on the GPU.
 		ReturnIfFailed(cmdListAlloc->Reset());
 	}
-#else
-	auto cmdListAlloc = mCurrFrameResource->mCmdListAlloc;
-
-	// Reuse the memory associated with command recording.
-	// We can only reset when the associated command lists have finished execution on the GPU.
-	ReturnIfFailed(cmdListAlloc->Reset());
-#endif
 
 	return GameResult(S_OK);
 }
 
 GameResult DxRenderer::ClearViews() {
-#ifdef MT_World
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAlloc.Get();
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
 
@@ -809,11 +804,7 @@ GameResult DxRenderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &outGeo->IndexBufferCPU));
 	CopyMemory(outGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
@@ -871,11 +862,7 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
@@ -938,11 +925,7 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 		
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
@@ -1033,11 +1016,7 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(cmdList->Reset(mCommandAllocators[0].Get(), nullptr));
@@ -1164,12 +1143,10 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	// Reset the command list to prep for initialization commands.
-#ifdef MT_World
-	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
-#else
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-#endif
+	ReturnIfFailed(cmdList->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1265,13 +1242,9 @@ GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialI
 	}
 
 	// Execute the initialization commands.
-#ifdef MT_World
-	ReturnIfFailed(mCommandLists[0]->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-#endif
+	ReturnIfFailed(cmdList->Close());
+	ID3D12CommandList* cmdsLists[] = { cmdList };
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -1641,11 +1614,7 @@ GameResult DxRenderer::LoadBasicTextures() {
 		TextureFileNamePrefix + L"blurskycube.dds"
 	};
 
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	for (int i = 0; i < texNames.size(); ++i) {
 		auto texMap = std::make_unique<Texture>();
@@ -2374,11 +2343,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 	
-#ifdef MT_World
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-#else
-	ID3D12GraphicsCommandList* cmdList = mCommandList.Get();
-#endif
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),

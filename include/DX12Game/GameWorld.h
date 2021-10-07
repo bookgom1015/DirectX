@@ -148,9 +148,14 @@ private:
 	GVector<float> mRenderUpdateTimers;
 	GVector<float> mAudioUpdateTimers;
 	GVector<float> mInnerUpdateGameTimers;
-	GVector<float> mOuterUpdateGameTimers;
-	GVector<float> mDrawTimers;
-	UINT mAccum = 0;
+	GVector<float> mOuterUpdateGameTimers;	
+	GVector<float> mInnerDrawTimers;
+	GVector<float> mOuterDrawTimers;
+
+	GVector<UINT> mInnerUpdateAccums;
+	GVector<UINT> mOuterUpdateAccums;
+	GVector<UINT> mInnerDrawAccums;
+	GVector<UINT> mOuterDrawAccums;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;

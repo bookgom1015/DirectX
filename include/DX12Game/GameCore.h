@@ -148,4 +148,15 @@ public:
 	#endif
 #endif
 
+static GameResult __STATIC_GAMERESULT_OK(S_OK);
+static GameResult __STATIC_GAMERESULT_FALSE(S_FALSE);
+
+#ifndef GameResultOk
+	#define GameResultOk __STATIC_GAMERESULT_OK
+#endif
+
+#ifndef GameResultFalse
+	#define GameResultFalse __STATIC_GAMERESULT_FALSE
+#endif
+
 #include "DX12Game/D3D12Util.h"

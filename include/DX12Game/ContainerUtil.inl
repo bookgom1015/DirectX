@@ -4,6 +4,8 @@
 #include "StringUtil.h"
 
 ///
+// ======== GARRAY ================================
+///
 // Element access
 ///
 GARRAY_TEMPLATE
@@ -153,7 +155,10 @@ void GARRAY::swap(Array& inOther) noexcept {
 	mArray.swap(inOther);
 }
 /// Operations
+/// ======== GARRAY ================================
 
+///
+//  ======== GVECTOR ================================
 ///
 // Constructions
 ///
@@ -230,7 +235,7 @@ constexpr GVECTOR_CONST_REFERENCE GVECTOR::operator[](SizeType inIdx) const {
 		message << FileLineStr << "Out of range: inIdx >= 0 && inIdx < vector.size()" << std::endl;
 		throw std::invalid_argument(message.str().c_str());
 	}
-
+	
 	return mVector.operator[](inIdx);
 }
 
@@ -466,7 +471,272 @@ void GVECTOR::swap(GVector& inOther) {
 	mVector.swap(inOther.mVector);
 }
 /// Modifiers
+///  ======== GVECTOR ================================
 
+///
+//  ======== GVECTOR for bool ================================
+///
+// Constructions
+///
+GVECTOR_BOOL::GVector(SizeType inSize) {
+	mVector.resize(inSize);
+}
+
+GVECTOR_BOOL::GVector(InitializerList inList) {
+	mVector.insert(mVector.begin(), inList.begin(), inList.end());
+}
+/// Constructions
+
+GVECTOR_BOOL& GVECTOR_BOOL::operator=(InitializerList inList) {
+	mVector = inList;
+	return (*this);
+}
+
+void GVECTOR_BOOL::assgin(SizeType inCount, ConstReference inValue) {
+	mVector.assign(inCount, inValue);
+}
+
+template <typename InputIt> 
+void GVECTOR_BOOL::assign(InputIt inFirst, InputIt inLast) {
+	mVector.assign(inFirst, inLast);
+}
+
+void GVECTOR_BOOL::assgin(InitializerList inIList) {
+	mVector.assign(inIList);
+}
+
+GVECTOR_BOOL::AllocatorType GVECTOR_BOOL::get_allocator() const noexcept {
+	return mVector.get_allocator();
+}
+
+///
+// Element access
+///
+GVECTOR_BOOL::Reference GVECTOR_BOOL::at(SizeType inPos) {
+	return const_cast<bool&>(std::as_const(*this).at(inPos));
+}
+
+GVECTOR_BOOL::ConstReference GVECTOR_BOOL::at(SizeType inPos) const {
+	if (inPos < 0 || inPos >= mVector.size()) {
+		std::stringstream message;
+		message << FileLineStr << "Out of range: inPos >= 0 && inPos < vector.size()" << std::endl;
+		throw std::invalid_argument(message.str().c_str());
+	}
+
+	return mVector.at(inPos);
+}
+
+GVECTOR_BOOL::Reference GVECTOR_BOOL::operator[](SizeType inIdx) {
+	return const_cast<Reference>(std::as_const(*this).operator[](inIdx));
+}
+
+GVECTOR_BOOL::ConstReference GVECTOR_BOOL::operator[](SizeType inIdx) const {
+	if (inIdx < 0 || inIdx >= mVector.size()) {
+		std::stringstream message;
+		message << FileLineStr << "Out of range: inIdx >= 0 && inIdx < vector.size()" << std::endl;
+		throw std::invalid_argument(message.str().c_str());
+	}
+
+	return mVector.operator[](inIdx);
+}
+
+GVECTOR_BOOL::Reference GVECTOR_BOOL::front() {
+	return const_cast<bool&>(std::as_const(*this).front());
+}
+
+GVECTOR_BOOL::ConstReference GVECTOR_BOOL::front() const {
+	if (mVector.size() == 0) {
+		std::stringstream message;
+		message << FileLineStr << "Vector size is 0" << std::endl;
+		throw std::logic_error(message.str().c_str());
+	}
+
+	return mVector.front();
+}
+
+GVECTOR_BOOL::Reference GVECTOR_BOOL::back() {
+	return const_cast<bool&>(std::as_const(*this).back());
+}
+
+GVECTOR_BOOL::ConstReference GVECTOR_BOOL::back() const {
+	if (mVector.size() == 0) {
+		std::stringstream message;
+		message << FileLineStr << "Vector size is 0" << std::endl;
+		throw std::logic_error(message.str().c_str());
+	}
+
+	return mVector.back();
+}
+/// Element access
+
+///
+// Iterators
+///
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::begin() noexcept {
+	return mVector.begin();
+}
+
+GVECTOR_BOOL::ConstIterator GVECTOR_BOOL::begin() const noexcept {
+	return mVector.begin();
+}
+
+GVECTOR_BOOL::ConstIterator GVECTOR_BOOL::cbegin() const noexcept {
+	return mVector.cbegin();
+}
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::end() noexcept {
+	return mVector.end();
+}
+
+GVECTOR_BOOL::ConstIterator GVECTOR_BOOL::end() const noexcept {
+	return mVector.end();
+}
+
+GVECTOR_BOOL::ConstIterator GVECTOR_BOOL::cend() const noexcept {
+	return mVector.cend();
+}
+
+GVECTOR_BOOL::ReverseIterator GVECTOR_BOOL::rbegin() noexcept {
+	return mVector.rbegin();
+}
+
+GVECTOR_BOOL::ConstReverseIterator GVECTOR_BOOL::rbegin() const noexcept {
+	return mVector.rbegin();
+}
+
+GVECTOR_BOOL::ConstReverseIterator GVECTOR_BOOL::crbegin() const noexcept {
+	return mVector.crbegin();
+}
+
+GVECTOR_BOOL::ReverseIterator GVECTOR_BOOL::rend() noexcept {
+	return mVector.rend();
+}
+
+GVECTOR_BOOL::ConstReverseIterator GVECTOR_BOOL::rend() const noexcept {
+	return mVector.rend();
+}
+
+GVECTOR_BOOL::ConstReverseIterator GVECTOR_BOOL::crend() const noexcept {
+	return mVector.crend();
+}
+/// Iterators
+
+///
+// Capacity
+///
+bool GVECTOR_BOOL::empty() const noexcept {
+	return mVector.empty();
+}
+
+GVECTOR_BOOL::SizeType GVECTOR_BOOL::size() const noexcept {
+	return mVector.size();
+}
+
+GVECTOR_BOOL::SizeType GVECTOR_BOOL::max_size() const noexcept {
+	return mVector.max_size();
+}
+
+void GVECTOR_BOOL::reserve(SizeType inNewCapacity) {
+	mVector.reserve(inNewCapacity);
+}
+
+GVECTOR_BOOL::SizeType GVECTOR_BOOL::capacity() const noexcept {
+	return mVector.capacity();
+}
+
+void GVECTOR_BOOL::shrink_to_fit() {
+	mVector.shrink_to_fit();
+}
+/// Capacity
+
+///
+// Modifiers
+///
+void GVECTOR_BOOL::clear() noexcept {
+	mVector.clear();
+}
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::insert(ConstIterator inPos, ConstReference inValue) {
+	return mVector.insert(inPos, inValue); 
+}
+
+//Iterator insert(ConstIterator inPos, RightValue inValue);
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::insert(ConstIterator inPos, const SizeType inCount, ConstReference inValue) {
+	return mVector.insert(inPos, inCount, std::move(inValue));
+}
+
+template <class InputIt> 
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::insert(ConstIterator inPos, InputIt inFirst, InputIt inLast) {
+	return mVector.insert(inPos, inFirst, inLast);
+}
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::insert(ConstIterator inPos, InitializerList inList) {
+	return mVector.insert(inPos, inList.begin(), inList.end());
+}
+
+template <typename... Args>	
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::emplace(ConstIterator inPos, Args&&... inArgs) {
+	return mVector.emplace(inPos, std::forward<Args>(inArgs)...);
+}
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::erase(ConstIterator inPos) {
+	if (inPos < mVector.cbegin() || inPos >= mVector.cend()) {
+		WErrln(L"Out of range: inPos >= begin() && inPos < end()");
+		return mVector.end();
+	}
+
+	return mVector.erase(inPos);
+}
+
+GVECTOR_BOOL::Iterator GVECTOR_BOOL::erase(ConstIterator inFirst, ConstIterator inLast) {
+	if ((inFirst < mVector.cbegin() || inFirst >= mVector.cend()) ||
+		(inLast < mVector.cbegin() || inLast >= mVector.cend())) {
+		WErrln(L"Out of range: inPos >= begin() && inPos < end()");
+		return mVector.end();
+	}
+	else if (inFirst > inLast) {
+		WErrln(L"Error of iterators: inFirst <= inLast");
+		return mVector.end();
+	}
+
+	return mVector.erase(inFirst, inLast);
+}
+
+void GVECTOR_BOOL::push_back(ConstReference inValue) {
+	mVector.emplace_back(inValue);
+}
+
+//void push_back(RightValue inValue);
+
+template <typename... Args>	
+decltype(auto) GVECTOR_BOOL::emplace_back(Args&&... inArgs) {
+	return mVector.emplace_back(std::forward<Args>(inArgs)...);
+}
+
+void GVECTOR_BOOL::pop_back() {
+	mVector.pop_back();
+}
+
+void GVECTOR_BOOL::resize(SizeType inCount) {
+	mVector.resize(inCount);
+}
+
+void GVECTOR_BOOL::resize(SizeType inCount, ConstReference inValue) {
+	mVector.resize(inCount, inValue);
+}
+
+void GVECTOR_BOOL::swap(GVector& inOther) {
+	mVector.swap(inOther.mVector);
+}
+/// Modifiers
+///  ======== GVECTOR for bool ================================
+
+///
+// ======== GARRAY ================================
+///
+// Constructions
+///
 UNORDERED_TEMPLATE
 typename UNORDEREDMAP& UNORDEREDMAP::operator=(const GUnorderedMap& inOther) {
 	mUnorderedMap = inOther.mUnorderedMap;
@@ -478,6 +748,7 @@ typename UNORDEREDMAP& UNORDEREDMAP::operator=(GUnorderedMap&& inOther) {
 	mUnorderedMap = std::move(inOther.mUnorderedMap);
 	return (*this);
 }
+/// Constructions
 
 ///
 // Iterators

@@ -86,7 +86,7 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mThreads.resize(mNumProcessors);
 	mActors.resize(mNumProcessors);
 	mPendingActors.resize(mNumProcessors);
-	bUpdatingActors.resize(mNumProcessors);
+	bUpdatingActors.resize(mNumProcessors, false);
 
 	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
 	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
@@ -96,7 +96,13 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mAudioUpdateTimers.resize(mNumProcessors, 0.0f);
 	mInnerUpdateGameTimers.resize(mNumProcessors, 0.0f);
 	mOuterUpdateGameTimers.resize(mNumProcessors, 0.0f);
-	mDrawTimers.resize(mNumProcessors, 0.0f);
+	mInnerDrawTimers.resize(mNumProcessors, 0.0f);
+	mOuterDrawTimers.resize(mNumProcessors, 0.0f);
+
+	mInnerUpdateAccums.resize(mNumProcessors, 0);
+	mOuterUpdateAccums.resize(mNumProcessors, 0);
+	mInnerDrawAccums.resize(mNumProcessors, 0);
+	mOuterDrawAccums.resize(mNumProcessors, 0);
 #endif 
 
 #ifdef UsingVulkan
@@ -138,35 +144,41 @@ void GameWorld::CleanUp() {
 
 	glfwTerminate();
 #endif
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mActorUpdateTimers[i] = mActorUpdateTimers[i] * 1000.0f / mAccum;
-		Logln("Actor Update Time[", std::to_string(i), "]: ", std::to_string(mActorUpdateTimers[i]), " ms");
-	}
 
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / mAccum;
-		Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
-	}	
-
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mAudioUpdateTimers[i] = mAudioUpdateTimers[i] * 1000.0f / mAccum;
-		Logln("Audio Update Time[", std::to_string(i), "]: ", std::to_string(mAudioUpdateTimers[i]), " ms");
-	}
-
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mInnerUpdateGameTimers[i] = mInnerUpdateGameTimers[i] * 1000.0f / mAccum;
-		Logln("Inner Update Game Time[", std::to_string(i), "]: ", std::to_string(mInnerUpdateGameTimers[i]), " ms");
-	}
-
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mOuterUpdateGameTimers[i] = mOuterUpdateGameTimers[i] * 1000.0f / mAccum;
-		Logln("Outer Update Game Time[", std::to_string(i), "]: ", std::to_string(mOuterUpdateGameTimers[i]), " ms");
-	}
-
-	for (UINT i = 0; i < mNumProcessors; ++i) {
-		mDrawTimers[i] = mDrawTimers[i] * 1000.0f / mAccum;
-		Logln("Draw Time[", std::to_string(i), "]: ", std::to_string(mDrawTimers[i]), " ms");
-	}
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mActorUpdateTimers[i] = mActorUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
+	//	Logln("Actor Update Time[", std::to_string(i), "]: ", std::to_string(mActorUpdateTimers[i]), " ms");
+	//}
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
+	//	Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
+	//}	
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mAudioUpdateTimers[i] = mAudioUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
+	//	Logln("Audio Update Time[", std::to_string(i), "]: ", std::to_string(mAudioUpdateTimers[i]), " ms");
+	//}
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mInnerUpdateGameTimers[i] = mInnerUpdateGameTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
+	//	Logln("Inner Update Game Time[", std::to_string(i), "]: ", std::to_string(mInnerUpdateGameTimers[i]), " ms");
+	//}
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mOuterUpdateGameTimers[i] = mOuterUpdateGameTimers[i] * 1000.0f / static_cast<float>(mOuterUpdateAccums[i]);
+	//	Logln("Outer Update Game Time[", std::to_string(i), "]: ", std::to_string(mOuterUpdateGameTimers[i]), " ms");
+	//}
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mInnerDrawTimers[i] = mInnerDrawTimers[i] * 1000.0f / static_cast<float>(mInnerDrawAccums[i]);
+	//	Logln("Inner Draw Time[", std::to_string(i), "]: ", std::to_string(mInnerDrawTimers[i]), " ms");
+	//}
+	//
+	//for (UINT i = 0; i < mNumProcessors; ++i) {
+	//	mOuterDrawTimers[i] = mOuterDrawTimers[i] * 1000.0f / static_cast<float>(mOuterDrawAccums[i]);
+	//	Logln("Outer Draw Time[", std::to_string(i), "]: ", std::to_string(mOuterDrawTimers[i]), " ms");
+	//}
 
 	bIsCleaned = true;
 }
@@ -347,18 +359,12 @@ void GameWorld::UnloadData() {
 }
 
 GameResult GameWorld::RunLoop() {
-	if (!LoadData()) {
-		WErrln(L"LoadData() returned an error code");
-		return -1;
-	}
+	if (!LoadData())
+		return GameResult(S_FALSE, L"LoadData() returned an error code");
 
-	GameResult result = OnResize();
-	if (result.hr != S_OK) {
-		WLogln(result.msg);
-		return -1;
-	}
+	CheckGameResult(OnResize());
 
-	result = GameLoop();
+	GameResult result = GameLoop();
 
 	UnloadData();
 
@@ -414,9 +420,15 @@ GameResult GameWorld::GameLoop() {
 
 					timer.SetEndTime();
 					mOuterUpdateGameTimers[inTid] += timer.GetElapsedTime();
+					++mOuterUpdateAccums[inTid];					
 
+					timer.SetBeginTime();
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, inTid));
+					timer.SetEndTime();
+					mOuterDrawTimers[inTid] += timer.GetElapsedTime();
+
+					++mOuterDrawAccums[inTid];
 				}
 
 				mGameState = GameState::ETerminated;
@@ -459,11 +471,15 @@ GameResult GameWorld::GameLoop() {
 
 					timer.SetEndTime();
 					mOuterUpdateGameTimers[0] += timer.GetElapsedTime();
+					++mOuterUpdateAccums[0];
 
-					++mAccum;
-
+					timer.SetBeginTime();
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, 0));
+					timer.SetEndTime();
+					mOuterDrawTimers[0] += timer.GetElapsedTime();
+
+					++mOuterDrawAccums[0];
 				}
 			}
 		}	
@@ -483,14 +499,21 @@ GameResult GameWorld::GameLoop() {
 void GameWorld::AddActor(Actor* inActor) {
 #ifdef MT_World
 	mAddingActorMutex.lock();
+
 	inActor->SetOwnerThreadID(mNextThreadId);
+
 	if (bUpdatingActors[mNextThreadId])
 		mPendingActors[mNextThreadId].push_back(inActor);
-	else
+	else 
 		mActors[mNextThreadId].push_back(inActor);
+
 	++mNextThreadId;
+
+	std::vector<bool> vec;
+
 	if (mNextThreadId >= mThreads.size())
 		mNextThreadId = 0;
+
 	mAddingActorMutex.unlock();
 #else
 	if (bUpdatingActors)
@@ -634,7 +657,7 @@ GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 
 	timer.SetEndTime();
 	mActorUpdateTimers[inTid] += timer.GetElapsedTime();
-
+	
 	timer.SetBeginTime();
 
 	CheckGameResult(mRenderer->Update(gt, inTid));
@@ -653,6 +676,8 @@ GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 	iTimer.SetEndTime();
 	mInnerUpdateGameTimers[inTid] += iTimer.GetElapsedTime();
 
+	++mInnerUpdateAccums[inTid];
+
 	return GameResult(S_OK);
 }
 
@@ -663,8 +688,10 @@ GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
 	CheckGameResult(mRenderer->Draw(gt, inTid));
 
 	timer.SetEndTime();
-	mDrawTimers[inTid] += timer.GetElapsedTime();
+	mInnerDrawTimers[inTid] += timer.GetElapsedTime();
 
+	++mInnerDrawAccums[inTid];
+	
 	return GameResult(S_OK);
 }
 
