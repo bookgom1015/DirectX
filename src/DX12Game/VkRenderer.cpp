@@ -352,7 +352,7 @@ void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 
 }
 
-GameResult VkRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult VkRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 
 
 	return GameResult(S_OK);

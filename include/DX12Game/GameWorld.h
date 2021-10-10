@@ -130,11 +130,11 @@ private:
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
 #ifdef MT_World
-	GVector<std::thread> mThreads;
-	GVector<GVector<Actor*>> mActors;
-	GVector<GVector<Actor*>> mPendingActors;
+	std::vector<std::thread> mThreads;
+	std::vector<std::vector<Actor*>> mActors;
+	std::vector<std::vector<Actor*>> mPendingActors;
 
-	GVector<bool> bUpdatingActors;
+	std::vector<bool> bUpdatingActors;
 	UINT mNextThreadId = 0;
 
 	std::mutex mAddingActorMutex;
@@ -144,25 +144,25 @@ private:
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
 
-	GVector<float> mActorUpdateTimers;
-	GVector<float> mRenderUpdateTimers;
-	GVector<float> mAudioUpdateTimers;
-	GVector<float> mInnerUpdateGameTimers;
-	GVector<float> mOuterUpdateGameTimers;	
-	GVector<float> mInnerDrawTimers;
-	GVector<float> mOuterDrawTimers;
+	std::vector<float> mActorUpdateTimers;
+	std::vector<float> mRenderUpdateTimers;
+	std::vector<float> mAudioUpdateTimers;
+	std::vector<float> mInnerUpdateGameTimers;
+	std::vector<float> mOuterUpdateGameTimers;	
+	std::vector<float> mInnerDrawTimers;
+	std::vector<float> mOuterDrawTimers;
 
-	GVector<UINT> mInnerUpdateAccums;
-	GVector<UINT> mOuterUpdateAccums;
-	GVector<UINT> mInnerDrawAccums;
-	GVector<UINT> mOuterDrawAccums;
+	std::vector<UINT> mInnerUpdateAccums;
+	std::vector<UINT> mOuterUpdateAccums;
+	std::vector<UINT> mInnerDrawAccums;
+	std::vector<UINT> mOuterDrawAccums;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;
 	bool bUpdatingActors = false;
 #endif
 
-	GUnorderedMap<std::string, std::unique_ptr<Mesh>> mMeshes;
+	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 	SoundEvent mMusicEvent;
 	float mPrevBusVolume = 0.0f;

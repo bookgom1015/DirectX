@@ -62,7 +62,7 @@ private:
 			DirectX::BoundingSphere mSphere;
 		} mBoundingUnion;
 
-		GVector<InstanceData> mInstances;
+		std::vector<InstanceData> mInstances;
 
 		// DrawIndexedInstanced parameters.
 		UINT mIndexCount = 0;
@@ -171,7 +171,7 @@ public:
 
 	virtual GameResult AddGeometry(const Mesh* inMesh) override;
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) override;
-	virtual GameResult AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) override;
+	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) override;
 
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
@@ -191,8 +191,8 @@ private:
 	GameResult AddSkeletonGeometry(const Mesh* inMesh);
 	GameResult AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
-	GameResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
-	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
+	GameResult AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	GameResult AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
 	///
 	// Update helper classes
@@ -230,9 +230,8 @@ private:
 	GameResult BuildPSOs();
 	GameResult BuildFrameResources();
 
-	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);	
-	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, 
-			const GVector<RenderItem*>& inRitems, UINT inBegin, UINT inEnd);
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inNum);
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inBegin, size_t inEnd);
 
 	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
@@ -250,7 +249,7 @@ private:
 private:
 	bool bIsCleaned = false;
 
-	GVector<std::unique_ptr<FrameResource>> mFrameResources;
+	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
 
@@ -259,31 +258,31 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
-	GUnorderedMap<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
+	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 
-	GVector<std::unique_ptr<Material>> mMaterials;
-	GUnorderedMap<std::string, Material*> mMaterialRefs;
+	std::vector<std::unique_ptr<Material>> mMaterials;
+	std::unordered_map<std::string, Material*> mMaterialRefs;
 
-	GUnorderedMap<std::string, std::unique_ptr<Texture>> mTextures;
-	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
 
-	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
-	GVector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-	GVector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
 
 	// List of all the render items.
-	GVector<std::unique_ptr<RenderItem>> mAllRitems;
+	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	GVector<RenderItem*> mRitemLayer[RenderLayer::Count];
+	std::vector<RenderItem*> mRitemLayer[RenderLayer::Count];
 
-	GUnorderedMap<std::string, UINT> mDiffuseSrvHeapIndices;
-	GUnorderedMap<std::string, UINT> mNormalSrvHeapIndices;
-	GUnorderedMap<std::string, UINT> mSpecularSrvHeapIndices;
-	GVector<std::string> mBuiltDiffuseTexDescriptors;
-	GVector<std::string> mBuiltNormalTexDescriptors;
-	GVector<std::string> mBuiltSpecularTexDescriptors;
+	std::unordered_map<std::string, UINT> mDiffuseSrvHeapIndices;
+	std::unordered_map<std::string, UINT> mNormalSrvHeapIndices;
+	std::unordered_map<std::string, UINT> mSpecularSrvHeapIndices;
+	std::vector<std::string> mBuiltDiffuseTexDescriptors;
+	std::vector<std::string> mBuiltNormalTexDescriptors;
+	std::vector<std::string> mBuiltSpecularTexDescriptors;
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
@@ -306,18 +305,18 @@ private:
 	DirectX::BoundingFrustum mCamFrustum;
 	DirectX::BoundingSphere mSceneBounds;
 
-	GVector<const Mesh*> mNestedMeshes;
-	GUnorderedMap<std::string /* Render-item name */, GVector<RenderItem*> /* Draw args */> mRefRitems;
-	GUnorderedMap<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
-	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToRitem;
-	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToSkeletonRitem;
+	std::vector<const Mesh*> mNestedMeshes;
+	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
+	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
 
 	// Variables for drawing text on the screen.
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 
-	GVector<float> mConstantSettings;
+	std::vector<float> mConstantSettings;
 
 	const UINT MaxInstanceCount = 128;
 
@@ -325,18 +324,18 @@ private:
 	CVBarrier* mCVBarrier;
 	SpinlockBarrier* mSpinlockBarrier;
 
-	GVector<UINT> mNumInstances;
-	GVector<GVector<UpdateFunc>> mEachUpdateFunctions;
+	std::vector<UINT> mNumInstances;
+	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
 
-	GVector<float> mDxRenderUpdateTimers;
-	GVector<float> mWaitTimers;
-	GVector<float> mUpdateObjTimers;
-	GVector<float> mUpdateShwTimers;
+	std::vector<float> mDxRenderUpdateTimers;
+	std::vector<float> mWaitTimers;
+	std::vector<float> mUpdateObjTimers;
+	std::vector<float> mUpdateShwTimers;
 
-	GVector<float> mDxDrawTimers;	
+	std::vector<float> mDxDrawTimers;
 
-	GVector<UINT> mUpdateAccums;
+	std::vector<UINT> mUpdateAccums;
 
-	GVector<UINT> mDrawAccums;
+	std::vector<UINT> mDrawAccums;
 #endif
 };

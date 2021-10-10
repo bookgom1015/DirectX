@@ -733,7 +733,7 @@ void GVECTOR_BOOL::swap(GVector& inOther) {
 ///  ======== GVECTOR for bool ================================
 
 ///
-// ======== GARRAY ================================
+// ======== GUNORDERED ================================
 ///
 // Constructions
 ///

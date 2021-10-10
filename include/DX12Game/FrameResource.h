@@ -188,7 +188,7 @@ public:
 public:
     // We cannot reset the allocator until the GPU is done processing the commands.
     // So each frame needs their own allocator.
-	GVector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCmdListAllocs;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCmdListAllocs;
 
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.

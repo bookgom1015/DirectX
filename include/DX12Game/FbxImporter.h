@@ -2,10 +2,16 @@
 
 #pragma comment(lib, "libfbxsdk.lib")
 
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
 #define FBXSDK_SHARED
 #include <fbxsdk.h>
+#include <unordered_map>
+#include <vector>
+#define NOMINMAX
+#include <Windows.h>
 
-#include "DX12Game/GameCore.h"
+#include "common/MathHelper.h"
 
 struct DxFbxVertex {
 public:
@@ -67,13 +73,13 @@ public:
 	virtual ~DxFbxSkeleton() = default;
 
 public:
-	const GVector<DxFbxBone>& GetBones() const;
+	const std::vector<DxFbxBone>& GetBones() const;
 	size_t GetNumBones() const;
 
 private:
 	friend class DxFbxImporter;
 
-	GVector<DxFbxBone> mBones;
+	std::vector<DxFbxBone> mBones;
 };
 
 class DxFbxAnimation {
@@ -85,7 +91,7 @@ public:
 	size_t GetNumFrames() const;
 	float GetDuration() const;
 	float GetFrameDuration() const;
-	const GUnorderedMap<UINT, GVector<DirectX::XMFLOAT4X4>>& GetCurves() const;
+	const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& GetCurves() const;
 
 private:
 	friend class DxFbxImporter;
@@ -97,8 +103,8 @@ private:
 	// Duration of each frame in the animation
 	float mFrameDuration = 0.0f;
 
-	GUnorderedMap<UINT /* Bone index */, GVector<DirectX::XMFLOAT4X4>> mCurves;
-	GUnorderedMap<int /* Parent Bone index */, GVector<fbxsdk::FbxAMatrix>> mParentGlobalTransforms;
+	std::unordered_map<UINT /* Bone index */, std::vector<DirectX::XMFLOAT4X4>> mCurves;
+	std::unordered_map<int /* Parent Bone index */, std::vector<fbxsdk::FbxAMatrix>> mParentGlobalTransforms;
 };
 
 class DxFbxImporter {
@@ -125,13 +131,13 @@ private:
 public:
 	bool LoadDataFromFile(const std::string& inFileName, bool bMultiThreading = false);
 
-	const GVector<DxFbxVertex>& GetVertices() const;
-	const GVector<std::uint32_t>& GetIndices() const;
-	const GVector<std::string>& GetSubsetNames() const;
-	const GVector<std::pair<UINT, UINT>>& GetSubsets() const;
-	const GUnorderedMap<std::string, DxFbxMaterial>& GetMaterials() const;
+	const std::vector<DxFbxVertex>& GetVertices() const;
+	const std::vector<std::uint32_t>& GetIndices() const;
+	const std::vector<std::string>& GetSubsetNames() const;
+	const std::vector<std::pair<UINT, UINT>>& GetSubsets() const;
+	const std::unordered_map<std::string, DxFbxMaterial>& GetMaterials() const;
 	const DxFbxSkeleton& GetSkeleton() const;
-	const GUnorderedMap<std::string, DxFbxAnimation>& GetAnimations() const;
+	const std::unordered_map<std::string, DxFbxAnimation>& GetAnimations() const;
 
 private:
 	//* Initializes fbx sdk(The app crashes when triangulating geometry).
@@ -161,7 +167,7 @@ private:
 
 	//* Build local, global and global inverse bind pose for each bone in skeleton.
 	void BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsdk::FbxAMatrix& inGeometryTransform, 
-		UINT inClusterIndex, int inParentIndex, const DxFbxSkeleton& inSkeleton, DxFbxBone& outBone);
+						   UINT inClusterIndex, int inParentIndex, const DxFbxSkeleton& inSkeleton, DxFbxBone& outBone);
 	//* Builds weigths for each control point.
 	//* Each cluster has control points that is affected by it.
 	//* So the app need to iterate all the meshes that is existed and extract clusters affecting the mesh.
@@ -175,33 +181,34 @@ private:
 	//* Helper class for the function BuildAnimations.
 	//* Loads TRS-components in FbxAnimCurve at each frame to build global transform(to-root).
 	void BuildAnimationKeyFrames(fbxsdk::FbxAnimLayer* inAnimLayer, fbxsdk::FbxNode* inNode, fbxsdk::FbxCluster* inCluster,
-		const fbxsdk::FbxAMatrix& inGeometryTransform, fbxsdk::FbxTakeInfo* inTakeInfo, DxFbxAnimation& outAnimation,
-		UINT inClusterIndex, int inParentIndex);
+								 const fbxsdk::FbxAMatrix& inGeometryTransform, fbxsdk::FbxTakeInfo* inTakeInfo, 
+								 DxFbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex);
 	//* Deprecated.
 	void BuildAnimationKeyFrames(fbxsdk::FbxTakeInfo* inTakeInfo, fbxsdk::FbxCluster* inCluster, fbxsdk::FbxNode* inNode,
-		fbxsdk::FbxAMatrix inGeometryTransform, DxFbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex);
+								 fbxsdk::FbxAMatrix inGeometryTransform, DxFbxAnimation& outAnimation, 
+								 UINT inClusterIndex, int inParentIndex);
 
 private:
 	fbxsdk::FbxManager* mFbxManager;
 	fbxsdk::FbxIOSettings* mFbxIos;
 	fbxsdk::FbxScene* mFbxScene;
 
-	GVector<DxFbxVertex> mVertices;
-	GVector<std::uint32_t> mIndices;
+	std::vector<DxFbxVertex> mVertices;
+	std::vector<std::uint32_t> mIndices;
 
-	GVector<std::string> mSubsetNames;
-	GVector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
+	std::vector<std::string> mSubsetNames;
+	std::vector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
 
-	GUnorderedMap<std::string /* Submesh name */, DxFbxMaterial> mMaterials;
+	std::unordered_map<std::string /* Submesh name */, DxFbxMaterial> mMaterials;
 
 	DxFbxSkeleton mSkeleton;
 
-	GUnorderedMap<std::string /* Submesh name */,
-		GUnorderedMap<int /* Control point index */,
-		GVector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
+	std::unordered_map<std::string /* Submesh name */,
+					   std::unordered_map<int /* Control point index */,
+					   std::vector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
 
-	GUnorderedMap<std::string /* Clip name */, DxFbxAnimation> mAnimations;
+	std::unordered_map<std::string /* Clip name */, DxFbxAnimation> mAnimations;
 
-	GUnorderedMap<UINT /* Bone index */, fbxsdk::FbxCluster*> mClusters;
-	GVector<UINT /* BOne index */> mNestedClusters;
+	std::unordered_map<UINT /* Bone index */, fbxsdk::FbxCluster*> mClusters;
+	std::vector<UINT /* BOne index */> mNestedClusters;
 };

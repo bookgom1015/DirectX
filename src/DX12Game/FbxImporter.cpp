@@ -1,4 +1,8 @@
 #include "DX12Game/FbxImporter.h"
+#include "DX12Game/StringUtil.h"
+#include "DX12Game/ThreadUtil.h"
+
+#include <string>
 
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -8,12 +12,10 @@ namespace {
 	const UINT InvalidBoneIndex = std::numeric_limits<UINT>::max();
 }
 
-DxFbxVertex::DxFbxVertex(
-	DirectX::XMFLOAT3 inPos			/* = { 0.0f, 0.0f, 0.0f } */, 
-	DirectX::XMFLOAT3 inNormal		/* = { 0.0f, 0.0f, 0.0f } */,
-	DirectX::XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
-	DirectX::XMFLOAT3 inTangentU	/* = { 0.0f, 0.0f, 0.0f } */) {
-
+DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */, 
+						 DirectX::XMFLOAT3 inNormal		/* = { 0.0f, 0.0f, 0.0f } */,
+						 DirectX::XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
+						 DirectX::XMFLOAT3 inTangentU	/* = { 0.0f, 0.0f, 0.0f } */) {
 	mPos = inPos;
 	mNormal = inNormal;
 	mTexC = inTexC;
@@ -55,7 +57,7 @@ DxFbxBone::DxFbxBone() {
 	mGlobalInvBindPose = MathHelper::Identity4x4();
 }
 
-const GVector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
+const std::vector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
 	return mBones;
 }
 
@@ -75,7 +77,7 @@ float DxFbxAnimation::GetFrameDuration() const {
 	return mFrameDuration;
 }
 
-const GUnorderedMap<UINT, GVector<DirectX::XMFLOAT4X4>>& DxFbxAnimation::GetCurves() const {
+const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& DxFbxAnimation::GetCurves() const {
 	return mCurves;
 }
 
@@ -156,23 +158,23 @@ bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiT
 	return true;
 }
 
-const GVector<DxFbxVertex>& DxFbxImporter::GetVertices() const {
+const std::vector<DxFbxVertex>& DxFbxImporter::GetVertices() const {
 	return mVertices;
 }
 
-const GVector<std::uint32_t>& DxFbxImporter::GetIndices() const {
+const std::vector<std::uint32_t>& DxFbxImporter::GetIndices() const {
 	return mIndices;
 }
 
-const GVector<std::string>& DxFbxImporter::GetSubsetNames() const {
+const std::vector<std::string>& DxFbxImporter::GetSubsetNames() const {
 	return mSubsetNames;
 }
 
-const GVector<std::pair<UINT, UINT>>& DxFbxImporter::GetSubsets() const {
+const std::vector<std::pair<UINT, UINT>>& DxFbxImporter::GetSubsets() const {
 	return mSubsets;
 }
 
-const GUnorderedMap<std::string, DxFbxMaterial>& DxFbxImporter::GetMaterials() const {
+const std::unordered_map<std::string, DxFbxMaterial>& DxFbxImporter::GetMaterials() const {
 	return mMaterials;
 }
 
@@ -180,7 +182,7 @@ const DxFbxSkeleton& DxFbxImporter::GetSkeleton() const {
 	return mSkeleton;
 }
 
-const GUnorderedMap<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimations() const {
+const std::unordered_map<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimations() const {
 	return mAnimations;
 }
 
@@ -368,7 +370,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	std::string meshName = fbxMesh->GetName();
 
 	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	GVector<XMFLOAT3> controlPoints(controlPointCount);
+	std::vector<XMFLOAT3> controlPoints(controlPointCount);
 
 	for (int i = 0; i < controlPointCount; ++i) {
 		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
@@ -423,8 +425,11 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 }
 
 namespace {
-	void Distribute(size_t inEachVertexCount, size_t inOffset, const GVector<DxFbxVertex>& inPolygonVertices,
-			const GVector<DxFbxVertex>& inOverlappedVertexSet, GVector<DxFbxVertex>& outUniqueVertexSet) {
+	void Distribute(size_t							inEachVertexCount, 
+					size_t							inOffset, 
+					const std::vector<DxFbxVertex>&	inPolygonVertices,					
+					const std::vector<DxFbxVertex>&	inOverlappedVertexSet, 
+					std::vector<DxFbxVertex>&		outUniqueVertexSet) {
 		std::uint32_t counter = 0;
 		for (auto vertIter = inOverlappedVertexSet.cbegin(), iterEnd = inOverlappedVertexSet.cend(); 
 				vertIter != iterEnd; ++vertIter) {
@@ -451,8 +456,10 @@ namespace {
 		TWLogln(L"Distribution Loop-Count: ", std::to_wstring(counter));
 	}
 
-	void Composite(const GVector<DxFbxVertex>& inOverlappedVertexSet, const GVector<DxFbxVertex>& inUniqueVertexSet,
-			GVector<std::uint32_t>& outIndexSet, const GVector<GVector<DxFbxVertex>>& inFrontUniqueVertexSets) {
+	void Composite(const std::vector<DxFbxVertex>&				inOverlappedVertexSet, 
+				   const std::vector<DxFbxVertex>&				inUniqueVertexSet,		
+				   std::vector<std::uint32_t>&					outIndexSet, 
+				   const std::vector<std::vector<DxFbxVertex>>&	inFrontUniqueVertexSets) {
 		std::uint32_t counter = 0;
 		size_t frontSize = 0;
 		for (const auto& vertexSet : inFrontUniqueVertexSets)
@@ -488,7 +495,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	std::string meshName = fbxMesh->GetName();
 
 	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	GVector<XMFLOAT3> controlPoints(controlPointCount);
+	std::vector<XMFLOAT3> controlPoints(controlPointCount);
 	for (int i = 0; i < controlPointCount; ++i) {
 		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
 		controlPoints[i].y = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[1]);
@@ -497,7 +504,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 
 	const UINT polygonCount = fbxMesh->GetPolygonCount();
 	UINT vertexCounter = 0;
-	GVector<DxFbxVertex> polygonVertices;
+	std::vector<DxFbxVertex> polygonVertices;
 
 	for (UINT polygonIdx = 0; polygonIdx < polygonCount; ++polygonIdx) {
 		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
@@ -530,7 +537,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 
 	UINT numProcessors = ThreadUtil::GetProcessorCount(false);
 
-	GVector<UINT> eachPolygonCounts(numProcessors);	
+	std::vector<UINT> eachPolygonCounts(numProcessors);
 	const UINT lineSize = vertexCounter / numProcessors;
 	const UINT remaining = vertexCounter % numProcessors;
 	{
@@ -546,7 +553,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		TWLog(wsstream.str());
 	}
 	
-	GVector<GVector<DxFbxVertex>> overlappedVertexSets(numProcessors);
+	std::vector<std::vector<DxFbxVertex>> overlappedVertexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (size_t i = 0; i < numProcessors; ++i) {
@@ -557,7 +564,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	GVector<GVector<DxFbxVertex>> uniqueVertexSets(numProcessors);
+	std::vector<std::vector<DxFbxVertex>> uniqueVertexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (auto& vertexSet : uniqueVertexSets) {
@@ -565,7 +572,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 	
-	GVector<std::thread> threads(numProcessors);
+	std::vector<std::thread> threads(numProcessors);
 	{
 		size_t offset = 0;
 		for (size_t i = 0; i < numProcessors; ++i) {
@@ -579,7 +586,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	for (auto& thread : threads)
 		thread.join();
 
-	GVector<GVector<std::uint32_t>> indexSets(numProcessors);
+	std::vector<std::vector<std::uint32_t>> indexSets(numProcessors);
 	{
 		size_t counter = 0;
 		for (auto& indexSet : indexSets) {
@@ -587,7 +594,7 @@ int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 		}
 	}
 
-	GVector<GVector<DxFbxVertex>> frontUniqueVertexSets;
+	std::vector<std::vector<DxFbxVertex>> frontUniqueVertexSets;
 	for (size_t i = 0; i < numProcessors; ++i) {
 		threads[i] = std::thread(Composite, 
 			overlappedVertexSets[i], uniqueVertexSets[i], 
@@ -933,12 +940,12 @@ UINT DxFbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
 	return { InvalidBoneIndex };
 }
 
-void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster* inCluster, 
-									  const fbxsdk::FbxAMatrix& inGeometryTransform,										
-									  UINT inClusterIndex, 
-									  int inParentIndex,										
-									  const DxFbxSkeleton& inSkeleton,
-									  DxFbxBone& outBone) {
+void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster*		inCluster, 
+									  const fbxsdk::FbxAMatrix&	inGeometryTransform,										
+									  UINT						inClusterIndex, 
+									  int						inParentIndex,										
+									  const DxFbxSkeleton&		inSkeleton,
+									  DxFbxBone&				outBone) {
 	// For compability with other softwares... (usually identity matrix)
 	FbxAMatrix transformMatrix;
 	inCluster->GetTransformMatrix(transformMatrix);
@@ -979,8 +986,11 @@ void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClus
 	}
 }
 
-void DxFbxImporter::BuildAnimations(FbxNode* inNode, FbxCluster* inCluster, const FbxAMatrix& inGeometryTransform, 
-		UINT inClusterIndex, int inParentIndex) {
+void DxFbxImporter::BuildAnimations(FbxNode* inNode, 
+									FbxCluster* inCluster,
+									const FbxAMatrix& inGeometryTransform, 		
+									UINT inClusterIndex,
+									int inParentIndex) {
 	int stackCount = mFbxScene->GetSrcObjectCount<FbxAnimStack>();
 	for (int stackIdx = 0; stackIdx < stackCount; ++stackIdx) {
 		auto animStack = mFbxScene->GetSrcObject<FbxAnimStack>(stackIdx);	
@@ -1016,9 +1026,14 @@ void DxFbxImporter::BuildAnimations(FbxNode* inNode, FbxCluster* inCluster, cons
 	}
 }
 
-void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* inNode, FbxCluster* inCluster, 
-		const FbxAMatrix& inGeometryTransform, FbxTakeInfo* inTakeInfo, DxFbxAnimation& outAnimation, 
-		UINT inClusterIndex, int inParentIndex) {
+void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer*		inAnimLayer,
+											FbxNode*			inNode, 
+											FbxCluster*			inCluster, 
+											const FbxAMatrix&	inGeometryTransform, 
+											FbxTakeInfo*		inTakeInfo, 
+											DxFbxAnimation&		outAnimation, 
+											UINT				inClusterIndex, 
+											int					inParentIndex) {
 	auto timeMode = mFbxScene->GetGlobalSettings().GetTimeMode();
 
 	FbxTime startTime = inTakeInfo->mLocalTimeSpan.GetStart();
@@ -1087,8 +1102,13 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer* inAnimLayer, FbxNode* 
 	}
 }
 
-void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo* inTakeInfo, FbxCluster* inCluster, FbxNode* inNode,
-		FbxAMatrix inGeometryTransform, DxFbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex) {
+void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo*	inTakeInfo, 
+											FbxCluster*		inCluster, 
+											FbxNode*		inNode,
+											FbxAMatrix		inGeometryTransform,
+											DxFbxAnimation&	outAnimation, 
+											UINT			inClusterIndex,
+											int				inParentIndex) {
 	auto timeMode = mFbxScene->GetGlobalSettings().GetTimeMode();
 
 	FbxTime startTime = inTakeInfo->mLocalTimeSpan.GetStart();

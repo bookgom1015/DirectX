@@ -32,7 +32,7 @@ public:
 
 	virtual GameResult AddGeometry(const Mesh* inMesh) = 0;
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) = 0;
-	virtual GameResult AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) = 0;
+	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) = 0;
 
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) = 0;
 	virtual GameResult UpdateAnimationsMap() = 0;
@@ -51,6 +51,6 @@ protected:
 
 	GameCamera* mMainCamera = nullptr;
 
-	GUnorderedMap<std::string /* Name id */,
+	std::unordered_map<std::string /* Name id */,
 		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector4>> mOutputTexts;
 };

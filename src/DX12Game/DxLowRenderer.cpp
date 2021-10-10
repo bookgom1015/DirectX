@@ -85,7 +85,7 @@ GameResult DxLowRenderer::FlushCommandQueue() {
 }
 
 GameResult DxLowRenderer::ExecuteCommandLists() {
-	GVector<ID3D12CommandList*> cmdLists;
+	std::vector<ID3D12CommandList*> cmdLists;
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		ReturnIfFailed(mCommandLists[i]->Close());
 		cmdLists.push_back(mCommandLists[i].Get());
@@ -111,7 +111,7 @@ ID3D12Device* DxLowRenderer::GetDevice() const {
 	return md3dDevice.Get();
 }
 
-const GVector<ComPtr<ID3D12GraphicsCommandList>>& DxLowRenderer::GetCommandLists() const {
+const std::vector<ComPtr<ID3D12GraphicsCommandList>>& DxLowRenderer::GetCommandLists() const {
 	return mCommandLists;
 }
 
@@ -342,7 +342,7 @@ GameResult DxLowRenderer::OnResize() {
 void DxLowRenderer::LogAdapters() {
 	UINT i = 0;
 	IDXGIAdapter* adapter = nullptr;
-	GVector<IDXGIAdapter*> adapterList;
+	std::vector<IDXGIAdapter*> adapterList;
 	while (mdxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
 		DXGI_ADAPTER_DESC desc;
 		adapter->GetDesc(&desc);
@@ -386,7 +386,7 @@ void DxLowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inF
 	// Call with nullptr to get list count.
 	inOutput->GetDisplayModeList(inFormat, flags, &count, nullptr);
 
-	GVector<DXGI_MODE_DESC> modelList(count);
+	std::vector<DXGI_MODE_DESC> modelList(count);
 	inOutput->GetDisplayModeList(inFormat, flags, &count, &modelList[0]);
 
 	for (auto& x : modelList) {

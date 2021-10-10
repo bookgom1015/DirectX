@@ -243,7 +243,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 		func(*this, std::ref(gt), inTid);
 	
 	if (inTid == 0) {
-		GVector<std::string> textsToRemove;
+		std::vector<std::string> textsToRemove;
 		for (auto& text : mOutputTexts) {
 			float& lifeTime = text.second.second.w;
 
@@ -565,7 +565,7 @@ void DxRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 		AddSkeletonRenderItem(ioRenderItemName, inMesh, isNested);
 }
 
-GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(AddTextures(inMaterials));
 	CheckGameResult(AddDescriptors(inMaterials));
 
@@ -596,22 +596,22 @@ GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>
 }
 
 UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
-	GVector<GVector<XMFLOAT4>> data;
-	data.resize(inAnim.mNumFrames);
+	std::vector<XMFLOAT4> curves;
 
 	for (size_t frame = 0; frame < inAnim.mNumFrames; ++frame) {
 		for (const auto& curve : inAnim.mCurves) {
-			for (int row = 0; row < 4; ++row) {
-				data[frame].emplace_back(
+			for (size_t row = 0; row < 4; ++row) {
+				curves.emplace_back(
 					curve[frame].m[row][0],
 					curve[frame].m[row][1],
 					curve[frame].m[row][2],
-					curve[frame].m[row][3]);
+					curve[frame].m[row][3]
+				);
 			}
 		}
 	}
 
-	return mAnimsMap.AddAnimation(inClipName, data);
+	return mAnimsMap.AddAnimation(inClipName, curves.data(), inAnim.mNumFrames, inAnim.mCurves.size());
 }
 
 GameResult DxRenderer::UpdateAnimationsMap() {
@@ -1013,7 +1013,7 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
@@ -1140,7 +1140,7 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
@@ -1600,14 +1600,14 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 /// Update functions
 
 GameResult DxRenderer::LoadBasicTextures() {
-	GVector<std::string> texNames = {
+	std::vector<std::string> texNames = {
 		"defaultDiffuseMap",
 		"defaultNormalMap",
 		"skyCubeMap",
 		"blurSkyCubeMap"
 	};
 
-	GVector<std::wstring> texFileNames = {
+	std::vector<std::wstring> texFileNames = {
 		TextureFileNamePrefix + L"white1x1.dds",
 		TextureFileNamePrefix + L"default_nmap.dds",
 		TextureFileNamePrefix + L"skycube.dds",
@@ -1999,7 +1999,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	GVector<ComPtr<ID3D12Resource>> tex2DList = {
+	std::vector<ComPtr<ID3D12Resource>> tex2DList = {
 		mTextures["defaultDiffuseMap"]->Resource,
 		mTextures["defaultNormalMap"]->Resource
 	};
@@ -2230,7 +2230,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 		cylinder.Vertices.size() +
 		quad.Vertices.size();
 
-	GVector<Vertex> vertices(totalVertexCount);
+	std::vector<Vertex> vertices(totalVertexCount);
 
 	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
 	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
@@ -2324,7 +2324,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
 	quadSubmesh.AABB = bound;
 
-	GVector<std::uint16_t> indices;
+	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -2810,13 +2810,15 @@ GameResult DxRenderer::BuildFrameResources() {
 	return GameResult(S_OK);
 }
 
-void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems) {
+void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList, 
+								 RenderItem*const*			inRitems, 
+								 size_t						inNum) {
 	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
 
 	// For each render item...
-	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
+	for (size_t i = 0; i < inNum; ++i) {
 		auto ri = inRitems[i];
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->mGeo->VertexBufferView());
@@ -2831,14 +2833,16 @@ void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GV
 	}
 }
 
-void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList,
-		const GVector<RenderItem*>& inRitems, UINT inBegin, UINT inEnd) {
+void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList,
+								 RenderItem*const*			inRitems,
+								 size_t						inBegin,
+								 size_t						inEnd) {
 	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
 	
 	// For each render item...
-	for (UINT i = inBegin; i < inEnd; ++i) {
+	for (size_t i = inBegin; i < inEnd; ++i) {
 		auto ri = inRitems[i];
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->mGeo->VertexBufferView());
@@ -2933,7 +2937,7 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
-	DrawRenderItems(cmdList, opaque, begin, end);
+	DrawRenderItems(cmdList, opaque.data(), begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
 #endif // MT_World
@@ -2942,12 +2946,12 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 	ReturnIfFailed(cmdList->Close());
 
 	SyncHost(mSpinlockBarrier);
-
+	
 	if (inTid == 0) {
-		GVector<ID3D12CommandList*> cmdsLists;
+		std::vector<ID3D12CommandList*> cmdsLists;
 		for (UINT i = 0; i < mNumThreads; ++i)
 			cmdsLists.push_back(mCommandLists[i].Get());
-
+	
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
@@ -3034,7 +3038,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
-	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
+	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
 #endif // MT_World
@@ -3043,12 +3047,12 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 	ReturnIfFailed(cmdList->Close());
 
 	SyncHost(mSpinlockBarrier);
-
+	
 	if (inTid == 0) {
-		GVector<ID3D12CommandList*> cmdsLists;
+		std::vector<ID3D12CommandList*> cmdsLists;
 		for (UINT i = 0; i < mNumThreads; ++i)
 			cmdsLists.push_back(mCommandLists[i].Get());
-
+	
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
@@ -3073,16 +3077,12 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 		ID3D12CommandList* cmdsLists[] = { cmdList };
 		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 	}
-	
-	SyncHost(mCVBarrier);
 
 	CheckGameResult(DrawOpaqueToShadowMap(inTid));
 
 	SyncHost(mCVBarrier);
 
 	CheckGameResult(DrawSkinnedOpaqueToShadowMap(inTid));
-
-	SyncHost(mCVBarrier);
 
 	if (inTid == 0) {
 		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
@@ -3183,7 +3183,7 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
-	DrawRenderItems(cmdList, opaque, begin, end);
+	DrawRenderItems(cmdList, opaque.data(), begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
 #endif
@@ -3194,7 +3194,7 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 	SyncHost(mSpinlockBarrier);
 
 	if (inTid == 0) {
-		GVector<ID3D12CommandList*> cmdsLists;
+		std::vector<ID3D12CommandList*> cmdsLists;
 		for (UINT i = 0; i < mNumThreads; ++i)
 			cmdsLists.push_back(mCommandLists[i].Get());
 
@@ -3282,7 +3282,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
 	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
-	DrawRenderItems(cmdList, skinnedOpaque, begin, end);
+	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
 #else
 	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
 #endif
@@ -3293,7 +3293,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 	SyncHost(mSpinlockBarrier);
 
 	if (inTid == 0) {
-		GVector<ID3D12CommandList*> cmdsLists;
+		std::vector<ID3D12CommandList*> cmdsLists;
 		for (UINT i = 0; i < mNumThreads; ++i)
 			cmdsLists.push_back(mCommandLists[i].Get());
 
@@ -3330,15 +3330,11 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 	}
 
-	SyncHost(mCVBarrier);
-
 	CheckGameResult(DrawOpaqueToGBuffer(inTid));
 
 	SyncHost(mCVBarrier);
 
 	CheckGameResult(DrawSkinnedOpaqueToGBuffer(inTid));
-
-	SyncHost(mCVBarrier);
 
 	if (inTid == 0) {
 		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
@@ -3454,16 +3450,20 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
 
 	cmdList->SetPipelineState(mPSOs["gbufferScreen"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Screen]);
+	auto ritems = mRitemLayer[RenderLayer::Screen];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
 	cmdList->SetPipelineState(mPSOs["sky"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Sky]);
+	ritems = mRitemLayer[RenderLayer::Sky];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
 	cmdList->SetPipelineState(mPSOs["skeleton"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Skeleton]);
+	ritems = mRitemLayer[RenderLayer::Skeleton];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
 	cmdList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Debug]);
+	ritems = mRitemLayer[RenderLayer::Debug];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));

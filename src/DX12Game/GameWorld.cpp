@@ -645,7 +645,7 @@ GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 	pendingActors.clear();
 
 	// Add any dead actors to a temp vector.
-	GVector<Actor*> deadActors;
+	std::vector<Actor*> deadActors;
 	for (auto actor : actors) {
 		if (actor->GetState() == Actor::ActorState::EDead)
 			deadActors.push_back(actor);

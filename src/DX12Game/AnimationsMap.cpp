@@ -20,19 +20,18 @@ GameResult AnimationsMap::Initialize(ID3D12Device* inDevice, ID3D12GraphicsComma
 	return GameResult(S_OK);
 }
 
-UINT AnimationsMap::AddAnimation(
-	const std::string& inClipName, 
-	const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves) {
-
-	size_t numFrames = inAnimCurves.size();
+UINT AnimationsMap::AddAnimation(const std::string& inClipName, const DirectX::XMFLOAT4* inAnimCurves, 
+								 size_t inNumFrames, size_t inNumCurves) {
 	UINT ret = mCurrIndex;
+	UINT paddingSize = static_cast<UINT>(LineSize - inNumCurves * 4);
 
-	for (size_t frame = 0; frame < numFrames; ++frame) {
-		const auto& animCurves = inAnimCurves[frame];
-		UINT paddingSize = static_cast<UINT>(LineSize - animCurves.size());
+	for (size_t frame = 0; frame < inNumFrames; ++frame) {
+		size_t idx = frame * inNumCurves * 4;		
 
-		for (const auto& curve : animCurves)
-			mAnimations[mCurrIndex++] = curve;
+		for (size_t curve = 0; curve < inNumCurves; ++curve) {
+			for (size_t row = 0; row < 4; ++row)
+				mAnimations[mCurrIndex++] = inAnimCurves[idx + (curve * 4) + row];
+		}
 
 		mCurrIndex += paddingSize;
 	}

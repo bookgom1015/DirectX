@@ -1,5 +1,7 @@
 #include "DX12Game/GameCamera.h"
 
+#include "common/MathHelper.h"
+
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 

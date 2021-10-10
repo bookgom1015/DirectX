@@ -1,4 +1,6 @@
-#include "DX12Game/GameCore.h"
+#include "DX12Game/D3D12Util.h"
+
+#include <fstream>
 
 using namespace Microsoft::WRL;
 

@@ -1,6 +1,13 @@
 #pragma once
 
-#include "GameCore.h"
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <d3d12.h>
+#include <vector>
+#include <wrl.h>
+
+#include "common/d3dx12.h"
+#include "DX12Game/GameResult.h"
 
 class AnimationsMap {
 public:
@@ -10,7 +17,8 @@ public:
 public:
 	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
 
-	UINT AddAnimation(const std::string& inClipName, const GVector<GVector<DirectX::XMFLOAT4>>& inAnimCurves);
+	UINT AddAnimation(const std::string& inClipName, const DirectX::XMFLOAT4* inAnimCurves, 
+					  size_t inNumFrames, size_t inNumCurves);
 
 	void BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,

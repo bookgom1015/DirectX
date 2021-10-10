@@ -31,7 +31,7 @@ protected:
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	ID3D12Device* GetDevice() const;
-	const GVector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>>& GetCommandLists() const;
+	const std::vector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>>& GetCommandLists() const;
 	ID3D12GraphicsCommandList* GetCommandList(UINT inIdx = 0) const;
 
 private:
@@ -59,8 +59,8 @@ protected:
 	UINT64 mCurrentFence = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
-	GVector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCommandAllocators;
-	GVector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCommandAllocators;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
 
 	static const int SwapChainBufferCount = 2;
 	int mCurrBackBuffer = 0;
