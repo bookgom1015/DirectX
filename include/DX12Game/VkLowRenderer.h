@@ -34,7 +34,8 @@ public:
 	virtual ~VkLowRenderer();
 
 public:
-	virtual GameResult Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
+		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
 
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
@@ -50,7 +51,8 @@ protected:
 	GameResult ReadFile(const std::string& inFileName, std::vector<char>& outData);
 
 private:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(HWND hMainWnd, 
+		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 
 	GameResult InitVulkan();
 

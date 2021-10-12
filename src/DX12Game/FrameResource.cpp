@@ -3,8 +3,8 @@
 
 using namespace DirectX;
 
-ObjectConstants::ObjectConstants(UINT inInstanceIndex /* = 0 */) {
-	mInstanceIndex = inInstanceIndex;
+ObjectConstants::ObjectConstants(UINT inObjectIndex /* = 0 */) {
+	mObjectIndex = inObjectIndex;
 	mObjectPad0 = 0;
 	mObjectPad1 = 0;
 	mObjectPad2 = 0;
@@ -183,13 +183,17 @@ FrameResource::FrameResource(ID3D12Device* inDevice,
 	mDevice = inDevice;
 }
 
-GameResult FrameResource::Initialize() {
-	ReturnIfFailed(
-		mDevice->CreateCommandAllocator(
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(mCmdListAlloc.GetAddressOf())
-		)
-	);
+GameResult FrameResource::Initialize(UINT inNumThreads) {
+	mCmdListAllocs.resize(inNumThreads);
+
+	for (UINT i = 0; i < inNumThreads; ++i) {
+		ReturnIfFailed(
+			mDevice->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(mCmdListAllocs[i].GetAddressOf())
+			)
+		);
+	}
 
 	mPassCB.Initialize(mDevice, mPassCount, true);
 	mObjectCB.Initialize(mDevice, mObjectCount, true);

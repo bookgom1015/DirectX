@@ -1,10 +1,11 @@
 #pragma once
 
+#include "DX12Game/StringUtil.h"
+
 #include <atomic>
-#include <mutex>
+#include <functional>
 #include <queue>
-#include <sstream>
-#include <Windows.h>
+#include <string>
 
 #ifndef TLog
 	#define TLog(x, ...)												\
@@ -69,13 +70,22 @@
 #endif
 
 class ThreadUtil {
+private:
+	typedef BOOL(WINAPI *LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+
 public:
-	// PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
-	// PROCESSOR_ARCHITECTURE_ARM		- ARM
-	// PROCESSOR_ARCHITECTURE_ARM64		- ARM64
-	// PROCESSOR_ARCHITECTURE_IA64		- Intel Itanium - based
-	// PROCESSOR_ARCHITECTURE_INTEL		- x86
-	// PROCESSOR_ARCHITECTURE_UNKNOWN	-Unknown architecture.
+	ThreadUtil() = default;
+	virtual ~ThreadUtil() = default;
+
+public:
+	static bool Initialize();
+
+	//* PROCESSOR_ARCHITECTURE_AMD64		- x64(AMD or Intel)
+	//* PROCESSOR_ARCHITECTURE_ARM			- ARM
+	//* PROCESSOR_ARCHITECTURE_ARM64		- ARM64
+	//* PROCESSOR_ARCHITECTURE_IA64			- Intel Itanium - based
+	//* PROCESSOR_ARCHITECTURE_INTEL		- x86
+	//* PROCESSOR_ARCHITECTURE_UNKNOWN		- Unknown architecture.
 	static inline WORD GetProcessArchitecture() {
 		SYSTEM_INFO sysInfo;
 		GetSystemInfo(&sysInfo);
@@ -90,20 +100,28 @@ public:
 		return sysInfo.dwPageSize;
 	}
 
-	static inline DWORD GetNumberOfProcessors() {
-		SYSTEM_INFO sysInfo;
-		GetSystemInfo(&sysInfo);
-
-		return sysInfo.dwNumberOfProcessors;
-	}
+	static UINT GetProcessorCount(bool inLogic = false);
+	static void GetProcessorCaches(UINT& outL1Cache, UINT& outL2Cache, UINT& outL3Cache);
 
 	static void TLogFunc(const std::string& text);
 	static void TLogFunc(const std::wstring& text);
 
 private:
+	//* Helper function to count set bits in the processor mask.
+	static DWORD CountSetBits(ULONG_PTR bitMask);
+
+	static bool GetProcessorInformation(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION& outBuffer, DWORD& outReturnLength);
+
+private:
 	static HANDLE mhLogFile;
 
 	static std::mutex mLogFileMutex;
+
+	static UINT mPhysicalProcessorCount;
+	static UINT mLogicalProcessorCount;
+	static UINT mProcessorL1CacheCount;
+	static UINT mProcessorL2CacheCount;
+	static UINT mProcessorL3CacheCount;
 };
 
 class TaskTimer {
@@ -127,15 +145,16 @@ class ThreadBarrier {
 public:
 	virtual void Wait() = 0;
 	virtual void WakeUp() = 0;
+	virtual void Terminate() = 0;
 
 protected:
-	bool bWakeUp = false;
+	bool bTerminated = false;
 };
 
 class CVBarrier : public ThreadBarrier{
 public:
 	CVBarrier(UINT inCount);
-	virtual ~CVBarrier() = default;
+	virtual ~CVBarrier();
 
 private:
 	CVBarrier(const CVBarrier& ref) = delete;
@@ -147,6 +166,7 @@ private:
 public:
 	void Wait() override final;
 	void WakeUp() override final;
+	void Terminate() override final;
 
 private:
 	std::mutex mMutex;
@@ -171,11 +191,15 @@ private:
 public:
 	void Wait() override final;
 	void WakeUp() override final;
+	void Terminate() override final;
 
 private:
+	std::mutex mMutex;
+	std::condition_variable mConditionalVar;
 	UINT mInitCount;
-	std::atomic<UINT> mCurrCount;
-	std::atomic<UINT> mGeneration;
+	UINT mCurrCount;
+	std::uint64_t mGeneration;
+
 };
 
 class ThreadPool {

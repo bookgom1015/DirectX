@@ -82,9 +82,9 @@ private:
 	DirectX::XMFLOAT3 mPosition = { 0.0f, 0.0f, 0.0f };
 	bool bRecomputeWorldTransform = true;
 
-	GVector<Component*> mComponents;
+	std::vector<Component*> mComponents;
 
-	GVector<std::shared_ptr<std::function<void(const GameTimer&, Actor*)>>> mFunctions;
+	std::vector<std::shared_ptr<std::function<void(const GameTimer&, Actor*)>>> mFunctions;
 
 	bool mIsDirty = false;
 

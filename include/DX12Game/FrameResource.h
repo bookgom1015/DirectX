@@ -9,13 +9,13 @@ enum EInstanceRenderState : UINT {
 
 struct ObjectConstants {
 public:
-	UINT mInstanceIndex;
+	UINT mObjectIndex;
 	UINT mObjectPad0;
 	UINT mObjectPad1;
 	UINT mObjectPad2;
 
 public:
-	ObjectConstants(UINT inInstanceIndex = 0);
+	ObjectConstants(UINT inObjectIndex = 0);
 };
 
 struct InstanceIdxData {
@@ -183,12 +183,12 @@ private:
 	FrameResource& operator=(FrameResource&& rhs) = delete;
 
 public:
-	GameResult Initialize();
+	GameResult Initialize(UINT inNumThreads = 1);
 
 public:
     // We cannot reset the allocator until the GPU is done processing the commands.
     // So each frame needs their own allocator.
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mCmdListAlloc;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCmdListAllocs;
 
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.

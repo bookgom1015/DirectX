@@ -1,6 +1,10 @@
 #pragma once
 
-#include "DX12Game/GameCore.h"
+#include <d3d12.h>
+#include <wrl.h>
+
+#include "common/d3dx12.h"
+#include "DX12Game/GameResult.h"
 
 class GBuffer {
 public:

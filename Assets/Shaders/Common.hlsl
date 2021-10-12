@@ -80,7 +80,7 @@ SamplerState			gsamDepthMap				: register(s7);
 
 // Constant data that varies per frame.
 cbuffer cbPerObject : register(b0) {
-	uint gInstanceIndex;
+	uint gObjectIndex;
 	uint gObjectPad0;
 	uint gObjectPad1;
 	uint gObjectPad2;
@@ -114,7 +114,7 @@ cbuffer cbPass : register(b1) {
 };
 
 cbuffer cbSettings : register(b2) {
-	int		gMaxInstanceDataCount;
+	int		gMaxInstanceCount;
 	float	gCubeMapCenter;
 	float	gCubeMapExtents;
 };

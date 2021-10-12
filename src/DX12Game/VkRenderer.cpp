@@ -10,7 +10,7 @@ VkRenderer::~VkRenderer() {
 		CleanUp();
 }
 
-GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight) {
+GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	CheckGameResult(VkLowRenderer::Initialize(inMainWnd, inClientWidth, inClientHeight));
 
 	CheckGameResult(CreateGraphicsPipeline());
@@ -34,13 +34,13 @@ void VkRenderer::CleanUp() {
 	bIsCleaned = true;
 }
 
-GameResult VkRenderer::Update(const GameTimer& gt) {
+GameResult VkRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 
 	return GameResult(S_OK);
 }
 
-GameResult VkRenderer::Draw(const GameTimer& gt) {
+GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 	vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
 
 	std::uint32_t imageIndex;
@@ -352,7 +352,7 @@ void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 
 }
 
-GameResult VkRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult VkRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 
 
 	return GameResult(S_OK);

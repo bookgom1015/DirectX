@@ -23,7 +23,8 @@ class GameWorld final {
 public:
 	enum GameState {
 		EPlay,
-		EPaused
+		EPaused,
+		ETerminated
 	};
 
 public:
@@ -44,14 +45,8 @@ public:
 	void CleanUp();
 	bool LoadData();
 	void UnloadData();
-	int RunLoop();
-
-#ifndef MT_World
-	int GameLoop();
-#else
-	//* Multi-threaded version of the fuction GameLoop.
-	int MTGameLoop();
-#endif
+	GameResult RunLoop();
+	GameResult GameLoop();
 
 	void AddActor(Actor* inActor);
 	void RemoveActor(Actor* inActor);
@@ -78,16 +73,9 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-#ifndef MT_World
-	void ProcessInput();
-	void UpdateGame(const GameTimer& gt);
-#else
-	//* After InputSystem handles input data, actor or widget handle it.
-	void MTProcessInput(UINT tid, ThreadBarrier& inBarrier);
-	//* Multi-threaded version of the function UpdateGame.
-	void MTUpdateGame(const GameTimer& gt, UINT tid, ThreadBarrier& inBarrier);
-#endif 
-	void Draw(const GameTimer& gt);
+	void ProcessInput(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateGame(const GameTimer& gt, UINT inTid = 0);
+	GameResult Draw(const GameTimer& gt, UINT inTid = 0);
 
 	GameResult InitMainWindow();
 	GameResult OnResize();
@@ -142,21 +130,39 @@ private:
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
 #ifdef MT_World
-	GVector<std::thread> mThreads;
-	GVector<GVector<Actor*>> mMTActors;
-	GVector<GVector<Actor*>> mMTPendingActors;
+	std::vector<std::thread> mThreads;
+	std::vector<std::vector<Actor*>> mActors;
+	std::vector<std::vector<Actor*>> mPendingActors;
 
-	GVector<bool> bMTUpdatingActors;
+	std::vector<bool> bUpdatingActors;
 	UINT mNextThreadId = 0;
 
 	std::mutex mAddingActorMutex;
+
+	UINT mNumProcessors = 1;
+
+	std::unique_ptr<CVBarrier> mCVBarrier;
+	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
+
+	std::vector<float> mActorUpdateTimers;
+	std::vector<float> mRenderUpdateTimers;
+	std::vector<float> mAudioUpdateTimers;
+	std::vector<float> mInnerUpdateGameTimers;
+	std::vector<float> mOuterUpdateGameTimers;	
+	std::vector<float> mInnerDrawTimers;
+	std::vector<float> mOuterDrawTimers;
+
+	std::vector<UINT> mInnerUpdateAccums;
+	std::vector<UINT> mOuterUpdateAccums;
+	std::vector<UINT> mInnerDrawAccums;
+	std::vector<UINT> mOuterDrawAccums;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;
 	bool bUpdatingActors = false;
 #endif
 
-	GUnorderedMap<std::string, std::unique_ptr<Mesh>> mMeshes;
+	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 	SoundEvent mMusicEvent;
 	float mPrevBusVolume = 0.0f;

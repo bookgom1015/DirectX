@@ -21,6 +21,9 @@ class Animation;
 
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
+	using UpdateFunc = std::function<void(DxRenderer&, const GameTimer&, UINT)>;
+
+private:
 	enum RenderLayer : int {
 		Opaque = 0,
 		SkinnedOpaque,
@@ -59,7 +62,7 @@ private:
 			DirectX::BoundingSphere mSphere;
 		} mBoundingUnion;
 
-		GVector<InstanceData> mInstances;
+		std::vector<InstanceData> mInstances;
 
 		// DrawIndexedInstanced parameters.
 		UINT mIndexCount = 0;
@@ -107,6 +110,7 @@ private:
 		UINT mNullTexSrvIndex3;
 		UINT mNullTexSrvIndex4;
 		UINT mNullTexSrvIndex5;
+		UINT mNullTexSrvIndex6;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -148,23 +152,26 @@ private:
 	DxRenderer& operator=(DxRenderer&& rhs) = delete;
 
 public:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(HWND hMainWnd, 
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
+	GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, 
+				CVBarrier* inCV, SpinlockBarrier* inSpinlock, UINT inNumThreads = 1);
 	virtual void CleanUp() override;
-	virtual GameResult Update(const GameTimer& gt) override;
-	virtual GameResult Draw(const GameTimer& gt) override;
+	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) override;
+	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
-		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
+				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
-		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
+				UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
 
 	virtual void SetVisible(const std::string& inRenderItemName, bool inState) override;
 	virtual void SetSkeletonVisible(const std::string& inRenderItemName, bool inState) override;
 
 	virtual GameResult AddGeometry(const Mesh* inMesh) override;
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) override;
-	virtual GameResult AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) override;
+	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) override;
 
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
@@ -173,6 +180,9 @@ protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
 
 private:
+	GameResult ResetFrameResourceCmdListAlloc();
+	GameResult ClearViews();
+
 	void DrawTexts();
 	void AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 	GameResult LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo, DirectX::BoundingBox& inBound);
@@ -181,20 +191,28 @@ private:
 	GameResult AddSkeletonGeometry(const Mesh* inMesh);
 	GameResult AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested);
 
-	GameResult AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
-	GameResult AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials);
+	GameResult AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials);
+	GameResult AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials);
 
-	GameResult AnimateMaterials(const GameTimer& gt);
+	///
+	// Update helper classes
+	///
+	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
+			const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
+	UINT UpdateEachInstances(RenderItem* inRitem);
+	/// Update helper classes
 
-	bool IsContained(BoundType inType,
-		const RenderItem::BoundingStruct& inBound, const DirectX::BoundingFrustum& inFrustum);
-	GameResult UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt);
-	GameResult UpdateMaterialBuffer(const GameTimer& gt);
-	GameResult UpdateShadowTransform(const GameTimer& gt);
-	GameResult UpdateMainPassCB(const GameTimer& gt);
-	GameResult UpdateShadowPassCB(const GameTimer& gt);
-	GameResult UpdateSsaoCB(const GameTimer& gt);
-	GameResult UpdateBlendingRenderItems(const GameTimer& gt);
+	///
+	// Update functions
+	///
+	GameResult AnimateMaterials(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMaterialBuffers(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
+	/// Update functions
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
@@ -212,11 +230,16 @@ private:
 	GameResult BuildPSOs();
 	GameResult BuildFrameResources();
 
-	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems);
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inNum);
+	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inBegin, size_t inEnd);
 
-	void DrawSceneToShadowMap();
-	//* Builds diffuse map, normal map and depth map.
-	void DrawGBuffer();
+	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
+	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
+	GameResult DrawSceneToShadowMap(UINT inTid = 0);
+	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
+	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
+	GameResult DrawSceneToGBuffer(UINT inTid = 0);
+	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int inIndex) const;
@@ -226,7 +249,7 @@ private:
 private:
 	bool bIsCleaned = false;
 
-	GVector<std::unique_ptr<FrameResource>> mFrameResources;
+	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
 
@@ -235,27 +258,31 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
-	GUnorderedMap<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	GUnorderedMap<std::string, std::unique_ptr<Material>> mMaterials;
-	GUnorderedMap<std::string, std::unique_ptr<Texture>> mTextures;
-	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
-	GUnorderedMap<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
+	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
+
+	std::vector<std::unique_ptr<Material>> mMaterials;
+	std::unordered_map<std::string, Material*> mMaterialRefs;
+
+	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
+
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
 
 	// List of all the render items.
-	GVector<std::unique_ptr<RenderItem>> mAllRitems;
+	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	GVector<RenderItem*> mRitemLayer[RenderLayer::Count];
+	std::vector<RenderItem*> mRitemLayer[RenderLayer::Count];
 
-	GUnorderedMap<std::string, UINT> mDiffuseSrvHeapIndices;
-	GUnorderedMap<std::string, UINT> mNormalSrvHeapIndices;
-	GUnorderedMap<std::string, UINT> mSpecularSrvHeapIndices;
-	GVector<std::string> mBuiltDiffuseTexDescriptors;
-	GVector<std::string> mBuiltNormalTexDescriptors;
-	GVector<std::string> mBuiltSpecularTexDescriptors;
+	std::unordered_map<std::string, UINT> mDiffuseSrvHeapIndices;
+	std::unordered_map<std::string, UINT> mNormalSrvHeapIndices;
+	std::unordered_map<std::string, UINT> mSpecularSrvHeapIndices;
+	std::vector<std::string> mBuiltDiffuseTexDescriptors;
+	std::vector<std::string> mBuiltNormalTexDescriptors;
+	std::vector<std::string> mBuiltSpecularTexDescriptors;
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
@@ -278,16 +305,37 @@ private:
 	DirectX::BoundingFrustum mCamFrustum;
 	DirectX::BoundingSphere mSceneBounds;
 
-	GVector<const Mesh*> mNestedMeshes;
-	GUnorderedMap<std::string /* Render-item name */, GVector<RenderItem*> /* Draw args */> mRefRitems;
-	GUnorderedMap<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
-	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToRitem;
-	GUnorderedMap<const Mesh*, GVector<RenderItem*>> mMeshToSkeletonRitem;
+	std::vector<const Mesh*> mNestedMeshes;
+	std::unordered_map<std::string /* Render-item name */, std::vector<RenderItem*> /* Draw args */> mRefRitems;
+	std::unordered_map<std::string /* Render-item name */, UINT /* Instance index */> mInstancesIndex;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
+	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
 
 	// Variables for drawing text on the screen.
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 
-	GVector<float> mConstantSettings;
+	std::vector<float> mConstantSettings;
+
+	const UINT MaxInstanceCount = 128;
+
+#ifdef MT_World
+	CVBarrier* mCVBarrier;
+	SpinlockBarrier* mSpinlockBarrier;
+
+	std::vector<UINT> mNumInstances;
+	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
+
+	std::vector<float> mDxRenderUpdateTimers;
+	std::vector<float> mWaitTimers;
+	std::vector<float> mUpdateObjTimers;
+	std::vector<float> mUpdateShwTimers;
+
+	std::vector<float> mDxDrawTimers;
+
+	std::vector<UINT> mUpdateAccums;
+
+	std::vector<UINT> mDrawAccums;
+#endif
 };

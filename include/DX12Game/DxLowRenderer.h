@@ -3,8 +3,10 @@
 #include "DX12Game/LowRenderer.h"
 
 class DxLowRenderer : public LowRenderer {
-public:
+protected:
 	DxLowRenderer();
+
+public:
 	virtual ~DxLowRenderer();
 
 private:
@@ -14,23 +16,27 @@ private:
 	DxLowRenderer& operator=(DxLowRenderer&& rhs) = delete;
 
 protected:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(HWND hMainWnd, 
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps();
 
 	GameResult FlushCommandQueue();
+	GameResult ExecuteCommandLists();
 
 	ID3D12Resource* CurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	ID3D12Device* GetDevice() const;
-	ID3D12GraphicsCommandList* GetCommandList() const;
+	const std::vector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>>& GetCommandLists() const;
+	ID3D12GraphicsCommandList* GetCommandList(UINT inIdx = 0) const;
 
 private:
-	virtual GameResult Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
+				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 
 	GameResult InitDirect3D();
 	GameResult CreateCommandObjects();
@@ -53,8 +59,8 @@ protected:
 	UINT64 mCurrentFence = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mCommandAllocators;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>> mCommandLists;
 
 	static const int SwapChainBufferCount = 2;
 	int mCurrBackBuffer = 0;

@@ -1,5 +1,7 @@
 #include "DX12Game/GameCamera.h"
 
+#include "common/MathHelper.h"
+
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
@@ -16,7 +18,7 @@ GameCamera::GameCamera() {
 	mNearWindowHeight = 0.0f;
 	mFarWindowHeight = 0.0f;
 
-	bool mViewDirty = true;
+	mViewDirty = true;
 
 	mView = MathHelper::Identity4x4();
 	mProj = MathHelper::Identity4x4();

@@ -15,9 +15,7 @@ namespace {
 	const std::wstring TextureFileNamePrefix = L"./../../../../Assets/Textures/";
 	const std::wstring ShaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
 	const std::wstring FontFileNamePrefix = L"./../../../../Assets/Fonts/";
-
-	const UINT MaxInstanceCount = 128;
-
+	
 	const float DefaultFontSize = 32;
 	const float InvDefaultFontSize = 1.0f / DefaultFontSize;
 
@@ -44,11 +42,44 @@ DxRenderer::~DxRenderer() {
 		CleanUp();
 }
 
-GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight) {
-	CheckGameResult(DxLowRenderer::Initialize(hMainWnd, inClientWidth, inClientHeight));
+GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
+	CheckGameResult(DxLowRenderer::Initialize(hMainWnd, inClientWidth, inClientHeight, inNumThreads));
+
+#ifdef MT_World
+	mNumInstances.resize(mNumThreads);
+	mEachUpdateFunctions.resize(mNumThreads);
+
+	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
+	mWaitTimers.resize(mNumThreads, 0.0f);
+	mUpdateObjTimers.resize(mNumThreads, 0.0f);
+	mUpdateShwTimers.resize(mNumThreads, 0.0f);
+
+	mDxDrawTimers.resize(mNumThreads, 0.0f);
+
+	mUpdateAccums.resize(mNumThreads, 0);
+
+	mDrawAccums.resize(mNumThreads, 0);
+
+	{
+		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc mainPassCB = &DxRenderer::UpdateMainPassCB;
+		mEachUpdateFunctions[i++].push_back(mainPassCB);
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc shadowPassCB = &DxRenderer::UpdateShadowPassCB;
+		mEachUpdateFunctions[i++].push_back(shadowPassCB);
+		if (i >= mNumThreads) i = 0;
+
+		UpdateFunc ssaoCB = &DxRenderer::UpdateSsaoCB;
+		mEachUpdateFunctions[i++].push_back(ssaoCB);
+	}
+#endif
 
 	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	for (UINT i = 0; i < mNumThreads; ++i)
+		ReturnIfFailed(mCommandLists[i]->Reset(mCommandAllocators[i].Get(), nullptr));
 
 	CheckGameResult(
 		mGBuffer.Initialize(
@@ -64,16 +95,10 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 8096, 8096));
 
-	CheckGameResult(
-		mSsao.Initialize(
-			md3dDevice.Get(),
-			mCommandList.Get(),
-			mClientWidth,
-			mClientHeight
-		)
-	);
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
-	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), mCommandList.Get()));
+	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
+	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), cmdList));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
@@ -89,9 +114,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	ExecuteCommandLists();
 
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
@@ -127,213 +150,149 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	return GameResult(S_OK);
 }
 
-void DxRenderer::CleanUp() {
-	DxLowRenderer::CleanUp();
+GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight,
+			CVBarrier* inCV, SpinlockBarrier* inSpinlock, UINT inNumThreads) {
+	CheckGameResult(Initialize(hMainWnd, inClientWidth, inClientHeight, inNumThreads));
 
-	bIsCleaned = true;
-}
-
-GameResult DxRenderer::Update(const GameTimer& gt) {
-	// Cycle through the circular frame resource array.
-	mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
-	mCurrFrameResource = mFrameResources[mCurrFrameResourceIndex].get();
-
-	// Has the GPU finished processing the commands of the current frame resource?
-	// If not, wait until the GPU has completed commands up to this fence point.
-	if (mCurrFrameResource->mFence != 0 && mFence->GetCompletedValue() < mCurrFrameResource->mFence) {
-		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ReturnIfFailed(mFence->SetEventOnCompletion(mCurrFrameResource->mFence, eventHandle));
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
-
-	CheckGameResult(AnimateMaterials(gt));
-	CheckGameResult(UpdateObjectCBsAndInstanceBuffer(gt));
-	CheckGameResult(UpdateMaterialBuffer(gt));
-	CheckGameResult(UpdateShadowTransform(gt));
-	CheckGameResult(UpdateMainPassCB(gt));
-	CheckGameResult(UpdateShadowPassCB(gt));
-	CheckGameResult(UpdateSsaoCB(gt));
-	CheckGameResult(UpdateBlendingRenderItems(gt));
-
-	GVector<std::string> textsToRemove;
-	for (auto& text : mOutputTexts) {
-		float& lifeTime = text.second.second.w;
-
-		if (lifeTime == -1.0f)
-			continue;
-
-		lifeTime -= gt.DeltaTime();
-		if (lifeTime <= 0.0f)
-			textsToRemove.push_back(text.first);
-	}
-
-	for (const auto& text : textsToRemove)
-		mOutputTexts.erase(text);
+	mCVBarrier = inCV;
+	mSpinlockBarrier = inSpinlock;
 
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::Draw(const GameTimer& gt) {
-	auto cmdListAlloc = mCurrFrameResource->mCmdListAlloc;
-
-	// Reuse the memory associated with command recording.
-	// We can only reset when the associated command lists have finished execution on the GPU.
-	ReturnIfFailed(cmdListAlloc->Reset());
-
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ReturnIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
-	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
-	// set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind null SRV for shadow map pass.
-	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
-
-	// Bind all the textures used in this scene.  Observe
-	// that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	mCommandList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-	// Bind the texture for extracing animations data.
-	mCommandList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
-	);
-
-	mCommandList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	mCommandList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
-		1
-	);
-
-	DrawSceneToShadowMap();
-
-	DrawGBuffer();
-
-	//
-	// Compute SSAO.
-	//
-	mCommandList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
-	mSsao.ComputeSsao(mCommandList.Get(), mCurrFrameResource, 3);
-
-	//
-	// Main rendering pass.
-	//
-	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
-
-	// Rebind state whenever graphics root signature changes.
-
-	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
-	// set as a root descriptor.
-	matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	mCommandList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	mCommandList->RSSetViewports(1, &mScreenViewport);
-	mCommandList->RSSetScissorRects(1, &mScissorRect);
-
-	// Indicate a state transition on the resource usage.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-	// Clear the back buffer and depth buffer.
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
-	//mCommandList->ClearDepthStencilView(DepthStencilView(),
-	//	D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-
-	// Specify the buffers we are going to render to.
-	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
-
-	// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
-	// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
-	// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
-	// index into an array of cube maps.
-	CD3DX12_GPU_DESCRIPTOR_HANDLE miscTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	miscTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
-	mCommandList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
-
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
-
-	mCommandList->SetPipelineState(mPSOs["gbufferScreen"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Screen]);
-
-	//mCommandList->SetPipelineState(mPSOs["opaque"].Get());
-	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
+void DxRenderer::CleanUp() {
+	DxLowRenderer::CleanUp();
 	
-	//mCommandList->SetPipelineState(mPSOs["skinnedOpaque"].Get());
-	//DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mDxRenderUpdateTimers[i] = mDxRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Dx Render Update Time[", std::to_string(i), "]: ", std::to_string(mDxRenderUpdateTimers[i]), " ms");
+	}
 
-	mCommandList->SetPipelineState(mPSOs["sky"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Sky]);
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mWaitTimers[i] = mWaitTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Wait Time[", std::to_string(i), "]: ", std::to_string(mWaitTimers[i]), " ms");
+	}
 
-	mCommandList->SetPipelineState(mPSOs["skeleton"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Skeleton]);
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mUpdateObjTimers[i] = mUpdateObjTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Update Obj Time[", std::to_string(i), "]: ", std::to_string(mUpdateObjTimers[i]), " ms");
+	}
 
-	mCommandList->SetPipelineState(mPSOs["debug"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Debug]);
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mUpdateShwTimers[i] = mUpdateShwTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
+		Logln("Update Shw Time[", std::to_string(i), "]: ", std::to_string(mUpdateShwTimers[i]), " ms");
+	}
 
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		mDxDrawTimers[i] = mDxDrawTimers[i] * 1000.0f / static_cast<float>(mDrawAccums[i]);
+		Logln("Dx Draw Time[", std::to_string(i), "]: ", std::to_string(mDxDrawTimers[i]), " ms");
+	}
 
-	//
-	// Draw texts.
-	//
-	DrawTexts();
+	bIsCleaned = true;
+}
 
-	// Indicate a state transition on the resource usage.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT));
+GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
+	TaskTimer iTimer;
+	iTimer.SetBeginTime();
 
-	// Done recording commands.
-	ReturnIfFailed(mCommandList->Close());
+	TaskTimer timer;
+	timer.SetBeginTime();
 
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	if (inTid == 0) {
+		// Cycle through the circular frame resource array.
+		mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
+		mCurrFrameResource = mFrameResources[mCurrFrameResourceIndex].get();
 
-	mGraphicsMemory->Commit(mCommandQueue.Get());
+		// Has the GPU finished processing the commands of the current frame resource?
+		// If not, wait until the GPU has completed commands up to this fence point.
+		if (mCurrFrameResource->mFence != 0 && mFence->GetCompletedValue() < mCurrFrameResource->mFence) {
+			HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			ReturnIfFailed(mFence->SetEventOnCompletion(mCurrFrameResource->mFence, eventHandle));
+			WaitForSingleObject(eventHandle, INFINITE);
+			CloseHandle(eventHandle);
+		}
+	}
 
-	// Swap the back and front buffers
-	ReturnIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+	timer.SetEndTime();
+	mWaitTimers[inTid] += timer.GetElapsedTime();
 
-	// Advance the fence value to mark commands up to this fence point.
-	mCurrFrameResource->mFence = ++mCurrentFence;
+	SyncHost(mCVBarrier);
 
-	// Add an instruction to the command queue to set a new fence point. 
-	// Because we are on the GPU timeline, the new fence point won't be 
-	// set until the GPU finishes processing all the commands prior to this Signal().
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+	CheckGameResult(AnimateMaterials(gt, inTid));
+
+	timer.SetBeginTime();
+
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));	
+
+	timer.SetEndTime();
+	mUpdateObjTimers[inTid] += timer.GetElapsedTime();
+
+	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
+
+	timer.SetBeginTime();
+
+	if (inTid == 0)
+		CheckGameResult(UpdateShadowTransform(gt));
+
+	timer.SetEndTime();
+	mUpdateShwTimers[inTid] += timer.GetElapsedTime();
+
+	SyncHost(mCVBarrier);
+
+	for (auto& func : mEachUpdateFunctions[inTid])
+		func(*this, std::ref(gt), inTid);
+	
+	if (inTid == 0) {
+		std::vector<std::string> textsToRemove;
+		for (auto& text : mOutputTexts) {
+			float& lifeTime = text.second.second.w;
+
+			if (lifeTime == -1.0f)
+				continue;
+
+			lifeTime -= gt.DeltaTime();
+			if (lifeTime <= 0.0f)
+				textsToRemove.push_back(text.first);
+		}
+
+		for (const auto& text : textsToRemove)
+			mOutputTexts.erase(text);
+	}
+
+	iTimer.SetEndTime();
+	mDxRenderUpdateTimers[inTid] += iTimer.GetElapsedTime();
+
+	++mUpdateAccums[inTid];
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
+	TaskTimer oTimer;
+	oTimer.SetBeginTime();
+
+	if (inTid == 0) {
+		CheckGameResult(ResetFrameResourceCmdListAlloc());
+		CheckGameResult(ClearViews());
+	}
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSceneToShadowMap(inTid));
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSceneToGBuffer(inTid));
+
+	SyncHost(mCVBarrier);
+
+	if (inTid == 0)
+		CheckGameResult(DrawSceneToRenderTarget());
+
+	oTimer.SetEndTime();
+	mDxDrawTimers[inTid] += oTimer.GetElapsedTime();
+
+	++mDrawAccums[inTid];
 
 	return GameResult(S_OK);
 }
@@ -463,7 +422,7 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 	CheckGameResult(FlushCommandQueue());
 
 	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = meshName;
@@ -496,8 +455,9 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 		CheckGameResult(AddSkeletonGeometry(inMesh));
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	ReturnIfFailed(mCommandLists[0]->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -510,7 +470,7 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 }
 
 void DxRenderer::DrawTexts() {
-	mSpriteBatch->Begin(mCommandList.Get());
+	mSpriteBatch->Begin(mCommandLists[0].Get());
 
 	auto origin = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -605,15 +565,15 @@ void DxRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 		AddSkeletonRenderItem(ioRenderItemName, inMesh, isNested);
 }
 
-GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(AddTextures(inMaterials));
 	CheckGameResult(AddDescriptors(inMaterials));
 
 	for (const auto& matList : inMaterials) {
 		const auto& materialIn = matList.second;
 
-		auto iter = mMaterials.find(materialIn.MaterialName);
-		if (iter != mMaterials.cend())
+		auto iter = mMaterialRefs.find(materialIn.MaterialName);
+		if (iter != mMaterialRefs.cend())
 			continue;
 
 		auto material = std::make_unique<Material>();
@@ -628,40 +588,42 @@ GameResult DxRenderer::AddMaterials(const GUnorderedMap<std::string, MaterialIn>
 		material->FresnelR0 = materialIn.FresnelR0;
 		material->Roughness = materialIn.Roughness;
 
-		mMaterials[materialIn.MaterialName] = std::move(material);
+		mMaterialRefs[materialIn.MaterialName] = material.get();
+		mMaterials.push_back(std::move(material));
 	}
 
 	return GameResult(S_OK);
 }
 
 UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
-	GVector<GVector<XMFLOAT4>> data;
-	data.resize(inAnim.mNumFrames);
+	std::vector<XMFLOAT4> curves;
 
 	for (size_t frame = 0; frame < inAnim.mNumFrames; ++frame) {
 		for (const auto& curve : inAnim.mCurves) {
-			for (int row = 0; row < 4; ++row) {
-				data[frame].emplace_back(
+			for (size_t row = 0; row < 4; ++row) {
+				curves.emplace_back(
 					curve[frame].m[row][0],
 					curve[frame].m[row][1],
 					curve[frame].m[row][2],
-					curve[frame].m[row][3]);
+					curve[frame].m[row][3]
+				);
 			}
 		}
 	}
 
-	return mAnimsMap.AddAnimation(inClipName, data);
+	return mAnimsMap.AddAnimation(inClipName, curves.data(), inAnim.mNumFrames, inAnim.mCurves.size());
 }
 
 GameResult DxRenderer::UpdateAnimationsMap() {
 	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	mAnimsMap.UpdateAnimationsMap();
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	ReturnIfFailed(mCommandLists[0]->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -695,6 +657,59 @@ GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	return GameResult(S_OK);
 }
 
+GameResult DxRenderer::ResetFrameResourceCmdListAlloc() {
+	for (UINT i = 0; i < mNumThreads; ++i) {
+		auto cmdListAlloc = mCurrFrameResource->mCmdListAllocs[i];
+
+		// Reuse the memory associated with command recording.
+		// We can only reset when the associated command lists have finished execution on the GPU.
+		ReturnIfFailed(cmdListAlloc->Reset());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::ClearViews() {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+	// Clear the back buffer and depth buffer.
+	cmdList->ClearDepthStencilView(mShadowMap.Dsv(),
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	cmdList->ClearDepthStencilView(
+		DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	{
+		// Clear the screen normal map and depth buffer.
+		auto diffuseMapRtv = mGBuffer.GetDiffuseMapRtv();
+		auto normalMapRtv = mGBuffer.GetNormalMapRtv();
+		auto specMapRtv = mGBuffer.GetSpecularMapRtv();
+
+		float clearValue[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		cmdList->ClearRenderTargetView(diffuseMapRtv, clearValue, 0, nullptr);
+
+		clearValue[1] = 0.0f;
+		clearValue[2] = 1.0f;
+		clearValue[3] = 0.0f;
+		cmdList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
+
+		clearValue[2] = 0.0f;
+		cmdList->ClearRenderTargetView(specMapRtv, clearValue, 0, nullptr);
+	}
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	// Add the command list to the queue for execution.
+	ID3D12CommandList* cmdsLists[] = { cmdList };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	return GameResult(S_OK);
+}
+
 void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
 	if (inIsNested) {
 		auto iter = mMeshToRitem.find(inMesh);
@@ -722,13 +737,13 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 			auto ritem = std::make_unique<RenderItem>();
 			ritem->mObjCBIndex = mNumObjCB++;
 
-			ritem->mMat = mMaterials["default"].get();
+			ritem->mMat = mMaterialRefs["default"];
 			if (!materials.empty()) {
 				auto iter = materials.find(drawArgs[i]);
 				if (iter != materials.cend()) {
-					auto matIter = mMaterials.find(iter->second.MaterialName);
-					if (matIter != mMaterials.cend())
-						ritem->mMat = matIter->second.get();
+					auto matIter = mMaterialRefs.find(iter->second.MaterialName);
+					if (matIter != mMaterialRefs.cend())
+						ritem->mMat = matIter->second;
 				}
 			}
 
@@ -789,9 +804,11 @@ GameResult DxRenderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &outGeo->IndexBufferCPU));
 	CopyMemory(outGeo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(),
+		cmdList,
 		vertices.data(),
 		vbByteSize,
 		outGeo->VertexBufferUploader,
@@ -800,7 +817,7 @@ GameResult DxRenderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(),
+		cmdList,
 		indices.data(),
 		ibByteSize,
 		outGeo->IndexBufferUploader,
@@ -845,9 +862,11 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		cmdList,
 		vertices.data(),
 		vbByteSize, 
 		geo->VertexBufferUploader,
@@ -856,7 +875,7 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		cmdList,
 		indices.data(),
 		ibByteSize,
 		geo->IndexBufferUploader, 
@@ -905,10 +924,12 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+		
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		cmdList,
 		vertices.data(), 
 		vbByteSize,
 		geo->VertexBufferUploader,
@@ -917,7 +938,7 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		cmdList,
 		indices.data(), 
 		ibByteSize, 
 		geo->IndexBufferUploader, 
@@ -966,7 +987,7 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 	else {
 		auto ritem = std::make_unique<RenderItem>();
 		ritem->mObjCBIndex = mNumObjCB++;
-		ritem->mMat = mMaterials["default"].get();
+		ritem->mMat = mMaterialRefs["default"];
 		ritem->mGeo = mGeometries[inMesh->GetMeshName() + "_skeleton"].get();
 		ritem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
 		ritem->mIndexCount = ritem->mGeo->DrawArgs["skeleton"].IndexCount;
@@ -992,11 +1013,13 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ReturnIfFailed(cmdList->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	mDiffuseSrvHeapIndices[""] = 0;
 	for (const auto& matList : inMaterials) {
@@ -1017,9 +1040,13 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 		wsstream << TextureFileNamePrefix << material.DiffuseMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
-		HRESULT status = DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-			mCommandList.Get(), texMap->Filename.c_str(),
-			texMap->Resource, texMap->UploadHeap);
+		HRESULT status = DirectX::CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			cmdList,
+			texMap->Filename.c_str(),
+			texMap->Resource, 
+			texMap->UploadHeap
+		);
 
 		if (FAILED(status)) {
 			mDiffuseSrvHeapIndices[material.DiffuseMapFileName] = 0;
@@ -1049,9 +1076,13 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 		wsstream << TextureFileNamePrefix << material.NormalMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
-		HRESULT status = DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-			mCommandList.Get(), texMap->Filename.c_str(),
-			texMap->Resource, texMap->UploadHeap);
+		HRESULT status = DirectX::CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			cmdList,
+			texMap->Filename.c_str(),
+			texMap->Resource,
+			texMap->UploadHeap
+		);
 
 		if (FAILED(status)) {
 			mNormalSrvHeapIndices[material.NormalMapFileName] = 1;
@@ -1081,9 +1112,13 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 		wsstream << TextureFileNamePrefix << material.SpecularMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
-		HRESULT status = DirectX::CreateDDSTextureFromFile12(md3dDevice.Get(),
-			mCommandList.Get(), texMap->Filename.c_str(),
-			texMap->Resource, texMap->UploadHeap);
+		HRESULT status = DirectX::CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			cmdList,
+			texMap->Filename.c_str(),
+			texMap->Resource,
+			texMap->UploadHeap
+		);
 
 		if (FAILED(status)) {
 			mSpecularSrvHeapIndices[material.SpecularMapFileName] = -1;
@@ -1095,8 +1130,8 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 	}
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	ReturnIfFailed(cmdList->Close());
+	ID3D12CommandList* cmdsLists[] = { cmdList };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -1105,11 +1140,13 @@ GameResult DxRenderer::AddTextures(const GUnorderedMap<std::string, MaterialIn>&
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialIn>& inMaterials) {
+GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ReturnIfFailed(cmdList->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -1205,8 +1242,9 @@ GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialI
 	}
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	ReturnIfFailed(cmdList->Close());
+	ID3D12CommandList* cmdsLists[] = { cmdList };
+
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
 	// Wait until initialization is complete.
@@ -1215,14 +1253,11 @@ GameResult DxRenderer::AddDescriptors(const GUnorderedMap<std::string, MaterialI
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::AnimateMaterials(const GameTimer& gt) {
-	return GameResult(S_OK);
-}
-
-bool DxRenderer::IsContained(
-	BoundType inType, 
-	const RenderItem::BoundingStruct& inBound,
-	const BoundingFrustum& inFrustum) {
+///
+// Update helper classes
+///
+bool DxRenderer::IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
+		const BoundingFrustum& inFrustum, UINT inTid) {
 
 	if (inType == BoundType::AABB)
 		return (inFrustum.Contains(inBound.mAABB) != DirectX::DISJOINT);
@@ -1234,96 +1269,134 @@ bool DxRenderer::IsContained(
 		return false;
 }
 
-GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffer(const GameTimer& gt) {
-	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+UINT DxRenderer::UpdateEachInstances(RenderItem* inRitem) {
+	auto& currInstDataBuffer = mCurrFrameResource->mInstanceDataBuffer;
+	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
 
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
 
-	UINT visibleObjectCount = 0;
+	UINT offset = inRitem->mObjCBIndex * MaxInstanceCount;
+	UINT accum = 0;
+	UINT cnt = 0;
 
-	auto& currObjectCB = mCurrFrameResource->mObjectCB;
-	auto& currInstIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer;
-	auto& currInstBuffer = mCurrFrameResource->mInstanceDataBuffer;
+	for (auto& i : inRitem->mInstances) {
+		XMMATRIX world = XMLoadFloat4x4(&i.mWorld);
+		XMMATRIX texTransform = XMLoadFloat4x4(&i.mTexTransform);
 
-	for (auto& e : mAllRitems) {
-		UINT index = e->mObjCBIndex * MaxInstanceCount;
-		UINT iterIdx = 0;
-		UINT offset = 0;
+		XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
-		for (auto& i : e->mInstances) {
-			XMMATRIX world = XMLoadFloat4x4(&i.mWorld);
-			XMMATRIX texTransform = XMLoadFloat4x4(&i.mTexTransform);
+		// View space to the object's local space.
+		XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
 
-			XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
+		// Transform the camera frustum from view space to the object's local space.
+		BoundingFrustum localSpaceFrustum;
+		mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-			// View space to the object's local space.
-			XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
+		if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
+			InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
+			IsContained(inRitem->mBoundType, inRitem->mBoundingUnion, localSpaceFrustum)) {
 
-			// Transform the camera frustum from view space to the object's local space.
-			BoundingFrustum localSpaceFrustum;
-			mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
+			UINT instDataIdx = offset + cnt;
 
-			if (InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_DrawAlways) ||
-				InstanceData::IsMatched(i.mRenderState, EInstanceRenderState::EID_Visible) &&
-				IsContained(e->mBoundType, e->mBoundingUnion, localSpaceFrustum)) {
+			InstanceIdxData instIdxData;
+			instIdxData.mInstanceIdx = instDataIdx;
 
-				UINT instIdx = index + iterIdx;
+			currInstIdxBuffer.CopyData(offset + accum, instIdxData);
 
-				InstanceIdxData instIdxData;
-				instIdxData.mInstanceIdx = instIdx;
+			// Only update the cbuffer data if the constants have changed.
+			// This needs to be tracked per frame resource.
+			if (i.CheckFrameDirty(mCurrFrameResourceIndex)) {
+				InstanceData instData;
+				XMStoreFloat4x4(&instData.mWorld, XMMatrixTranspose(world));
+				XMStoreFloat4x4(&instData.mTexTransform, XMMatrixTranspose(texTransform));
+				instData.mTimePos = i.mTimePos;
+				instData.mAnimClipIndex = i.mAnimClipIndex;
+				instData.mMaterialIndex = i.mMaterialIndex;
 
-				currInstIdxBuffer.CopyData(index + offset, instIdxData);
+				currInstDataBuffer.CopyData(instDataIdx, instData);
 
-				// Only update the cbuffer data if the constants have changed.
-				// This needs to be tracked per frame resource.
-				if (i.CheckFrameDirty(mCurrFrameResourceIndex)) {
-					InstanceData instData;
-					XMStoreFloat4x4(&instData.mWorld, XMMatrixTranspose(world));
-					XMStoreFloat4x4(&instData.mTexTransform, XMMatrixTranspose(texTransform));
-					instData.mTimePos = i.mTimePos;
-					instData.mAnimClipIndex = i.mAnimClipIndex;
-					instData.mMaterialIndex = i.mMaterialIndex;
-
-					currInstBuffer.CopyData(instIdx, instData);
-
-					// Next FrameResource need to be updated too.
-					i.UnsetFrameDirty(mCurrFrameResourceIndex);
-				}
-
-				++offset;
-				++visibleObjectCount;
+				// Next FrameResource need to be updated too.
+				i.UnsetFrameDirty(mCurrFrameResourceIndex);
 			}
 
-			++iterIdx;
+			++accum;
 		}
 
-		e->mNumInstancesToDraw = offset;
-
-		ObjectConstants objConstants;
-		objConstants.mInstanceIndex = e->mObjCBIndex;
-
-		currObjectCB.CopyData(e->mObjCBIndex, objConstants);
+		++cnt;
 	}
 
-	AddOutputText(
-		"TEXT_VOC",
-		L"voc: " + std::to_wstring(visibleObjectCount),
-		static_cast<float>(mScreenViewport.Width * 0.01f),
-		static_cast<float>(mScreenViewport.Height * 0.09f),
-		16.0f
-	);
+	return accum;
+}
+/// Update helper classes
+
+///
+// Update functions
+///
+GameResult DxRenderer::AnimateMaterials(const GameTimer& gt, UINT inTid) {
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid) {
+	if (!mMainCamera)
+		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+
+	auto& currObjectCB = mCurrFrameResource->mObjectCB;
+
+	UINT numRitems = static_cast<UINT>(mAllRitems.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	for (UINT i = begin; i < end; ++i) {
+		auto ritem = mAllRitems[i].get();
+
+		mNumInstances[inTid] = UpdateEachInstances(ritem);
+		ritem->mNumInstancesToDraw = mNumInstances[inTid];
+
+		ObjectConstants objConstants;
+		objConstants.mObjectIndex = ritem->mObjCBIndex;
+
+		currObjectCB.CopyData(ritem->mObjCBIndex, objConstants);
+	}
+	
+	SyncHost(mSpinlockBarrier);
+
+	if (inTid == 0) {
+		UINT visibleObjectCount = 0;
+
+		for (UINT i = 0; i < mNumThreads; ++i)
+			visibleObjectCount += mNumInstances[i];
+
+		AddOutputText(
+			"TEXT_VOC",
+			L"voc: " + std::to_wstring(visibleObjectCount),
+			static_cast<float>(mScreenViewport.Width * 0.01f),
+			static_cast<float>(mScreenViewport.Height * 0.09f),
+			16.0f
+		);
+	}
 
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
+GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 	auto& currMaterialBuffer = mCurrFrameResource->mMaterialBuffer;
-	for (auto& e : mMaterials) {
+
+	UINT numMaterials = static_cast<UINT>(mMaterials.size());
+	UINT eachNumMaterials = numMaterials / mNumThreads;
+	UINT remaining = numMaterials % mNumThreads;
+	
+	UINT begin = inTid * eachNumMaterials + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumMaterials + (inTid < remaining ? 1 : 0);
+	
+	for (UINT i = begin; i < end; ++i) {	
+		Material* mat = mMaterials[i].get();
+
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
 		// data changes, it needs to be updated for each FrameResource.
-		Material* mat = e.second.get();
 		if (mat->NumFramesDirty > 0) {
 			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
 
@@ -1346,7 +1419,7 @@ GameResult DxRenderer::UpdateMaterialBuffer(const GameTimer& gt) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt) {
+GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1402,7 +1475,7 @@ GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1454,7 +1527,7 @@ GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
 	XMMATRIX view = XMLoadFloat4x4(&mLightingVars.mLightView);
 	XMMATRIX proj = XMLoadFloat4x4(&mLightingVars.mLightProj);
 
@@ -1484,7 +1557,7 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt) {
 	return GameResult(S_OK);
 }
 
-GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
+GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist");
 
@@ -1524,28 +1597,24 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt) {
 
 	return GameResult(S_OK);
 }
-
-GameResult DxRenderer::UpdateBlendingRenderItems(const GameTimer& gt) {
-	auto& opaque = mRitemLayer[RenderLayer::Opaque];
-	auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
-
-	return GameResult(S_OK);
-}
+/// Update functions
 
 GameResult DxRenderer::LoadBasicTextures() {
-	GVector<std::string> texNames = {
+	std::vector<std::string> texNames = {
 		"defaultDiffuseMap",
 		"defaultNormalMap",
 		"skyCubeMap",
 		"blurSkyCubeMap"
 	};
 
-	GVector<std::wstring> texFileNames = {
+	std::vector<std::wstring> texFileNames = {
 		TextureFileNamePrefix + L"white1x1.dds",
 		TextureFileNamePrefix + L"default_nmap.dds",
 		TextureFileNamePrefix + L"skycube.dds",
 		TextureFileNamePrefix + L"blurskycube.dds"
 	};
+
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
 	for (int i = 0; i < texNames.size(); ++i) {
 		auto texMap = std::make_unique<Texture>();
@@ -1554,7 +1623,7 @@ GameResult DxRenderer::LoadBasicTextures() {
 		ReturnIfFailed(
 			DirectX::CreateDDSTextureFromFile12(
 				md3dDevice.Get(),
-				mCommandList.Get(),
+				cmdList,
 				texMap->Filename.c_str(),
 				texMap->Resource,
 				texMap->UploadHeap
@@ -1843,7 +1912,8 @@ void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
 	mDescHeapIdx.mNullTexSrvIndex3		= mDescHeapIdx.mNullTexSrvIndex2		+ 1;
 	mDescHeapIdx.mNullTexSrvIndex4		= mDescHeapIdx.mNullTexSrvIndex3		+ 1;
 	mDescHeapIdx.mNullTexSrvIndex5		= mDescHeapIdx.mNullTexSrvIndex4		+ 1;
-	mDescHeapIdx.mDefaultFontIndex		= mDescHeapIdx.mNullTexSrvIndex5		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex6		= mDescHeapIdx.mNullTexSrvIndex5		+ 1;
+	mDescHeapIdx.mDefaultFontIndex		= mDescHeapIdx.mNullTexSrvIndex6		+ 1;
 	mDescHeapIdx.mCurrSrvHeapIndex		= mDescHeapIdx.mDefaultFontIndex		+ 1;
 
 	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
@@ -1875,7 +1945,7 @@ void DxRenderer::BuildNullShaderResourceViews() {
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	for (INT i = 0; i < 5; ++i) {
+	for (INT i = 0; i < 6; ++i) {
 		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 
 		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
@@ -1929,7 +1999,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	//
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-	GVector<ComPtr<ID3D12Resource>> tex2DList = {
+	std::vector<ComPtr<ID3D12Resource>> tex2DList = {
 		mTextures["defaultDiffuseMap"]->Resource,
 		mTextures["defaultNormalMap"]->Resource
 	};
@@ -2160,7 +2230,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 		cylinder.Vertices.size() +
 		quad.Vertices.size();
 
-	GVector<Vertex> vertices(totalVertexCount);
+	std::vector<Vertex> vertices(totalVertexCount);
 
 	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
 	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
@@ -2254,7 +2324,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	XMStoreFloat3(&bound.Extents, 0.5f * (vMax - vMin));
 	quadSubmesh.AABB = bound;
 
-	GVector<std::uint16_t> indices;
+	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -2273,9 +2343,11 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 	
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(),
+		cmdList,
 		vertices.data(),
 		vbByteSize,
 		geo->VertexBufferUploader,
@@ -2284,7 +2356,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
-		mCommandList.Get(), 
+		cmdList,
 		indices.data(), 
 		ibByteSize, 
 		geo->IndexBufferUploader, 
@@ -2329,9 +2401,12 @@ GameResult DxRenderer::BuildBasicMaterials() {
 	skyMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	skyMat->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	skyMat->Roughness = 1.0f;
+	
+	mMaterialRefs[defaultMat->Name] = defaultMat.get();
+	mMaterials.push_back(std::move(defaultMat));
 
-	mMaterials[defaultMat->Name] = std::move(defaultMat);
-	mMaterials[skyMat->Name] = std::move(skyMat);
+	mMaterialRefs[skyMat->Name] = skyMat.get();
+	mMaterials.push_back(std::move(skyMat));
 
 	return GameResult(S_OK);
 }
@@ -2342,7 +2417,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto skyRitem = std::make_unique<RenderItem>();
 	skyRitem->mObjCBIndex = mNumObjCB++;
-	skyRitem->mMat = mMaterials["sky"].get();
+	skyRitem->mMat = mMaterialRefs["sky"];
 	skyRitem->mGeo = mGeometries["standardGeo"].get();
 	skyRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	skyRitem->mIndexCount = skyRitem->mGeo->DrawArgs["sphere"].IndexCount;
@@ -2362,7 +2437,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto boxRitem = std::make_unique<RenderItem>();
 	boxRitem->mObjCBIndex = mNumObjCB++;
-	boxRitem->mMat = mMaterials["default"].get();
+	boxRitem->mMat = mMaterialRefs["default"];
 	boxRitem->mGeo = mGeometries["standardGeo"].get();
 	boxRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	boxRitem->mIndexCount = boxRitem->mGeo->DrawArgs["box"].IndexCount;
@@ -2382,7 +2457,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto quadRitem = std::make_unique<RenderItem>();
 	quadRitem->mObjCBIndex = mNumObjCB++;
-	quadRitem->mMat = mMaterials["default"].get();
+	quadRitem->mMat = mMaterialRefs["default"];
 	quadRitem->mGeo = mGeometries["standardGeo"].get();
 	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
@@ -2405,7 +2480,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	quadRitem = std::make_unique<RenderItem>();
 	quadRitem->mObjCBIndex = mNumObjCB++;
-	quadRitem->mMat = mMaterials["default"].get();
+	quadRitem->mMat = mMaterialRefs["default"];
 	quadRitem->mGeo = mGeometries["standardGeo"].get();
 	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
@@ -2426,7 +2501,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->mObjCBIndex = mNumObjCB++;
-	gridRitem->mMat = mMaterials["default"].get();
+	gridRitem->mMat = mMaterialRefs["default"];
 	gridRitem->mGeo = mGeometries["standardGeo"].get();
 	gridRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->mIndexCount = gridRitem->mGeo->DrawArgs["grid"].IndexCount;
@@ -2729,19 +2804,21 @@ GameResult DxRenderer::BuildFrameResources() {
 		mFrameResources.push_back(std::make_unique<FrameResource>(
 			md3dDevice.Get(), 2, 256, MaxInstanceCount, 256));
 
-		CheckGameResult(mFrameResources.back()->Initialize());
+		CheckGameResult(mFrameResources.back()->Initialize(mNumThreads));
 	}
 
 	return GameResult(S_OK);
 }
 
-void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GVector<RenderItem*>& inRitems) {
+void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList, 
+								 RenderItem*const*			inRitems, 
+								 size_t						inNum) {
 	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
 
 	// For each render item...
-	for (size_t i = 0, end = inRitems.size(); i < end; ++i) {
+	for (size_t i = 0; i < inNum; ++i) {
 		auto ri = inRitems[i];
 
 		outCmdList->IASetVertexBuffers(0, 1, &ri->mGeo->VertexBufferView());
@@ -2756,93 +2833,674 @@ void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, const GV
 	}
 }
 
-void DxRenderer::DrawSceneToShadowMap() {
-	mCommandList->RSSetViewports(1, &mShadowMap.Viewport());
-	mCommandList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
+void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList,
+								 RenderItem*const*			inRitems,
+								 size_t						inBegin,
+								 size_t						inEnd) {
+	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
-	// Change to DEPTH_WRITE.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
+	
+	// For each render item...
+	for (size_t i = inBegin; i < inEnd; ++i) {
+		auto ri = inRitems[i];
 
-	// Clear the back buffer and depth buffer.
-	mCommandList->ClearDepthStencilView(mShadowMap.Dsv(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		outCmdList->IASetVertexBuffers(0, 1, &ri->mGeo->VertexBufferView());
+		outCmdList->IASetIndexBuffer(&ri->mGeo->IndexBufferView());
+		outCmdList->IASetPrimitiveTopology(ri->mPrimitiveType);
+		
+		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->mObjCBIndex * objCBByteSize;
+		outCmdList->SetGraphicsRootConstantBufferView(mRootParams.mObjectCBIndex, objCBAddress);
+		
+		outCmdList->DrawIndexedInstanced(ri->mIndexCount, ri->mNumInstancesToDraw,
+			ri->mStartIndexLocation, ri->mBaseVertexLocation, 0);
+	}
+}
 
-	// Specify the buffers we are going to render to.
-	mCommandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap.Dsv());
+GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["shadow_opaque"].Get()));
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	// Bind the pass constant buffer for the shadow map pass.
 	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
 	auto passCB = mCurrFrameResource->mPassCB.Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
 
-	mCommandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
 
-	mCommandList->SetPipelineState(mPSOs["skinnedShadow_opaque"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
 
-	// Change back to GENERIC_READ so we can read the texture in a shader.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
-}
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
 
-void DxRenderer::DrawGBuffer() {
-	mCommandList->RSSetViewports(1, &mScreenViewport);
-	mCommandList->RSSetScissorRects(1, &mScissorRect);
+	// Bind null SRV for shadow map pass.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
 
-	auto diffuseMap		= mGBuffer.GetDiffuseMap();
-	auto diffuseMapRtv	= mGBuffer.GetDiffuseMapRtv();
-	auto normalMap		= mGBuffer.GetNormalMap();
-	auto normalMapRtv	= mGBuffer.GetNormalMapRtv();
-	auto specMap		= mGBuffer.GetSpecularMap();
-	auto specMapRtv		= mGBuffer.GetSpecularMapRtv();
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
 
-	// Change to RENDER_TARGET.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		diffuseMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		normalMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		specMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
 
-	// Clear the screen normal map and depth buffer.
-	{
-		float clearValue[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		mCommandList->ClearRenderTargetView(diffuseMapRtv, clearValue, 0, nullptr);
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
 
-		clearValue[1] = 0.0f;
-		clearValue[2] = 1.0f;
-		clearValue[3] = 0.0f;
-		mCommandList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
 
-		clearValue[2] = 0.0f;
-		mCommandList->ClearRenderTargetView(specMapRtv, clearValue, 0, nullptr);
-	}
-	mCommandList->ClearDepthStencilView(
-		DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
+	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
 
 	// Specify the buffers we are going to render to.
-	mCommandList->OMSetRenderTargets(GBuffer::NumRenderTargets, &diffuseMapRtv, true, &DepthStencilView());
+	cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap.Dsv());
+
+#ifdef MT_World
+	//
+	// Draw shador for opaque. 
+	//
+	const auto& opaque = mRitemLayer[RenderLayer::Opaque];
+
+	UINT numRitems = static_cast<UINT>(opaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, opaque.data(), begin, end);
+#else
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
+#endif // MT_World
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	SyncHost(mSpinlockBarrier);
+	
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+	
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["skinnedShadow_opaque"].Get()));
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind the pass constant buffer for the shadow map pass.
+	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind null SRV for shadow map pass.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
+	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap.Dsv());
+
+#ifdef MT_World
+	//
+	// Draw shadow for skinned opaque.
+	//
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+
+	UINT numRitems = static_cast<UINT>(skinnedOpaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
+#else
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+#endif // MT_World
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	SyncHost(mSpinlockBarrier);
+	
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+	
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change to DEPTH_WRITE.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+
+	CheckGameResult(DrawOpaqueToShadowMap(inTid));
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSkinnedOpaqueToShadowMap(inTid));
+
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change back to GENERIC_READ so we can read the texture in a shader.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap.Resource(),
+			D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["drawGBuffer"].Get()));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	// Bind the constant buffer for this pass.
 	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	mCommandList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
 
-	mCommandList->SetPipelineState(mPSOs["drawGBuffer"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::Opaque]);
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
 
-	mCommandList->SetPipelineState(mPSOs["drawSkinnedGBuffer"].Get());
-	DrawRenderItems(mCommandList.Get(), mRitemLayer[RenderLayer::SkinnedOpaque]);
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
 
-	// Change back to GENERIC_READ so we can read the texture in a shader.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		diffuseMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		specMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind null SRV for gbuffer.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mScreenViewport);
+	cmdList->RSSetScissorRects(1, &mScissorRect);
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(GBuffer::NumRenderTargets, &mGBuffer.GetDiffuseMapRtv(), true, &DepthStencilView());
+
+#ifdef MT_World
+	//
+	// Draw gbuffer for opaque.
+	//
+	const auto& opaque = mRitemLayer[RenderLayer::Opaque];
+
+	UINT numRitems = static_cast<UINT>(opaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, opaque.data(), begin, end);
+#else
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
+#endif
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	SyncHost(mSpinlockBarrier);
+
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPSOs["drawSkinnedGBuffer"].Get()));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind the constant buffer for this pass.
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind null SRV for gbuffer.
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mScreenViewport);
+	cmdList->RSSetScissorRects(1, &mScissorRect);
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(GBuffer::NumRenderTargets, &mGBuffer.GetDiffuseMapRtv(), true, &DepthStencilView());
+
+#ifdef MT_World
+	//
+	// Draw gbuffer for skinned opaque.
+	//
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+
+	UINT numRitems = static_cast<UINT>(skinnedOpaque.size());
+	UINT eachNumRitems = numRitems / mNumThreads;
+	UINT remaining = numRitems % mNumThreads;
+
+	UINT begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	UINT end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
+#else
+	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+#endif
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	SyncHost(mSpinlockBarrier);
+
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i)
+			cmdsLists.push_back(mCommandLists[i].Get());
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
+	auto diffuseMap = mGBuffer.GetDiffuseMap();
+	auto normalMap = mGBuffer.GetNormalMap();
+	auto specMap = mGBuffer.GetSpecularMap();
+
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change to RENDER_TARGET.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			diffuseMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			normalMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			specMap, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+
+	CheckGameResult(DrawOpaqueToGBuffer(inTid));
+
+	SyncHost(mCVBarrier);
+
+	CheckGameResult(DrawSkinnedOpaqueToGBuffer(inTid));
+
+	if (inTid == 0) {
+		ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+		ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		// Change back to GENERIC_READ so we can read the texture in a shader.
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			specMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			diffuseMap, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+	}
+
+	return GameResult(S_OK);
+}
+
+GameResult DxRenderer::DrawSceneToRenderTarget() {	
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	//
+	// Compute SSAO.
+	//
+	cmdList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
+	mSsao.ComputeSsao(cmdList, mCurrFrameResource, 3);
+
+	//
+	// Main rendering pass.
+	//
+	// Rebind state whenever graphics root signature changes.
+	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+
+	// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
+	// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
+	// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
+	// index into an array of cube maps.
+	CD3DX12_GPU_DESCRIPTOR_HANDLE miscTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	miscTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
+	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Bind the texture for extracing animations data.
+	cmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.AnimationsMapSrv()
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mConstantSettings.size()),
+		mConstantSettings.data(),
+		1
+	);
+
+	cmdList->RSSetViewports(1, &mScreenViewport);
+	cmdList->RSSetScissorRects(1, &mScissorRect);
+
+	// Indicate a state transition on the resource usage.
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	// Clear the back buffer and depth buffer.
+	cmdList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
+
+	// Specify the buffers we are going to render to.
+	cmdList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+
+	cmdList->SetPipelineState(mPSOs["gbufferScreen"].Get());
+	auto ritems = mRitemLayer[RenderLayer::Screen];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+
+	cmdList->SetPipelineState(mPSOs["sky"].Get());
+	ritems = mRitemLayer[RenderLayer::Sky];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+
+	cmdList->SetPipelineState(mPSOs["skeleton"].Get());
+	ritems = mRitemLayer[RenderLayer::Skeleton];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+
+	cmdList->SetPipelineState(mPSOs["debug"].Get());
+	ritems = mRitemLayer[RenderLayer::Debug];
+	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+	//
+	// Draw texts.
+	//
+	DrawTexts();
+
+	// Indicate a state transition on the resource usage.
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT));
+
+	// Done recording commands.
+	ReturnIfFailed(cmdList->Close());
+
+	// Add the command list to the queue for execution.
+	ID3D12CommandList* cmdsLists[] = { cmdList };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	mGraphicsMemory->Commit(mCommandQueue.Get());
+
+	// Swap the back and front buffers
+	ReturnIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	// Advance the fence value to mark commands up to this fence point.
+	mCurrFrameResource->mFence = ++mCurrentFence;
+
+	// Add an instruction to the command queue to set a new fence point. 
+	// Because we are on the GPU timeline, the new fence point won't be 
+	// set until the GPU finishes processing all the commands prior to this Signal().
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+
+	return GameResult(S_OK);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DxRenderer::GetCpuSrv(int inIndex) const {

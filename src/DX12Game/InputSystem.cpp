@@ -114,7 +114,7 @@ void InputSystem::PrepareForUpdate() {
 	mState.Mouse.mScrollWheelAccum = 0.0f;
 }
 
-void InputSystem::Update() {	
+void InputSystem::Update() {
 	if (mState.Mouse.mIsRelative) {
 		POINT cursorPos;
 		GetCursorPos(&cursorPos);

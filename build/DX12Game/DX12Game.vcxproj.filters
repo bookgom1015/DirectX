@@ -156,9 +156,6 @@
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\Camera.cpp">
-      <Filter>Source Files\Util\Camera</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
@@ -269,9 +266,6 @@
     <ClInclude Include="..\..\include\DX12Game\GameTimer.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\Camera.h">
-      <Filter>Header Files\Util\Camera</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
@@ -331,6 +325,9 @@
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\FrameResource.h">
       <Filter>Header Files\Render\Dx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\GameResult.h">
+      <Filter>Header Files\Util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

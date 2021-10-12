@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DX12Game/GameCore.h"
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
 
 class GameCamera {
 public:

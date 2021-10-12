@@ -1,5 +1,23 @@
 #pragma once
 
+#include <DirectXCollision.h>
+#include <DirectXColors.h>
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <dxgi1_4.h>
+#include <D3Dcompiler.h>
+#include <d3d12.h>
+#include <SimpleMath.h>
+#include <wrl.h>
+#include <unordered_map>
+
+#include "common/d3dx12.h"
+#include "common/MathHelper.h"
+#include "common/DDSTextureLoader.h"
+#include "DX12Game/GameResult.h"
+
+extern const int gNumFrameResources;
+
 class D3D12Util {
 public:
 	static UINT CalcConstantBufferByteSize(UINT byteSize) {

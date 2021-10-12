@@ -90,6 +90,7 @@
       </HeapReserveSize>
       <StackReserveSize>
       </StackReserveSize>
+      <SubSystem>Windows</SubSystem>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)lib\dll\*.dll" "$(OutDir)" /i /s /y
@@ -145,6 +146,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
       </HeapReserveSize>
       <StackReserveSize>
       </StackReserveSize>
+      <SubSystem>Windows</SubSystem>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)lib\dll\*.dll" "$(OutDir)" /i /s /y
@@ -153,7 +155,6 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\Camera.cpp" />
     <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GBuffer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
@@ -168,9 +169,9 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp" />
     <ClInclude Include="..\..\include\DX12Game\AnimationsMap.h" />
-    <ClInclude Include="..\..\include\DX12Game\Camera.h" />
     <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\D3D12Util.h" />
+    <ClInclude Include="..\..\include\DX12Game\GameResult.h" />
     <ClInclude Include="..\..\include\DX12Game\GameUploadBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\GBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
