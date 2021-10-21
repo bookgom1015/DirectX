@@ -1,8 +1,8 @@
-﻿  DxRenderer.cpp
+﻿  Ssr.cpp
   Generating code
-  3 of 13001 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+  4 of 13233 functions (<0.1%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    81 functions had inline decision re-evaluated but remain unchanged
+    4 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmod.dll

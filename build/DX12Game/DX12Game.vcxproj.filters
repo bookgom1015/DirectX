@@ -213,6 +213,9 @@
     <ClCompile Include="..\..\src\DX12Game\FrameResource.cpp">
       <Filter>Source Files\Render\Dx</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\Ssr.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h">
@@ -329,6 +332,9 @@
     <ClInclude Include="..\..\include\DX12Game\GameResult.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\Ssr.h">
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -386,5 +392,10 @@
     <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Assets\Shaders\Ssr.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

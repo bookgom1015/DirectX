@@ -163,6 +163,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Ssr.cpp" />
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
     <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
     <ClCompile Include="..\..\src\DX12Game\TpsActor.cpp" />
@@ -205,6 +206,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClInclude Include="..\..\include\DX12Game\GameTimer.h" />
     <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h" />
     <ClInclude Include="..\..\include\DX12Game\SkinnedData.h" />
+    <ClInclude Include="..\..\include\DX12Game\Ssr.h" />
     <ClInclude Include="..\..\include\DX12Game\StringUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\ThreadUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\TpsActor.h" />
@@ -282,6 +284,11 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\DefaultUsingGBuffer.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Ssr.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

@@ -162,11 +162,20 @@ namespace {
 					modifiedSpecularMapFileName.append(".dds");
 				}
 
+				const std::string& alphaMapFileName = material.second.mAlphaMapFileName;
+				std::string modifiedAlphaMapFileName;
+				if (!alphaMapFileName.empty()) {
+					texFileNameExtIndex = alphaMapFileName.find_last_of('.', alphaMapFileName.length());
+					modifiedAlphaMapFileName = alphaMapFileName.substr(0, texFileNameExtIndex);
+					modifiedAlphaMapFileName.append(".dds");
+				}
+
 				MaterialIn matIn = { 
 					matNameSstream.str(), 
 					modifiedDiffuseMapFileName,
 					modifiedNormalMapFileName, 
 					modifiedSpecularMapFileName,
+					modifiedAlphaMapFileName,
 					material.second.mMatTransform, 
 					material.second.mDiffuseAlbedo,
 					material.second.mFresnelR0, 

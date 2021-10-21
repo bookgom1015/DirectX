@@ -633,13 +633,10 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 		mMaterials[meshName].mMaterialName = material->GetName();
 
 		auto diffProp = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-
 		int diffuseMapCount = diffProp.GetSrcObjectCount<FbxTexture>();
 		for (int j = 0; j < diffuseMapCount; ++j) {
 			auto texture = FbxCast<FbxTexture>(diffProp.GetSrcObject<FbxTexture>(j));
 			auto fileTexture = FbxCast<FbxFileTexture>(texture);
-
-			texture->GetAlphaSource();
 
 			std::string str = fileTexture->GetFileName();
 			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
@@ -648,7 +645,6 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 		}
 
 		auto normalProp = material->FindProperty(FbxSurfaceMaterial::sNormalMap);
-
 		int normalMapCount = normalProp.GetSrcObjectCount<FbxTexture>();
 		for (int j = 0; j < normalMapCount; ++j) {
 			auto texture = FbxCast<FbxTexture>(normalProp.GetSrcObject<FbxTexture>(j));
@@ -661,7 +657,6 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 		}
 
 		auto specProp = material->FindProperty(FbxSurfaceMaterial::sSpecularFactor);
-
 		int specularMapCount = specProp.GetSrcObjectCount<FbxTexture>();
 		for (int j = 0; j < specularMapCount; ++j) {
 			auto texture = FbxCast<FbxTexture>(specProp.GetSrcObject<FbxTexture>(j));
@@ -671,6 +666,22 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
 
 			mMaterials[meshName].mSpecularMapFileName = str.substr(strIndex);
+		}
+
+		auto transProp = material->FindProperty(FbxSurfaceMaterial::sTransparencyFactor);
+		int transMapCount = transProp.GetSrcObjectCount<FbxTexture>();
+		for (int j = 0; j < transMapCount; ++j) {
+			auto texture = FbxCast<FbxTexture>(transProp.GetSrcObject<FbxTexture>(j));
+			auto fileTexture = FbxCast<FbxFileTexture>(texture);
+
+			std::string str = fileTexture->GetFileName();
+			size_t strIndex = str.find_last_of('\\', str.length()) + 1;
+
+			std::string fileName = str.substr(strIndex);
+			if (fileName == mMaterials[meshName].mDiffuseMapFileName)
+				continue;
+
+			mMaterials[meshName].mAlphaMapFileName = fileName;
 		}
 
 		XMStoreFloat4x4(&mMaterials[meshName].mMatTransform, XMMatrixScaling(1.0f, -1.0f, 0.0f));

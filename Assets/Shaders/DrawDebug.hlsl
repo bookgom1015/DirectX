@@ -49,7 +49,7 @@ float4 PS(VertexOut pin) : SV_Target{
 	else if (pin.InstID == 2)
 		return float4(gDepthMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	else if (pin.InstID == 3)
-		return float4(gSpecularMap.Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
+		return float4(gReflectionMap.Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
 	else if (pin.InstID == 4)
 		return float4(gSsaoMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	else

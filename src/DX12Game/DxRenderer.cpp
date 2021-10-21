@@ -32,9 +32,8 @@ DxRenderer::DxRenderer()
 	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	mSceneBounds.Radius = sqrtf(SceneBoundsRadius * SceneBoundsRadius * 2.0f);
 
-	mConstantSettings.resize(2);
-	mConstantSettings[0] = 0.0f;
-	mConstantSettings[1] = 128.0f;
+	mRootConstants[0] = 0.0f;
+	mRootConstants[1] = 128.0f;
 }
 
 DxRenderer::~DxRenderer() {
@@ -52,7 +51,6 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
 	mWaitTimers.resize(mNumThreads, 0.0f);
 	mUpdateObjTimers.resize(mNumThreads, 0.0f);
-	mUpdateShwTimers.resize(mNumThreads, 0.0f);
 
 	mDxDrawTimers.resize(mNumThreads, 0.0f);
 
@@ -60,20 +58,23 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	mDrawAccums.resize(mNumThreads, 0);
 
-	{
+	if (mNumThreads > 1) {
 		UINT i = 1;
+
+		UpdateFunc ssaoCB = &DxRenderer::UpdateSsaoCB;
+		mEachUpdateFunctions[i++].push_back(ssaoCB);
 		if (i >= mNumThreads) i = 0;
 
-		UpdateFunc mainPassCB = &DxRenderer::UpdateMainPassCB;
-		mEachUpdateFunctions[i++].push_back(mainPassCB);
+		UpdateFunc ssrCB = &DxRenderer::UpdateSsrCB;
+		mEachUpdateFunctions[i++].push_back(ssrCB);
 		if (i >= mNumThreads) i = 0;
 
 		UpdateFunc shadowPassCB = &DxRenderer::UpdateShadowPassCB;
 		mEachUpdateFunctions[i++].push_back(shadowPassCB);
 		if (i >= mNumThreads) i = 0;
+	}
+	else {
 
-		UpdateFunc ssaoCB = &DxRenderer::UpdateSsaoCB;
-		mEachUpdateFunctions[i++].push_back(ssaoCB);
 	}
 #endif
 
@@ -99,10 +100,12 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), cmdList));
+	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
 	CheckGameResult(BuildSsaoRootSignature());
+	CheckGameResult(BuildSsrRootSignature());
 	CheckGameResult(BuildDescriptorHeaps());
 	CheckGameResult(BuildShadersAndInputLayout());
 	CheckGameResult(BuildBasicGeometry());
@@ -112,10 +115,10 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	CheckGameResult(BuildPSOs());
 
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
+	mSsr.SetPSOs(mPSOs["ssr"].Get(), mPSOs["ssaoBlur"].Get());
 
 	// Execute the initialization commands.
 	ExecuteCommandLists();
-
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
 
@@ -147,7 +150,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	bIsValid = true;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight,
@@ -157,7 +160,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	mCVBarrier = inCV;
 	mSpinlockBarrier = inSpinlock;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxRenderer::CleanUp() {
@@ -165,27 +168,22 @@ void DxRenderer::CleanUp() {
 	
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		mDxRenderUpdateTimers[i] = mDxRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
-		Logln("Dx Render Update Time[", std::to_string(i), "]: ", std::to_string(mDxRenderUpdateTimers[i]), " ms");
+		WLogln(L"Dx Render Update Time[", std::to_wstring(i), L"]: ", std::to_wstring(mDxRenderUpdateTimers[i]), L" ms");
 	}
 
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		mWaitTimers[i] = mWaitTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
-		Logln("Wait Time[", std::to_string(i), "]: ", std::to_string(mWaitTimers[i]), " ms");
+		WLogln(L"Wait Time[", std::to_wstring(i), L"]: ", std::to_wstring(mWaitTimers[i]), L" ms");
 	}
 
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		mUpdateObjTimers[i] = mUpdateObjTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
-		Logln("Update Obj Time[", std::to_string(i), "]: ", std::to_string(mUpdateObjTimers[i]), " ms");
-	}
-
-	for (UINT i = 0; i < mNumThreads; ++i) {
-		mUpdateShwTimers[i] = mUpdateShwTimers[i] * 1000.0f / static_cast<float>(mUpdateAccums[i]);
-		Logln("Update Shw Time[", std::to_string(i), "]: ", std::to_string(mUpdateShwTimers[i]), " ms");
+		WLogln(L"Update Obj Time[", std::to_wstring(i), L"]: ", std::to_wstring(mUpdateObjTimers[i]), L" ms");
 	}
 
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		mDxDrawTimers[i] = mDxDrawTimers[i] * 1000.0f / static_cast<float>(mDrawAccums[i]);
-		Logln("Dx Draw Time[", std::to_string(i), "]: ", std::to_string(mDxDrawTimers[i]), " ms");
+		WLogln(L"Dx Draw Time[", std::to_wstring(i), L"]: ", std::to_wstring(mDxDrawTimers[i]), L" ms");
 	}
 
 	bIsCleaned = true;
@@ -229,13 +227,10 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
 
-	timer.SetBeginTime();
-
-	if (inTid == 0)
+	if (inTid == 0) {
 		CheckGameResult(UpdateShadowTransform(gt));
-
-	timer.SetEndTime();
-	mUpdateShwTimers[inTid] += timer.GetElapsedTime();
+		CheckGameResult(UpdateMainPassCB(gt));
+	}
 
 	SyncHost(mCVBarrier);
 
@@ -264,7 +259,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	++mUpdateAccums[inTid];
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
@@ -294,7 +289,7 @@ GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
 
 	++mDrawAccums[inTid];
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
@@ -308,13 +303,19 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	mGBuffer.OnResize(mClientWidth, mClientHeight, mDepthStencilBuffer.Get());
 
 	mSsao.OnResize(mClientWidth, mClientHeight);
-
 	// Resources changed, so need to rebuild descriptors.
 	mSsao.RebuildDescriptors(mGBuffer.GetNormalMapSrv(), mGBuffer.GetDepthMapSrv());
 
+	mSsr.OnResize(mClientWidth, mClientHeight);
+	mSsr.RebuildDescriptors(
+		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex)
+	);
+
 	BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
@@ -466,7 +467,7 @@ GameResult DxRenderer::AddGeometry(const Mesh* inMesh) {
 	if (!inMesh->GetMaterials().empty())
 		AddMaterials(inMesh->GetMaterials());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxRenderer::DrawTexts() {
@@ -583,6 +584,7 @@ GameResult DxRenderer::AddMaterials(const std::unordered_map<std::string, Materi
 		material->DiffuseSrvHeapIndex = mDiffuseSrvHeapIndices[materialIn.DiffuseMapFileName];
 		material->NormalSrvHeapIndex = mNormalSrvHeapIndices[materialIn.NormalMapFileName];
 		material->SpecularSrvHeapIndex = mSpecularSrvHeapIndices[materialIn.SpecularMapFileName];
+		material->AlphaSrvHeapIndex = mAlphaSrvHeapIndices[materialIn.AlphaMapFileName];
 
 		material->DiffuseAlbedo = materialIn.DiffuseAlbedo;
 		material->FresnelR0 = materialIn.FresnelR0;
@@ -592,7 +594,7 @@ GameResult DxRenderer::AddMaterials(const std::unordered_map<std::string, Materi
 		mMaterials.push_back(std::move(material));
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
@@ -629,14 +631,14 @@ GameResult DxRenderer::UpdateAnimationsMap() {
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 #ifdef DeferredRendering
 	// Add + 1 for diffuse map, +1 for screen normal map, +1 for specular map, +2 for ambient maps.
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + GBuffer::NumRenderTargets + 2;
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + GBuffer::NumRenderTargets + Ssao::NumRenderTargets + Ssr::NumRenderTargets;
 #else
 	// Add +1 for screen normal map, +2 for ambient maps.
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 3;
@@ -654,7 +656,7 @@ GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	dsvHeapDesc.NodeMask = 0;
 	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::ResetFrameResourceCmdListAlloc() {
@@ -666,7 +668,7 @@ GameResult DxRenderer::ResetFrameResourceCmdListAlloc() {
 		ReturnIfFailed(cmdListAlloc->Reset());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::ClearViews() {
@@ -707,7 +709,7 @@ GameResult DxRenderer::ClearViews() {
 	ID3D12CommandList* cmdsLists[] = { cmdList };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
@@ -829,7 +831,7 @@ GameResult DxRenderer::LoadDataFromMesh(const Mesh* inMesh, MeshGeometry* outGeo
 	outGeo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	outGeo->IndexBufferByteSize = ibByteSize;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* geo, BoundingBox& inBound) {
@@ -887,7 +889,7 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
@@ -960,7 +962,7 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 
 	mGeometries[geo->Name] = std::move(geo);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName, const Mesh* inMesh, bool inIsNested) {
@@ -1010,15 +1012,13 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 		mAllRitems.push_back(std::move(ritem));
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 	CheckGameResult(FlushCommandQueue());
 
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-
-	// Reset the command list to prep for initialization commands.
 	ReturnIfFailed(cmdList->Reset(mCommandAllocators[0].Get(), nullptr));
 
 	mDiffuseSrvHeapIndices[""] = 0;
@@ -1105,7 +1105,6 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 			continue;
 
 		auto texMap = std::make_unique<Texture>();
-
 		texMap->Name = material.SpecularMapFileName;
 
 		std::wstringstream wsstream;
@@ -1129,6 +1128,41 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 		}
 	}
 
+	mAlphaSrvHeapIndices[""] = -1;
+	for (const auto& matList : inMaterials) {
+		const auto& material = matList.second;
+
+		if (material.AlphaMapFileName.empty())
+			continue;
+
+		auto iter = mTextures.find(material.AlphaMapFileName);
+		if (iter != mTextures.end())
+			continue;
+
+		auto texMap = std::make_unique<Texture>();
+		texMap->Name = material.AlphaMapFileName;
+
+		std::wstringstream wsstream;
+		wsstream << TextureFileNamePrefix << material.AlphaMapFileName.c_str();
+		texMap->Filename = wsstream.str();
+
+		HRESULT status = CreateDDSTextureFromFile12(
+			md3dDevice.Get(),
+			cmdList,
+			texMap->Filename.c_str(),
+			texMap->Resource,
+			texMap->UploadHeap
+		);
+
+		if (FAILED(status)) {
+			mAlphaSrvHeapIndices[material.AlphaMapFileName] = -1;
+		}
+		else {
+			mAlphaSrvHeapIndices[material.AlphaMapFileName] = mDescHeapIdx.mCurrSrvHeapIndex++;
+			mTextures[texMap->Name] = std::move(texMap);
+		}
+	}
+
 	// Execute the initialization commands.
 	ReturnIfFailed(cmdList->Close());
 	ID3D12CommandList* cmdsLists[] = { cmdList };
@@ -1137,7 +1171,7 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
@@ -1163,13 +1197,13 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 		if (material.DiffuseMapFileName.empty())
 			continue;
 
-		auto nestedIter = std::find(mBuiltDiffuseTexDescriptors.cbegin(), mBuiltDiffuseTexDescriptors.cend(),
-			material.DiffuseMapFileName);
+		auto nestedIter = std::find(
+			mBuiltDiffuseTexDescriptors.cbegin(), mBuiltDiffuseTexDescriptors.cend(), material.DiffuseMapFileName);
 		if (nestedIter != mBuiltDiffuseTexDescriptors.cend())
 			continue;
 
 		auto texIter = mTextures.find(material.DiffuseMapFileName);
-		if (texIter == mTextures.end())
+		if (texIter == mTextures.cend())
 			continue;
 
 		auto tex = mTextures[material.DiffuseMapFileName]->Resource;
@@ -1191,13 +1225,13 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 		if (material.NormalMapFileName.empty())
 			continue;
 
-		auto nestedIter = std::find(mBuiltNormalTexDescriptors.cbegin(), mBuiltNormalTexDescriptors.cend(),
-			material.NormalMapFileName);
+		auto nestedIter = std::find(
+			mBuiltNormalTexDescriptors.cbegin(), mBuiltNormalTexDescriptors.cend(),	material.NormalMapFileName);
 		if (nestedIter != mBuiltNormalTexDescriptors.cend())
 			continue;
 
 		auto texIter = mTextures.find(material.NormalMapFileName);
-		if (texIter == mTextures.end())
+		if (texIter == mTextures.cend())
 			continue;
 
 		auto tex = mTextures[material.NormalMapFileName]->Resource;
@@ -1219,13 +1253,13 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 		if (material.SpecularMapFileName.empty())
 			continue;
 
-		auto nestedIter = std::find(mBuiltSpecularTexDescriptors.cbegin(), mBuiltSpecularTexDescriptors.cend(),
-			material.SpecularMapFileName);
+		auto nestedIter = std::find(
+			mBuiltSpecularTexDescriptors.cbegin(), mBuiltSpecularTexDescriptors.cend(),	material.SpecularMapFileName);
 		if (nestedIter != mBuiltSpecularTexDescriptors.cend())
 			continue;
 
 		auto texIter = mTextures.find(material.SpecularMapFileName);
-		if (texIter == mTextures.end())
+		if (texIter == mTextures.cend())
 			continue;
 
 		auto tex = mTextures[material.SpecularMapFileName]->Resource;
@@ -1241,6 +1275,34 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 		mBuiltSpecularTexDescriptors.push_back(material.SpecularMapFileName);
 	}
 
+	for (const auto& matList : inMaterials) {
+		const auto& material = matList.second;
+
+		if (material.AlphaMapFileName.empty())
+			continue;
+
+		auto nestedIter = std::find(
+			mBuiltAlphaTexDescriptors.cbegin(), mBuiltAlphaTexDescriptors.cend(), material.AlphaMapFileName);
+		if (nestedIter != mBuiltAlphaTexDescriptors.cend())
+			continue;
+
+		auto texIter = mTextures.find(material.AlphaMapFileName);
+		if (texIter == mTextures.cend())
+			continue;
+
+		auto tex = mTextures[material.AlphaMapFileName]->Resource;
+
+		srvDesc.Format = tex->GetDesc().Format;
+		srvDesc.Texture2D.MipLevels = tex->GetDesc().MipLevels;
+
+		md3dDevice->CreateShaderResourceView(tex.Get(), &srvDesc, hDescriptor);
+
+		hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
+		++mNumDescriptor;
+
+		mBuiltAlphaTexDescriptors.push_back(material.AlphaMapFileName);
+	}
+
 	// Execute the initialization commands.
 	ReturnIfFailed(cmdList->Close());
 	ID3D12CommandList* cmdsLists[] = { cmdList };
@@ -1250,7 +1312,7 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 	// Wait until initialization is complete.
 	CheckGameResult(FlushCommandQueue());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 ///
@@ -1334,7 +1396,7 @@ UINT DxRenderer::UpdateEachInstances(RenderItem* inRitem) {
 // Update functions
 ///
 GameResult DxRenderer::AnimateMaterials(const GameTimer& gt, UINT inTid) {
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid) {
@@ -1379,7 +1441,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UI
 		);
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
@@ -1408,6 +1470,7 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 			matData.mDiffuseMapIndex = mat->DiffuseSrvHeapIndex;
 			matData.mNormalMapIndex = mat->NormalSrvHeapIndex;
 			matData.mSpecularMapIndex = mat->SpecularSrvHeapIndex;
+			matData.mAlphaMapIndex = mat->AlphaSrvHeapIndex;
 
 			currMaterialBuffer.CopyData(mat->MatCBIndex, matData);
 
@@ -1416,7 +1479,7 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 		}
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
@@ -1472,7 +1535,7 @@ GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 	XMStoreFloat4x4(&mLightingVars.mLightProj, lightProj);
 	XMStoreFloat4x4(&mLightingVars.mShadowTransform, S);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
@@ -1524,7 +1587,7 @@ GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
 	auto& currPassCB = mCurrFrameResource->mPassCB;
 	currPassCB.CopyData(0, mMainPassCB);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
@@ -1554,7 +1617,7 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
 	auto& currPassCB = mCurrFrameResource->mPassCB;
 	currPassCB.CopyData(1, mShadowPassCB);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
@@ -1575,7 +1638,7 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 
 	ssaoCB.mProj = mMainPassCB.mProj;
 	ssaoCB.mInvProj = mMainPassCB.mInvProj;
-	XMStoreFloat4x4(&ssaoCB.mProjTex, XMMatrixTranspose(P*T));
+	XMStoreFloat4x4(&ssaoCB.mProjTex, XMMatrixTranspose(P * T));
 
 	mSsao.GetOffsetVectors(ssaoCB.mOffsetVectors);
 
@@ -1595,8 +1658,24 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 	auto& currSsaoCB = mCurrFrameResource->mSsaoCB;
 	currSsaoCB.CopyData(0, ssaoCB);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
+
+GameResult DxRenderer::UpdateSsrCB(const GameTimer& gt, UINT inTid) {
+	SsrConstants ssrCB;
+
+	ssrCB.mInvView = mMainPassCB.mInvView;
+	ssrCB.mProj = mMainPassCB.mProj;
+	ssrCB.mInvProj = mMainPassCB.mInvProj;
+	ssrCB.mViewProj = mMainPassCB.mViewProj;
+	ssrCB.mEyePosW = mMainPassCB.mEyePosW;
+
+	auto& currSsrCB = mCurrFrameResource->mSsrCB;
+	currSsrCB.CopyData(0, ssrCB);
+
+	return GameResultOk;
+}
+
 /// Update functions
 
 GameResult DxRenderer::LoadBasicTextures() {
@@ -1633,7 +1712,7 @@ GameResult DxRenderer::LoadBasicTextures() {
 		mTextures[texMap->Name] = std::move(texMap);
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 namespace {
@@ -1726,13 +1805,13 @@ namespace {
 
 GameResult DxRenderer::BuildRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable0;
-	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0, 0);
+	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 9, 0, 0);
 
 	CD3DX12_DESCRIPTOR_RANGE texTable1;
-	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 8, 0);
+	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 64, 9, 0);
 	
 	CD3DX12_DESCRIPTOR_RANGE texTable2;
-	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 72, 0);
+	texTable2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 73, 0);
 
 	const UINT numParameters = 9;
 
@@ -1782,9 +1861,13 @@ GameResult DxRenderer::BuildRootSignature() {
 	auto staticSamplers = GetStaticSamplers();
 
 	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(numParameters, slotRootParameter,
-		static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
-		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(
+		numParameters, 
+		slotRootParameter,
+		static_cast<UINT>(staticSamplers.size()), 
+		staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+	);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
@@ -1810,7 +1893,7 @@ GameResult DxRenderer::BuildRootSignature() {
 		)
 	);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildSsaoRootSignature() {
@@ -1869,15 +1952,23 @@ GameResult DxRenderer::BuildSsaoRootSignature() {
 	};
 
 	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-		static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
-		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(
+		4, slotRootParameter,
+		static_cast<UINT>(staticSamplers.size()), 
+		staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+	);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
-	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+	
+	HRESULT hr = D3D12SerializeRootSignature(
+		&rootSigDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(),
+		errorBlob.GetAddressOf()
+	);
 
 	if (errorBlob != nullptr)
 		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
@@ -1892,29 +1983,121 @@ GameResult DxRenderer::BuildSsaoRootSignature() {
 		)
 	);
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+GameResult DxRenderer::BuildSsrRootSignature() {
+	CD3DX12_DESCRIPTOR_RANGE texTable0;
+	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
+
+	const int numRootParameters = 2;
+
+	// Root parameter can be a table, root descriptor or root constants.
+	CD3DX12_ROOT_PARAMETER slotRootParameter[numRootParameters];
+
+	// Perfomance TIP: Order from most frequent to least frequent.
+	slotRootParameter[0].InitAsConstantBufferView(0);
+	slotRootParameter[1].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+		0,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT,		// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP	// addressW
+	);
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+		1,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	// addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+		2,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER,	// addressW
+		0.0f,
+		0,
+		D3D12_COMPARISON_FUNC_LESS_EQUAL,
+		D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE
+	);
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+		3,									// shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,	// filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,	// addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP		// addressW
+	);
+
+	std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers = {
+		pointClamp, linearClamp, depthMapSam, linearWrap
+	};
+
+	// A root signature is an array of root parameters.
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(
+		numRootParameters,
+		slotRootParameter,
+		static_cast<UINT>(staticSamplers.size()), 
+		staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+	);
+
+	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+
+	HRESULT hr = D3D12SerializeRootSignature(
+		&rootSigDesc, 
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), 
+		errorBlob.GetAddressOf()
+	);
+
+	if (errorBlob != nullptr)
+		::OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
+	ReturnIfFailed(hr);
+
+	ReturnIfFailed(
+		md3dDevice->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(mSsrRootSignature.GetAddressOf())
+		)
+	);
+
+	return GameResultOk;
 }
 
 void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
-	mDescHeapIdx.mSkyTexHeapIndex		= inOffset;
-	mDescHeapIdx.mBlurSkyTexHeapIndex	= mDescHeapIdx.mSkyTexHeapIndex			+ 1;
-	mDescHeapIdx.mDiffuseMapHeapIndex	= mDescHeapIdx.mBlurSkyTexHeapIndex		+ 1;
-	mDescHeapIdx.mNormalMapHeapIndex	= mDescHeapIdx.mDiffuseMapHeapIndex		+ 1;
-	mDescHeapIdx.mDepthMapHeapIndex		= mDescHeapIdx.mNormalMapHeapIndex		+ 1;
-	mDescHeapIdx.mSpecularMapHeapIndex	= mDescHeapIdx.mDepthMapHeapIndex		+ 1;
-	mDescHeapIdx.mShadowMapHeapIndex	= mDescHeapIdx.mSpecularMapHeapIndex	+ 1;
-	mDescHeapIdx.mSsaoAmbientMapIndex	= mDescHeapIdx.mShadowMapHeapIndex		+ 1;
-	mDescHeapIdx.mAnimationsMapIndex	= mDescHeapIdx.mSsaoAmbientMapIndex		+ 3;
-	mDescHeapIdx.mNullCubeSrvIndex1		= mDescHeapIdx.mAnimationsMapIndex		+ 1;
-	mDescHeapIdx.mNullCubeSrvIndex2		= mDescHeapIdx.mNullCubeSrvIndex1		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex1		= mDescHeapIdx.mNullCubeSrvIndex2		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex2		= mDescHeapIdx.mNullTexSrvIndex1		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex3		= mDescHeapIdx.mNullTexSrvIndex2		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex4		= mDescHeapIdx.mNullTexSrvIndex3		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex5		= mDescHeapIdx.mNullTexSrvIndex4		+ 1;
-	mDescHeapIdx.mNullTexSrvIndex6		= mDescHeapIdx.mNullTexSrvIndex5		+ 1;
-	mDescHeapIdx.mDefaultFontIndex		= mDescHeapIdx.mNullTexSrvIndex6		+ 1;
-	mDescHeapIdx.mCurrSrvHeapIndex		= mDescHeapIdx.mDefaultFontIndex		+ 1;
+	mDescHeapIdx.mSkyTexHeapIndex			= inOffset;
+	mDescHeapIdx.mBlurSkyTexHeapIndex		= mDescHeapIdx.mSkyTexHeapIndex			+ 1;
+	mDescHeapIdx.mDiffuseMapHeapIndex		= mDescHeapIdx.mBlurSkyTexHeapIndex		+ 1;
+	mDescHeapIdx.mNormalMapHeapIndex		= mDescHeapIdx.mDiffuseMapHeapIndex		+ 1;
+	mDescHeapIdx.mDepthMapHeapIndex			= mDescHeapIdx.mNormalMapHeapIndex		+ 1;
+	mDescHeapIdx.mSpecularMapHeapIndex		= mDescHeapIdx.mDepthMapHeapIndex		+ 1;
+	mDescHeapIdx.mShadowMapHeapIndex		= mDescHeapIdx.mSpecularMapHeapIndex	+ 1;
+	mDescHeapIdx.mSsaoAmbientMapIndex		= mDescHeapIdx.mShadowMapHeapIndex		+ 1;
+	mDescHeapIdx.mReflectionMapIndex		= mDescHeapIdx.mSsaoAmbientMapIndex		+ 1;
+	mDescHeapIdx.mAnimationsMapIndex		= mDescHeapIdx.mReflectionMapIndex		+ 1;
+	mDescHeapIdx.mSsaoAdditionalMapIndex	= mDescHeapIdx.mAnimationsMapIndex		+ 1;
+	mDescHeapIdx.mSsrAdditionalMapIndex		= mDescHeapIdx.mSsaoAdditionalMapIndex	+ 2;
+	mDescHeapIdx.mNullCubeSrvIndex1			= mDescHeapIdx.mSsrAdditionalMapIndex	+ 1;
+	mDescHeapIdx.mNullCubeSrvIndex2			= mDescHeapIdx.mNullCubeSrvIndex1		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex1			= mDescHeapIdx.mNullCubeSrvIndex2		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex2			= mDescHeapIdx.mNullTexSrvIndex1		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex3			= mDescHeapIdx.mNullTexSrvIndex2		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex4			= mDescHeapIdx.mNullTexSrvIndex3		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex5			= mDescHeapIdx.mNullTexSrvIndex4		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex6			= mDescHeapIdx.mNullTexSrvIndex5		+ 1;
+	mDescHeapIdx.mNullTexSrvIndex7			= mDescHeapIdx.mNullTexSrvIndex6		+ 1;
+	mDescHeapIdx.mDefaultFontIndex			= mDescHeapIdx.mNullTexSrvIndex7		+ 1;
+	mDescHeapIdx.mCurrSrvHeapIndex			= mDescHeapIdx.mDefaultFontIndex		+ 1;
 
 	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
 }
@@ -1945,7 +2128,7 @@ void DxRenderer::BuildNullShaderResourceViews() {
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-	for (INT i = 0; i < 6; ++i) {
+	for (INT i = 0; i < 7; ++i) {
 		md3dDevice->CreateShaderResourceView(nullptr, &srvDesc, nullSrv);
 
 		nullSrv.Offset(1, mCbvSrvUavDescriptorSize);
@@ -1973,6 +2156,8 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
 		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
 		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsaoAdditionalMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsaoAdditionalMapIndex),
 		GetRtv(SwapChainBufferCount + GBuffer::NumRenderTargets),
 		mCbvSrvUavDescriptorSize,
 		mRtvDescriptorSize
@@ -1981,6 +2166,19 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 	mAnimsMap.BuildDescriptors(
 		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
 		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
+	);
+
+	mSsr.BuildDescriptors(
+		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
+		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
+		GetCpuSrv(mDescHeapIdx.mReflectionMapIndex),
+		GetGpuSrv(mDescHeapIdx.mReflectionMapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsrAdditionalMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsrAdditionalMapIndex),
+		GetRtv(SwapChainBufferCount + GBuffer::NumRenderTargets + Ssao::NumRenderTargets),
+		mCbvSrvUavDescriptorSize,
+		mRtvDescriptorSize
 	);
 }
 
@@ -2039,7 +2237,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	BuildNullShaderResourceViews();
 	BuildDescriptorsForEachHelperClass();
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildShadersAndInputLayout() {
@@ -2145,6 +2343,12 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 		CheckGameResult(D3D12Util::CompileShader(defaultghlsl, nullptr, "PS", "ps_5_1", mShaders["defaultGBufferPS"]));
 	}
 
+	{
+		std::wstring ssrhlsl = ShaderFileNamePrefix + L"Ssr.hlsl";
+		CheckGameResult(D3D12Util::CompileShader(ssrhlsl, nullptr, "VS", "vs_5_1", mShaders["ssrVS"]));
+		CheckGameResult(D3D12Util::CompileShader(ssrhlsl, nullptr, "PS", "ps_5_1", mShaders["ssrPS"]));
+	}
+
 	mInputLayout = {
 		{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT,	0, 0,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL",		0, DXGI_FORMAT_R32G32B32_FLOAT,	0, 12,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -2163,7 +2367,7 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 		{ "BONEINDICES",	1, DXGI_FORMAT_R32G32B32A32_SINT,	0, 92,	D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildBasicGeometry() {
@@ -2376,7 +2580,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 
 	mGeometries[geo->Name] = std::move(geo);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildBasicMaterials() {
@@ -2408,7 +2612,7 @@ GameResult DxRenderer::BuildBasicMaterials() {
 	mMaterialRefs[skyMat->Name] = skyMat.get();
 	mMaterials.push_back(std::move(skyMat));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildBasicRenderItems() {
@@ -2519,7 +2723,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildPSOs() {
@@ -2700,6 +2904,19 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&mPSOs["ssaoBlur"])));
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC ssrPsoDesc = ssaoPsoDesc;
+	ssrPsoDesc.pRootSignature = mSsrRootSignature.Get();
+	ssrPsoDesc.VS = {
+		reinterpret_cast<BYTE*>(mShaders["ssrVS"]->GetBufferPointer()),
+		mShaders["ssrVS"]->GetBufferSize()
+	};
+	ssrPsoDesc.PS = {
+		reinterpret_cast<BYTE*>(mShaders["ssrPS"]->GetBufferPointer()),
+		mShaders["ssrPS"]->GetBufferSize()
+	};
+	ssrPsoDesc.RTVFormats[0] = Ssr::AmbientMapFormat;
+	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssrPsoDesc, IID_PPV_ARGS(&mPSOs["ssr"])));
+
 	//
 	// PSO for sky.
 	//
@@ -2796,7 +3013,7 @@ GameResult DxRenderer::BuildPSOs() {
 	gbufferScreenPsoDesc.DepthStencilState.DepthEnable = false;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&gbufferScreenPsoDesc, IID_PPV_ARGS(&mPSOs["gbufferScreen"])));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::BuildFrameResources() {
@@ -2807,7 +3024,7 @@ GameResult DxRenderer::BuildFrameResources() {
 		CheckGameResult(mFrameResources.back()->Initialize(mNumThreads));
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList, 
@@ -2913,8 +3130,8 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 
 	cmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
 		1
 	);
 
@@ -2955,7 +3172,7 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
@@ -3014,8 +3231,8 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 
 	cmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
 		1
 	);
 
@@ -3056,7 +3273,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
@@ -3102,7 +3319,7 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
@@ -3159,8 +3376,8 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 
 	cmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
 		1
 	);
 
@@ -3201,7 +3418,7 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
@@ -3258,8 +3475,8 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 
 	cmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
 		1
 	);
 
@@ -3300,7 +3517,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
@@ -3358,7 +3575,7 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxRenderer::DrawSceneToRenderTarget() {	
@@ -3377,6 +3594,12 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	//
 	cmdList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
 	mSsao.ComputeSsao(cmdList, mCurrFrameResource, 3);
+
+	//
+	// Compute SSR.
+	//
+	cmdList->SetGraphicsRootSignature(mSsrRootSignature.Get());
+	mSsr.ComputeSsr(cmdList, mCurrFrameResource, 3);
 
 	//
 	// Main rendering pass.
@@ -3425,8 +3648,8 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 
 	cmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mConstantSettings.size()),
-		mConstantSettings.data(),
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
 		1
 	);
 
@@ -3500,7 +3723,7 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	// set until the GPU finishes processing all the commands prior to this Signal().
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE DxRenderer::GetCpuSrv(int inIndex) const {

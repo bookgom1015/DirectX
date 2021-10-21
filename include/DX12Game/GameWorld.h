@@ -143,19 +143,6 @@ private:
 
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
-
-	std::vector<float> mActorUpdateTimers;
-	std::vector<float> mRenderUpdateTimers;
-	std::vector<float> mAudioUpdateTimers;
-	std::vector<float> mInnerUpdateGameTimers;
-	std::vector<float> mOuterUpdateGameTimers;	
-	std::vector<float> mInnerDrawTimers;
-	std::vector<float> mOuterDrawTimers;
-
-	std::vector<UINT> mInnerUpdateAccums;
-	std::vector<UINT> mOuterUpdateAccums;
-	std::vector<UINT> mInnerDrawAccums;
-	std::vector<UINT> mOuterDrawAccums;
 #else
 	GVector<Actor*> mActors;
 	GVector<Actor*> mPendingActors;

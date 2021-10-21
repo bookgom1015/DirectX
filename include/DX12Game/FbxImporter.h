@@ -40,6 +40,7 @@ public:
 	std::string mDiffuseMapFileName;
 	std::string mNormalMapFileName;
 	std::string mSpecularMapFileName;
+	std::string mAlphaMapFileName;
 
 	DirectX::XMFLOAT4X4 mMatTransform;
 	DirectX::XMFLOAT4 mDiffuseAlbedo;

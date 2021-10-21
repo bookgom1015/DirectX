@@ -19,26 +19,15 @@ private:
 	Ssao& operator=(Ssao&& inRVal) = delete;
 
 public:
-	GameResult Initialize(
-		ID3D12Device* inDevice,
-		ID3D12GraphicsCommandList* inCmdList,
-		UINT inClientWidth, UINT inClientHeight);
-
-	UINT SsaoMapWidth() const;
-	UINT SsaoMapHeight() const;
-
-	void GetOffsetVectors(DirectX::XMFLOAT4 inOffsets[14]);
-	std::vector<float> CalcGaussWeights(float inSigma);
-
-	ID3D12Resource* GetAmbientMap();
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE GetAmbientMapSrv() const;
+	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList, UINT inClientWidth, UINT inClientHeight);
 
 	void BuildDescriptors(
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAdditionalMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
@@ -65,6 +54,16 @@ public:
 		FrameResource* inCurrFrame,
 		int inBlurCount);
 
+	UINT SsaoMapWidth() const;
+	UINT SsaoMapHeight() const;
+
+	void GetOffsetVectors(DirectX::XMFLOAT4 inOffsets[14]);
+	std::vector<float> CalcGaussWeights(float inSigma);
+
+	ID3D12Resource* GetAmbientMap();
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetAmbientMapSrv() const;
+
 private:
 	///<summary>
 	/// Blurs the ambient map to smooth out the noise caused by only taking a
@@ -84,6 +83,7 @@ public:
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
 	static const int MaxBlurRadius = 5;
+	static const UINT NumRenderTargets = 2;
 
 private:
 	ID3D12Device* md3dDevice;

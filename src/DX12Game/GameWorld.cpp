@@ -90,19 +90,6 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 
 	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
 	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
-
-	mActorUpdateTimers.resize(mNumProcessors, 0.0f);
-	mRenderUpdateTimers.resize(mNumProcessors, 0.0f);	
-	mAudioUpdateTimers.resize(mNumProcessors, 0.0f);
-	mInnerUpdateGameTimers.resize(mNumProcessors, 0.0f);
-	mOuterUpdateGameTimers.resize(mNumProcessors, 0.0f);
-	mInnerDrawTimers.resize(mNumProcessors, 0.0f);
-	mOuterDrawTimers.resize(mNumProcessors, 0.0f);
-
-	mInnerUpdateAccums.resize(mNumProcessors, 0);
-	mOuterUpdateAccums.resize(mNumProcessors, 0);
-	mInnerDrawAccums.resize(mNumProcessors, 0);
-	mOuterDrawAccums.resize(mNumProcessors, 0);
 #endif 
 
 #ifdef UsingVulkan
@@ -144,41 +131,6 @@ void GameWorld::CleanUp() {
 
 	glfwTerminate();
 #endif
-
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mActorUpdateTimers[i] = mActorUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
-	//	Logln("Actor Update Time[", std::to_string(i), "]: ", std::to_string(mActorUpdateTimers[i]), " ms");
-	//}
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mRenderUpdateTimers[i] = mRenderUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
-	//	Logln("Render Update Time[", std::to_string(i), "]: ", std::to_string(mRenderUpdateTimers[i]), " ms");
-	//}	
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mAudioUpdateTimers[i] = mAudioUpdateTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
-	//	Logln("Audio Update Time[", std::to_string(i), "]: ", std::to_string(mAudioUpdateTimers[i]), " ms");
-	//}
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mInnerUpdateGameTimers[i] = mInnerUpdateGameTimers[i] * 1000.0f / static_cast<float>(mInnerUpdateAccums[i]);
-	//	Logln("Inner Update Game Time[", std::to_string(i), "]: ", std::to_string(mInnerUpdateGameTimers[i]), " ms");
-	//}
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mOuterUpdateGameTimers[i] = mOuterUpdateGameTimers[i] * 1000.0f / static_cast<float>(mOuterUpdateAccums[i]);
-	//	Logln("Outer Update Game Time[", std::to_string(i), "]: ", std::to_string(mOuterUpdateGameTimers[i]), " ms");
-	//}
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mInnerDrawTimers[i] = mInnerDrawTimers[i] * 1000.0f / static_cast<float>(mInnerDrawAccums[i]);
-	//	Logln("Inner Draw Time[", std::to_string(i), "]: ", std::to_string(mInnerDrawTimers[i]), " ms");
-	//}
-	//
-	//for (UINT i = 0; i < mNumProcessors; ++i) {
-	//	mOuterDrawTimers[i] = mOuterDrawTimers[i] * 1000.0f / static_cast<float>(mOuterDrawAccums[i]);
-	//	Logln("Outer Draw Time[", std::to_string(i), "]: ", std::to_string(mOuterDrawTimers[i]), " ms");
-	//}
 
 	bIsCleaned = true;
 }
@@ -257,69 +209,132 @@ bool GameWorld::LoadData() {
 				return false;
 		}
 	}
-	
-	Actor* krapivaActor;
-	MeshComponent* krapivaMeshComp;	
-	int numKrapivas = 5;
-	for (int i = -numKrapivas; i <= numKrapivas; ++i) {
-		for (int j = -numKrapivas; j <= numKrapivas; ++j) {
+
+	Actor* grassoneActor;
+	MeshComponent* grassoneMeshComp;
+	int numGrass = 6;
+	for (int i = -numGrass; i <= numGrass; ++i) {
+		for (int j = -numGrass; j <= numGrass; ++j) {
 			if (i == 0 && j == 0)
 				continue;
-	
-			krapivaActor = new Actor();
-	
+
+			grassoneActor = new Actor();
+
 			XMVECTOR pos = XMVectorSet(
-				static_cast<float>(7 * i), 0.0f,
-				static_cast<float>(7 * j), 1.0f
+				static_cast<float>(5 * i), 0.0f,
+				static_cast<float>(5 * j), 1.0f
 			);
 			XMVECTOR offset = XMVectorSet(
-				5.0f * MathHelper::RandF() - 2.5f, 
-				0.0f, 
-				5.0f * MathHelper::RandF() - 2.5f, 
+				3.0f * MathHelper::RandF() - 1.5f,
+				0.0f,
+				3.0f * MathHelper::RandF() - 1.5f,
 				0.0f
 			);
-	
-			krapivaActor->SetPosition(pos + offset);
-			krapivaActor->SetQuaternion(XMQuaternionRotationAxis(
+
+			grassoneActor->SetPosition(pos + offset);
+			grassoneActor->SetQuaternion(XMQuaternionRotationAxis(
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
 			);
-	
-			krapivaMeshComp = new MeshComponent(krapivaActor);
-			if (!krapivaMeshComp->LoadMesh("krapiva", "krapiva.fbx"))
+
+			grassoneMeshComp = new MeshComponent(grassoneActor);
+			if (!grassoneMeshComp->LoadMesh("grassone", "grass_variant_1.fbx"))
 				return false;
 		}
 	}
-	
-	Actor* fernActor;
-	MeshComponent* fernMeshComp;
-	int numFern = 5;
-	for (int i = -numFern; i <= numFern; ++i) {
-		for (int j = -numFern; j <= numFern; ++j) {
+
+	Actor* grasstwoActor;
+	MeshComponent* grasstwoMeshComp;
+	for (int i = -numGrass; i <= numGrass; ++i) {
+		for (int j = -numGrass; j <= numGrass; ++j) {
 			if (i == 0 && j == 0)
 				continue;
-	
-			fernActor = new Actor();
-	
+
+			grasstwoActor = new Actor();
+
 			XMVECTOR pos = XMVectorSet(
-				static_cast<float>(13 * i), 0.0f,
-				static_cast<float>(13 * j), 1.0f
+				static_cast<float>(4.5 * i), 0.0f,
+				static_cast<float>(4.5 * j), 1.0f
 			);
 			XMVECTOR offset = XMVectorSet(
-				6.0f * MathHelper::RandF() - 3.0f,
+				3.0f * MathHelper::RandF() - 1.5f,
 				0.0f,
-				6.0f * MathHelper::RandF() - 3.0f,
+				3.0f * MathHelper::RandF() - 1.5f,
 				0.0f
 			);
-	
-			fernActor->SetPosition(pos + offset);
-			fernActor->SetQuaternion(XMQuaternionRotationAxis(
+
+			grasstwoActor->SetPosition(pos + offset);
+			grasstwoActor->SetQuaternion(XMQuaternionRotationAxis(
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
 				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
 			);
-	
-			fernMeshComp = new MeshComponent(fernActor);
-			if (!fernMeshComp->LoadMesh("fern", "fern.fbx"))
+
+			grasstwoMeshComp = new MeshComponent(grasstwoActor);
+			if (!grasstwoMeshComp->LoadMesh("grasstwo", "grass_variant_2.fbx"))
+				return false;
+		}
+	}
+
+	Actor* grassthreeActor;
+	MeshComponent* grassthreeMeshComp;
+	for (int i = -numGrass; i <= numGrass; ++i) {
+		for (int j = -numGrass; j <= numGrass; ++j) {
+			if (i == 0 && j == 0)
+				continue;
+
+			grassthreeActor = new Actor();
+
+			XMVECTOR pos = XMVectorSet(
+				static_cast<float>(6.0 * i), 0.0f,
+				static_cast<float>(6.0 * j), 1.0f
+			);
+			XMVECTOR offset = XMVectorSet(
+				3.0f * MathHelper::RandF() - 1.5f,
+				0.0f,
+				3.0f * MathHelper::RandF() - 1.5f,
+				0.0f
+			);
+
+			grassthreeActor->SetPosition(pos + offset);
+			grassthreeActor->SetQuaternion(XMQuaternionRotationAxis(
+				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
+			);
+
+			grassthreeMeshComp = new MeshComponent(grassthreeActor);
+			if (!grassthreeMeshComp->LoadMesh("grassthree", "grass_variant_3.fbx"))
+				return false;
+		}
+	}
+
+	Actor* grassfourActor;
+	MeshComponent* grassfourMeshComp;
+	for (int i = -numGrass; i <= numGrass; ++i) {
+		for (int j = -numGrass; j <= numGrass; ++j) {
+			if (i == 0 && j == 0)
+				continue;
+
+			grassfourActor = new Actor();
+
+			XMVECTOR pos = XMVectorSet(
+				static_cast<float>(4.0 * i), 0.0f,
+				static_cast<float>(4.0 * j), 1.0f
+			);
+			XMVECTOR offset = XMVectorSet(
+				2.0f * MathHelper::RandF() - 0.5f,
+				0.0f,
+				2.0f * MathHelper::RandF() - 0.5f,
+				0.0f
+			);
+
+			grassfourActor->SetPosition(pos + offset);
+			grassfourActor->SetQuaternion(XMQuaternionRotationAxis(
+				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f),
+				2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi)
+			);
+
+			grassfourMeshComp = new MeshComponent(grassfourActor);
+			if (!grassfourMeshComp->LoadMesh("grassfour", "grass_variant_4.fbx"))
 				return false;
 		}
 	}
@@ -413,22 +428,10 @@ GameResult GameWorld::GameLoop() {
 					if (!mAppPaused)
 						ProcessInput(mTimer, inTid);
 
-					TaskTimer timer;
-					timer.SetBeginTime();
-
 					BreakIfFailed(UpdateGame(mTimer, inTid));
 
-					timer.SetEndTime();
-					mOuterUpdateGameTimers[inTid] += timer.GetElapsedTime();
-					++mOuterUpdateAccums[inTid];					
-
-					timer.SetBeginTime();
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, inTid));
-					timer.SetEndTime();
-					mOuterDrawTimers[inTid] += timer.GetElapsedTime();
-
-					++mOuterDrawAccums[inTid];
 				}
 
 				mGameState = GameState::ETerminated;
@@ -463,23 +466,10 @@ GameResult GameWorld::GameLoop() {
 						CalculateFrameStats();
 						ProcessInput(mTimer, 0);
 					}
-
-					TaskTimer timer;
-					timer.SetBeginTime();
-					
 					BreakIfFailed(UpdateGame(mTimer, 0));
 
-					timer.SetEndTime();
-					mOuterUpdateGameTimers[0] += timer.GetElapsedTime();
-					++mOuterUpdateAccums[0];
-
-					timer.SetBeginTime();
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, 0));
-					timer.SetEndTime();
-					mOuterDrawTimers[0] += timer.GetElapsedTime();
-
-					++mOuterDrawAccums[0];
 				}
 			}
 		}	
@@ -623,12 +613,6 @@ void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
 }
 
 GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
-	TaskTimer iTimer;
-	iTimer.SetBeginTime();
-
-	TaskTimer timer;
-	timer.SetBeginTime();
-
 	auto& actors = mActors[inTid];
 	auto& pendingActors = mPendingActors[inTid];
 
@@ -655,42 +639,16 @@ GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
 	for (auto actor : deadActors)
 		delete actor;
 
-	timer.SetEndTime();
-	mActorUpdateTimers[inTid] += timer.GetElapsedTime();
-	
-	timer.SetBeginTime();
-
 	CheckGameResult(mRenderer->Update(gt, inTid));
-
-	timer.SetEndTime();
-	mRenderUpdateTimers[inTid] += timer.GetElapsedTime();
-
-	timer.SetBeginTime();
 
 	if (inTid == 0)
 		mAudioSystem->Update(gt);
-
-	timer.SetEndTime();
-	mAudioUpdateTimers[inTid] += timer.GetElapsedTime();
-
-	iTimer.SetEndTime();
-	mInnerUpdateGameTimers[inTid] += iTimer.GetElapsedTime();
-
-	++mInnerUpdateAccums[inTid];
 
 	return GameResult(S_OK);
 }
 
 GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
-	TaskTimer timer;
-	timer.SetBeginTime();
-
 	CheckGameResult(mRenderer->Draw(gt, inTid));
-
-	timer.SetEndTime();
-	mInnerDrawTimers[inTid] += timer.GetElapsedTime();
-
-	++mInnerDrawAccums[inTid];
 	
 	return GameResult(S_OK);
 }

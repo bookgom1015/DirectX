@@ -46,6 +46,10 @@ struct MaterialData {
 	uint		NormalMapIndex;
 	int			SpecularMapIndex;
 	int			DispMapIndex;
+	int			AlphaMapIndex;
+	uint		MatPad0;
+	uint		MatPad1;
+	uint		MatPad2;
 };
 
 TextureCube	gCubeMap								: register(t0);
@@ -56,12 +60,13 @@ Texture2D	gDepthMap								: register(t4);
 Texture2D	gSpecularMap							: register(t5);
 Texture2D	gShadowMap								: register(t6);
 Texture2D	gSsaoMap								: register(t7);
+Texture2D	gReflectionMap							: register(t8);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D	gTextureMaps[64]						: register(t8);
+Texture2D	gTextureMaps[64]						: register(t9);
 
-Texture2D	gAnimationsDataMap						: register(t72);
+Texture2D	gAnimationsDataMap						: register(t73);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
@@ -113,7 +118,7 @@ cbuffer cbPass : register(b1) {
 	Light gLights[MaxLights];
 };
 
-cbuffer cbSettings : register(b2) {
+cbuffer cbRootConstants : register(b2) {
 	int		gMaxInstanceCount;
 	float	gCubeMapCenter;
 	float	gCubeMapExtents;
@@ -142,7 +147,6 @@ float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, floa
 //---------------------------------------------------------------------------------------
 // PCF for shadow mapping.
 //---------------------------------------------------------------------------------------
-
 float CalcShadowFactor(float4 shadowPosH) {
 	// Complete projection by doing division by w.
 	shadowPosH.xyz /= shadowPosH.w;
@@ -216,7 +220,6 @@ float CalcShadowFactor(float4 shadowPosH) {
 //---------------------------------------------------------------------------------------
 // Slap method
 //---------------------------------------------------------------------------------------
-
 float3 BoxCubeMapLookup(float3 rayOrigin, float3 unitRayDir, float3 boxCenter, float3 boxExtents) {
 	// Set the origin to box of center.
 	float3 p = rayOrigin - boxCenter;

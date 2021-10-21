@@ -15,6 +15,7 @@
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
 #include "DX12Game/GBuffer.h"
+#include "DX12Game/Ssr.h"
 
 class Mesh;
 class Animation;
@@ -102,7 +103,10 @@ private:
 		UINT mSpecularMapHeapIndex;
 		UINT mShadowMapHeapIndex;
 		UINT mSsaoAmbientMapIndex;
+		UINT mReflectionMapIndex;
 		UINT mAnimationsMapIndex;
+		UINT mSsaoAdditionalMapIndex;
+		UINT mSsrAdditionalMapIndex;
 		UINT mNullCubeSrvIndex1;
 		UINT mNullCubeSrvIndex2;
 		UINT mNullTexSrvIndex1;
@@ -111,6 +115,7 @@ private:
 		UINT mNullTexSrvIndex4;
 		UINT mNullTexSrvIndex5;
 		UINT mNullTexSrvIndex6;
+		UINT mNullTexSrvIndex7;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -212,11 +217,13 @@ private:
 	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateSsrCB(const GameTimer& gt, UINT inTid = 0);
 	/// Update functions
 
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
 	GameResult BuildSsaoRootSignature();
+	GameResult BuildSsrRootSignature();
 
 	void BuildDescriptorHeapIndices(UINT inOffset);
 	void BuildNullShaderResourceViews();
@@ -255,6 +262,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSignature = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
@@ -279,10 +287,12 @@ private:
 
 	std::unordered_map<std::string, UINT> mDiffuseSrvHeapIndices;
 	std::unordered_map<std::string, UINT> mNormalSrvHeapIndices;
-	std::unordered_map<std::string, UINT> mSpecularSrvHeapIndices;
+	std::unordered_map<std::string, INT> mSpecularSrvHeapIndices;
+	std::unordered_map<std::string, INT> mAlphaSrvHeapIndices;
 	std::vector<std::string> mBuiltDiffuseTexDescriptors;
 	std::vector<std::string> mBuiltNormalTexDescriptors;
 	std::vector<std::string> mBuiltSpecularTexDescriptors;
+	std::vector<std::string> mBuiltAlphaTexDescriptors;
 
 	UINT mNumObjCB = 0;
 	UINT mNumMatCB = 0;
@@ -297,6 +307,7 @@ private:
 	ShadowMap mShadowMap;
 	Ssao mSsao;
 	AnimationsMap mAnimsMap;
+	Ssr mSsr;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;
@@ -316,9 +327,8 @@ private:
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
 	std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
 
-	std::vector<float> mConstantSettings;
-
 	const UINT MaxInstanceCount = 128;
+	std::array<float, 2> mRootConstants;
 
 #ifdef MT_World
 	CVBarrier* mCVBarrier;
@@ -330,7 +340,6 @@ private:
 	std::vector<float> mDxRenderUpdateTimers;
 	std::vector<float> mWaitTimers;
 	std::vector<float> mUpdateObjTimers;
-	std::vector<float> mUpdateShwTimers;
 
 	std::vector<float> mDxDrawTimers;
 

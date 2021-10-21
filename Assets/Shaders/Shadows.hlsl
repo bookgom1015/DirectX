@@ -122,6 +122,14 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 void PS(VertexOut pin) {
 	// Fetch the material data.
 	MaterialData matData = gMaterialData[pin.MatIndex];
+
+#ifdef ALPHA_TEST
+	if (matData.AlphaMapIndex != -1) {
+		float alpha = gTextureMaps[matData.AlphaMapIndex].Sample(gsamAnisotropicWrap, pin.TexC).r;
+		clip(alpha - 0.1f);
+	}
+#endif
+
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;
     uint diffuseMapIndex = matData.DiffuseMapIndex;
 	
@@ -129,10 +137,10 @@ void PS(VertexOut pin) {
 	diffuseAlbedo *= gTextureMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 
 #ifdef ALPHA_TEST
-    // Discard pixel if texture alpha < 0.1.  We do this test as soon 
-    // as possible in the shader so that we can potentially exit the
-    // shader early, thereby skipping the rest of the shader code.
-    clip(diffuseAlbedo.a - 0.1f);
+	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
+	// as possible in the shader so that we can potentially exit the
+	// shader early, thereby skipping the rest of the shader code.
+	clip(diffuseAlbedo.a - 0.1f);
 #endif
 }
 

@@ -112,6 +112,14 @@ public:
 	SsaoConstants();
 };
 
+struct SsrConstants {
+	DirectX::XMFLOAT4X4	mInvView;
+	DirectX::XMFLOAT4X4	mProj;
+	DirectX::XMFLOAT4X4	mInvProj;
+	DirectX::XMFLOAT4X4	mViewProj;
+	DirectX::XMFLOAT3	mEyePosW;
+};
+
 struct MaterialData {
 	DirectX::XMFLOAT4 mDiffuseAlbedo;
 	DirectX::XMFLOAT3 mFresnelR0;
@@ -124,6 +132,10 @@ struct MaterialData {
 	UINT mNormalMapIndex;
 	INT mSpecularMapIndex;
 	INT mDispMapIndex;
+	INT mAlphaMapIndex;
+	UINT mMatPad0;
+	UINT mMatPad1;
+	UINT mMatPad2;
 
 public:
 	MaterialData();
@@ -195,6 +207,7 @@ public:
 	GameUploadBuffer<PassConstants> mPassCB;
 	GameUploadBuffer<ObjectConstants> mObjectCB;
 	GameUploadBuffer<SsaoConstants> mSsaoCB;
+	GameUploadBuffer<SsrConstants> mSsrCB;
 	GameUploadBuffer<MaterialData> mMaterialBuffer;
     //std::unique_ptr<UploadBuffer<PassConstants>> mPassCB = nullptr;
     //std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
