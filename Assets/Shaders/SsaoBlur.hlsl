@@ -14,17 +14,14 @@ cbuffer cbSsao : register(b0) {
     float4x4 gInvProj;
     float4x4 gProjTex;
     float4   gOffsetVectors[14];
-
     // For SsaoBlur.hlsl
-    float4 gBlurWeights[3];
-
-    float2 gInvRenderTargetSize;
-
+    float4	gBlurWeights[3];
+    float2	gInvRenderTargetSize;
     // Coordinates given in view space.
-    float gOcclusionRadius;
-    float gOcclusionFadeStart;
-    float gOcclusionFadeEnd;
-    float gSurfaceEpsilon;    
+    float	gOcclusionRadius;
+    float	gOcclusionFadeStart;
+    float	gOcclusionFadeEnd;
+    float	gSurfaceEpsilon;    
 };
 
 cbuffer cbRootConstants : register(b1) {
@@ -32,14 +29,14 @@ cbuffer cbRootConstants : register(b1) {
 };
 
 // Nonnumeric values cannot be added to a cbuffer.
-Texture2D gNormalMap			: register(t0);
-Texture2D gDepthMap				: register(t1);
-Texture2D gInputMap				: register(t2);
+Texture2D		gNormalMap			: register(t0);
+Texture2D		gDepthMap			: register(t1);
+Texture2D		gInputMap			: register(t2);
  
-SamplerState gsamPointClamp		: register(s0);
-SamplerState gsamLinearClamp	: register(s1);
-SamplerState gsamDepthMap		: register(s2);
-SamplerState gsamLinearWrap		: register(s3);
+SamplerState	gsamPointClamp		: register(s0);
+SamplerState	gsamLinearClamp		: register(s1);
+SamplerState	gsamDepthMap		: register(s2);
+SamplerState	gsamLinearWrap		: register(s3);
 
 static const int gBlurRadius = 5;
  
@@ -63,7 +60,7 @@ VertexOut VS(uint vid : SV_VertexID) {
     vout.TexC = gTexCoords[vid];
 
     // Quad covering screen in NDC space.
-    vout.PosH = float4(2.0f*vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
+    vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
 
     return vout;
 }

@@ -98,7 +98,7 @@ float4 PS(VertexOut pin) : SV_Target{
 	float3 r = reflect(-toEyeW, normalW);
 	float3 lookup = BoxCubeMapLookup(posW.xyz, r, gCubeMapCenter, gCubeMapExtents);
 
-	float4 reflectionSample = gReflectionMap.Sample(gsamLinearWrap, pin.TexC);
+	float4 reflectionSample = gSsrMap.Sample(gsamLinearWrap, pin.TexC);
 
 	float4 reflectionColor = reflectionSample.a * reflectionSample + (1.0f - reflectionSample.a) * gBlurCubeMap.Sample(gsamLinearWrap, lookup);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, normalW, r);
@@ -108,7 +108,6 @@ float4 PS(VertexOut pin) : SV_Target{
 	litColor.a = diffuseAlbedo.a;
 	
 	return litColor;
-	//return GetReflectionColor(posW.xyz, r);
 }
 
 #endif

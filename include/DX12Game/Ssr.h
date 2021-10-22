@@ -10,8 +10,7 @@ public:
 
 public:
 	GameResult Initialize(
-		ID3D12Device* inDevice, 
-		ID3D12GraphicsCommandList* inCmdList, 
+		ID3D12Device* inDevice,
 		UINT inClientWidth, 
 		UINT inClientHeight);
 
@@ -35,17 +34,20 @@ public:
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv);
 
 	void ComputeSsr(
-		ID3D12GraphicsCommandList* inCmdList,
-		FrameResource* inCurrFrame,
+		ID3D12GraphicsCommandList* outCmdList,
+		const FrameResource* inCurrFrame,
 		int inBlurCount);
 
 	void SetPSOs(ID3D12PipelineState* inSsrPso, ID3D12PipelineState* inSsaoBlurPso);
 
-	ID3D12Resource* GetAmbientMap();
+	ID3D12Resource* GetAmbientMap() const;
+
+	UINT GetSsrMapWidth() const;
+	UINT GetSsrMapHeight() const;
 
 private:
-	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, FrameResource* inCurrFrame, int inBlurCount);
-	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);
 
 	GameResult BuildResources();
 
@@ -58,8 +60,8 @@ private:
 	ID3D12Device* md3dDevice;
 	ID3D12GraphicsCommandList* mCmdList;
 
-	UINT mClientWidth = 0;
-	UINT mClientHeight = 0;
+	UINT mSsrMapWidth = 0;
+	UINT mSsrMapHeight = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSig;
 

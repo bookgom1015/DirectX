@@ -3,6 +3,7 @@
 #include "DX12Game/GameWorld.h"
 #include "DX12Game/GameCamera.h"
 #include "DX12Game/Mesh.h"
+#include "DX12Game/BlurHelper.h"
 #include "common/GeometryGenerator.h"
 
 #include <ResourceUploadBatch.h>
@@ -98,9 +99,9 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
-	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
-	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get(), cmdList));
-	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), cmdList, mClientWidth, mClientHeight));
+	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth / 2, mClientHeight / 2));
+	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get()));
+	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 2, mClientHeight / 2));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
@@ -115,7 +116,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	CheckGameResult(BuildPSOs());
 
 	mSsao.SetPSOs(mPSOs["ssao"].Get(), mPSOs["ssaoBlur"].Get());
-	mSsr.SetPSOs(mPSOs["ssr"].Get(), mPSOs["ssaoBlur"].Get());
+	mSsr.SetPSOs(mPSOs["ssr"].Get(), mPSOs["ssrBlur"].Get());
 
 	// Execute the initialization commands.
 	ExecuteCommandLists();
@@ -148,6 +149,20 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 	// After uploadResourcesFinished.wait() returned.
 	mSpriteBatch->SetViewport(mScreenViewport);
 
+	//
+	// Set blur weights.
+	//
+	auto blurWeights = BlurHelper::CalcGaussWeights(2.5f);
+	if (blurWeights == nullptr)
+		return GameResultFalse;
+
+	mBlurWeights.push_back(XMFLOAT4(&blurWeights[0]));
+	mBlurWeights.push_back(XMFLOAT4(&blurWeights[4]));
+	mBlurWeights.push_back(XMFLOAT4(&blurWeights[8]));
+
+	delete[] blurWeights;
+
+	// Succeeded initialization.
 	bIsValid = true;
 
 	return GameResultOk;
@@ -235,7 +250,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 	SyncHost(mCVBarrier);
 
 	for (auto& func : mEachUpdateFunctions[inTid])
-		func(*this, std::ref(gt), inTid);
+		CheckGameResult(func(*this, std::ref(gt), inTid));
 	
 	if (inTid == 0) {
 		std::vector<std::string> textsToRemove;
@@ -304,7 +319,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 	mSsao.OnResize(mClientWidth, mClientHeight);
 	// Resources changed, so need to rebuild descriptors.
-	mSsao.RebuildDescriptors(mGBuffer.GetNormalMapSrv(), mGBuffer.GetDepthMapSrv());
+	mSsao.RebuildDescriptors(mGBuffer.GetNormalMapSrv());
 
 	mSsr.OnResize(mClientWidth, mClientHeight);
 	mSsr.RebuildDescriptors(
@@ -617,14 +632,17 @@ UINT DxRenderer::AddAnimations(const std::string& inClipName, const Animation& i
 }
 
 GameResult DxRenderer::UpdateAnimationsMap() {
-	// Reset the command list to prep for initialization commands.
-	ReturnIfFailed(mCommandLists[0]->Reset(mCommandAllocators[0].Get(), nullptr));
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
+	ID3D12CommandAllocator* alloc = mCommandAllocators[0].Get();
 
-	mAnimsMap.UpdateAnimationsMap();
+	// Reset the command list to prep for initialization commands.
+	ReturnIfFailed(cmdList->Reset(alloc, nullptr));
+
+	mAnimsMap.UpdateAnimationsMap(cmdList);
 
 	// Execute the initialization commands.
-	ReturnIfFailed(mCommandLists[0]->Close());
-	ID3D12CommandList* cmdsLists[] = { mCommandLists[0].Get() };
+	ReturnIfFailed(cmdList->Close());
+	ID3D12CommandList* cmdsLists[] = { cmdList };
 
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
@@ -1630,10 +1648,10 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 
 	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
 	XMMATRIX T(
-		0.5f, 0.0f, 0.0f, 0.0f,
+		0.5f,  0.0f, 0.0f, 0.0f,
 		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f
+		0.0f,  0.0f, 1.0f, 0.0f,
+		0.5f,  0.5f, 0.0f, 1.0f
 	);
 
 	ssaoCB.mProj = mMainPassCB.mProj;
@@ -1642,12 +1660,11 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 
 	mSsao.GetOffsetVectors(ssaoCB.mOffsetVectors);
 
-	auto blurWeights = mSsao.CalcGaussWeights(2.5f);
-	ssaoCB.mBlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-	ssaoCB.mBlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-	ssaoCB.mBlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+	ssaoCB.mBlurWeights[0] = mBlurWeights[0];
+	ssaoCB.mBlurWeights[1] = mBlurWeights[1];
+	ssaoCB.mBlurWeights[2] = mBlurWeights[2];
 
-	ssaoCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsao.SsaoMapWidth(), 1.0f / mSsao.SsaoMapHeight());
+	ssaoCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsao.GetSsaoMapWidth(), 1.0f / mSsao.GetSsaoMapHeight());
 
 	// Coordinates given in view space.
 	ssaoCB.mOcclusionRadius = 0.5f;
@@ -1669,6 +1686,12 @@ GameResult DxRenderer::UpdateSsrCB(const GameTimer& gt, UINT inTid) {
 	ssrCB.mInvProj = mMainPassCB.mInvProj;
 	ssrCB.mViewProj = mMainPassCB.mViewProj;
 	ssrCB.mEyePosW = mMainPassCB.mEyePosW;
+	
+	ssrCB.mBlurWeights[0] = mBlurWeights[0];
+	ssrCB.mBlurWeights[1] = mBlurWeights[1];
+	ssrCB.mBlurWeights[2] = mBlurWeights[2];
+
+	ssrCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsr.GetSsrMapWidth(), 1.0f / mSsr.GetSsrMapHeight());
 
 	auto& currSsrCB = mCurrFrameResource->mSsrCB;
 	currSsrCB.CopyData(0, ssrCB);
@@ -1990,14 +2013,19 @@ GameResult DxRenderer::BuildSsrRootSignature() {
 	CD3DX12_DESCRIPTOR_RANGE texTable0;
 	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 0);
 
-	const int numRootParameters = 2;
+	CD3DX12_DESCRIPTOR_RANGE texTable1;
+	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0);
+
+	const int numRootParameters = 4;
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[numRootParameters];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[1].InitAsConstants(1, 1);
+	slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
 		0,									// shaderRegister
@@ -2083,8 +2111,8 @@ void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
 	mDescHeapIdx.mSpecularMapHeapIndex		= mDescHeapIdx.mDepthMapHeapIndex		+ 1;
 	mDescHeapIdx.mShadowMapHeapIndex		= mDescHeapIdx.mSpecularMapHeapIndex	+ 1;
 	mDescHeapIdx.mSsaoAmbientMapIndex		= mDescHeapIdx.mShadowMapHeapIndex		+ 1;
-	mDescHeapIdx.mReflectionMapIndex		= mDescHeapIdx.mSsaoAmbientMapIndex		+ 1;
-	mDescHeapIdx.mAnimationsMapIndex		= mDescHeapIdx.mReflectionMapIndex		+ 1;
+	mDescHeapIdx.mSsrMapIndex				= mDescHeapIdx.mSsaoAmbientMapIndex		+ 1;
+	mDescHeapIdx.mAnimationsMapIndex		= mDescHeapIdx.mSsrMapIndex				+ 1;
 	mDescHeapIdx.mSsaoAdditionalMapIndex	= mDescHeapIdx.mAnimationsMapIndex		+ 1;
 	mDescHeapIdx.mSsrAdditionalMapIndex		= mDescHeapIdx.mSsaoAdditionalMapIndex	+ 2;
 	mDescHeapIdx.mNullCubeSrvIndex1			= mDescHeapIdx.mSsrAdditionalMapIndex	+ 1;
@@ -2153,7 +2181,6 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 
 	mSsao.BuildDescriptors(
 		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
-		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
 		GetCpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
 		GetGpuSrv(mDescHeapIdx.mSsaoAmbientMapIndex),
 		GetCpuSrv(mDescHeapIdx.mSsaoAdditionalMapIndex),
@@ -2172,8 +2199,8 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		GetGpuSrv(mDescHeapIdx.mDiffuseMapHeapIndex),
 		GetGpuSrv(mDescHeapIdx.mNormalMapHeapIndex),
 		GetGpuSrv(mDescHeapIdx.mDepthMapHeapIndex),
-		GetCpuSrv(mDescHeapIdx.mReflectionMapIndex),
-		GetGpuSrv(mDescHeapIdx.mReflectionMapIndex),
+		GetCpuSrv(mDescHeapIdx.mSsrMapIndex),
+		GetGpuSrv(mDescHeapIdx.mSsrMapIndex),
 		GetCpuSrv(mDescHeapIdx.mSsrAdditionalMapIndex),
 		GetGpuSrv(mDescHeapIdx.mSsrAdditionalMapIndex),
 		GetRtv(SwapChainBufferCount + GBuffer::NumRenderTargets + Ssao::NumRenderTargets),
@@ -2347,6 +2374,12 @@ GameResult DxRenderer::BuildShadersAndInputLayout() {
 		std::wstring ssrhlsl = ShaderFileNamePrefix + L"Ssr.hlsl";
 		CheckGameResult(D3D12Util::CompileShader(ssrhlsl, nullptr, "VS", "vs_5_1", mShaders["ssrVS"]));
 		CheckGameResult(D3D12Util::CompileShader(ssrhlsl, nullptr, "PS", "ps_5_1", mShaders["ssrPS"]));
+	}
+
+	{
+		std::wstring ssrBlurhlsl = ShaderFileNamePrefix + L"SsrBlur.hlsl";
+		CheckGameResult(D3D12Util::CompileShader(ssrBlurhlsl, nullptr, "VS", "vs_5_1", mShaders["ssrBlurVS"]));
+		CheckGameResult(D3D12Util::CompileShader(ssrBlurhlsl, nullptr, "PS", "ps_5_1", mShaders["ssrBlurPS"]));
 	}
 
 	mInputLayout = {
@@ -2669,29 +2702,6 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
 	quadRitem->mBoundType = BoundType::AABB;
 	quadRitem->mBoundingUnion.mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
-	for (size_t i = 0; i < 5; ++i) {
-		quadRitem->mInstances.emplace_back(
-			MathHelper::Identity4x4(),
-			MathHelper::Identity4x4(),
-			0.0f,
-			static_cast<UINT>(quadRitem->mMat->MatCBIndex),
-			-1,
-			EInstanceRenderState::EID_DrawAlways
-		);
-	}
-	mRitemLayer[RenderLayer::Debug].push_back(quadRitem.get());
-	mAllRitems.push_back(std::move(quadRitem));
-
-	quadRitem = std::make_unique<RenderItem>();
-	quadRitem->mObjCBIndex = mNumObjCB++;
-	quadRitem->mMat = mMaterialRefs["default"];
-	quadRitem->mGeo = mGeometries["standardGeo"].get();
-	quadRitem->mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
-	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
-	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
-	quadRitem->mBoundType = BoundType::AABB;
-	quadRitem->mBoundingUnion.mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
 	quadRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
 		MathHelper::Identity4x4(),
@@ -2825,7 +2835,7 @@ GameResult DxRenderer::BuildPSOs() {
 	// PSO for debug layer.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC debugPsoDesc = opaquePsoDesc;
-	debugPsoDesc.pRootSignature = mRootSignature.Get();
+	debugPsoDesc.InputLayout = { nullptr, 0 };
 	debugPsoDesc.VS = {
 		reinterpret_cast<BYTE*>(mShaders["debugVS"]->GetBufferPointer()),
 		mShaders["debugVS"]->GetBufferSize()
@@ -2904,6 +2914,9 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssaoBlurPsoDesc, IID_PPV_ARGS(&mPSOs["ssaoBlur"])));
 
+	//
+	// PSO for SSR.
+	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC ssrPsoDesc = ssaoPsoDesc;
 	ssrPsoDesc.pRootSignature = mSsrRootSignature.Get();
 	ssrPsoDesc.VS = {
@@ -2916,6 +2929,20 @@ GameResult DxRenderer::BuildPSOs() {
 	};
 	ssrPsoDesc.RTVFormats[0] = Ssr::AmbientMapFormat;
 	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssrPsoDesc, IID_PPV_ARGS(&mPSOs["ssr"])));
+
+	//
+	// PSO for SSR blur.
+	//
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC ssrBlurPsoDesc = ssrPsoDesc;
+	ssrBlurPsoDesc.VS = {
+		reinterpret_cast<BYTE*>(mShaders["ssrBlurVS"]->GetBufferPointer()),
+		mShaders["ssrBlurVS"]->GetBufferSize()
+	};
+	ssrBlurPsoDesc.PS = {
+		reinterpret_cast<BYTE*>(mShaders["ssrBlurPS"]->GetBufferPointer()),
+		mShaders["ssrBlurPS"]->GetBufferSize()
+	};
+	ReturnIfFailed(md3dDevice->CreateGraphicsPipelineState(&ssrBlurPsoDesc, IID_PPV_ARGS(&mPSOs["ssrBlur"])));
 
 	//
 	// PSO for sky.
@@ -3118,7 +3145,7 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 	// Bind the texture for extracing animations data.
 	cmdList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
+		mAnimsMap.GetAnimationsMapSrv()
 	);
 
 	cmdList->SetGraphicsRoot32BitConstants(
@@ -3219,7 +3246,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 	// Bind the texture for extracing animations data.
 	cmdList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
+		mAnimsMap.GetAnimationsMapSrv()
 	);
 
 	cmdList->SetGraphicsRoot32BitConstants(
@@ -3364,7 +3391,7 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 	// Bind the texture for extracing animations data.
 	cmdList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
+		mAnimsMap.GetAnimationsMapSrv()
 	);
 
 	cmdList->SetGraphicsRoot32BitConstants(
@@ -3463,7 +3490,7 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 	// Bind the texture for extracing animations data.
 	cmdList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
+		mAnimsMap.GetAnimationsMapSrv()
 	);
 
 	cmdList->SetGraphicsRoot32BitConstants(
@@ -3578,6 +3605,18 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	return GameResultOk;
 }
 
+GameResult DxRenderer::DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList) {
+	outCmdList->SetPipelineState(mPSOs["debug"].Get());
+
+	// Draw fullscreen quad.
+	outCmdList->IASetVertexBuffers(0, 0, nullptr);
+	outCmdList->IASetIndexBuffer(nullptr);
+	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	outCmdList->DrawInstanced(6, 5, 0, 0);
+
+	return GameResultOk;
+}
+
 GameResult DxRenderer::DrawSceneToRenderTarget() {	
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
@@ -3636,7 +3675,7 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	// Bind the texture for extracing animations data.
 	cmdList->SetGraphicsRootDescriptorTable(
 		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.AnimationsMapSrv()
+		mAnimsMap.GetAnimationsMapSrv()
 	);
 
 	cmdList->SetGraphicsRoot32BitConstants(
@@ -3684,9 +3723,10 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	ritems = mRitemLayer[RenderLayer::Skeleton];
 	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
-	cmdList->SetPipelineState(mPSOs["debug"].Get());
-	ritems = mRitemLayer[RenderLayer::Debug];
-	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+	//
+	// Draw quad render items for debugging.
+	//
+	DrawDebugWindows(cmdList);
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));

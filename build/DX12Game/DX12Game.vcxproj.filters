@@ -335,6 +335,9 @@
     <ClInclude Include="..\..\include\DX12Game\Ssr.h">
       <Filter>Header Files\Util\Shading</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\BlurHelper.h">
+      <Filter>Header Files\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -392,9 +395,13 @@
     <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\SsrCommon.hlsl" />
+    <None Include="..\..\Assets\Shaders\Ssr.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\Ssr.hlsl">
+    <FxCompile Include="..\..\Assets\Shaders\SsrBlur.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </FxCompile>
   </ItemGroup>

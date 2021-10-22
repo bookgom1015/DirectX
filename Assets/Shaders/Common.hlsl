@@ -60,7 +60,7 @@ Texture2D	gDepthMap								: register(t4);
 Texture2D	gSpecularMap							: register(t5);
 Texture2D	gShadowMap								: register(t6);
 Texture2D	gSsaoMap								: register(t7);
-Texture2D	gReflectionMap							: register(t8);
+Texture2D	gSsrMap									: register(t8);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.

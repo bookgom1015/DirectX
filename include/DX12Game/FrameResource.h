@@ -96,12 +96,9 @@ struct SsaoConstants {
 	DirectX::XMFLOAT4X4 mInvProj;
 	DirectX::XMFLOAT4X4 mProjTex;
 	DirectX::XMFLOAT4   mOffsetVectors[14];
-
 	// For SsaoBlur.hlsl
 	DirectX::XMFLOAT4 mBlurWeights[3];
-
 	DirectX::XMFLOAT2 mInvRenderTargetSize;
-
 	// Coordinates given in view space.
 	float mOcclusionRadius;
 	float mOcclusionFadeStart;
@@ -118,6 +115,9 @@ struct SsrConstants {
 	DirectX::XMFLOAT4X4	mInvProj;
 	DirectX::XMFLOAT4X4	mViewProj;
 	DirectX::XMFLOAT3	mEyePosW;
+	// For SsrBlur.hlsl
+	DirectX::XMFLOAT4 mBlurWeights[3];
+	DirectX::XMFLOAT2 mInvRenderTargetSize;
 };
 
 struct MaterialData {

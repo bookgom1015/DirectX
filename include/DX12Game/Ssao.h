@@ -19,11 +19,10 @@ private:
 	Ssao& operator=(Ssao&& inRVal) = delete;
 
 public:
-	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList, UINT inClientWidth, UINT inClientHeight);
+	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* outCmdList, UINT inSsaoMapidth, UINT inSsaoMapHeight);
 
 	void BuildDescriptors(
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
@@ -32,9 +31,7 @@ public:
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
 
-	void RebuildDescriptors(
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv);
+	void RebuildDescriptors(CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv);
 
 	void SetPSOs(ID3D12PipelineState* inSsaoPso, ID3D12PipelineState* inSsaoBlurPso);
 
@@ -50,15 +47,14 @@ public:
 	/// are disabled, as we do not need the depth buffer computing the Ambient map.
 	///</summary>
 	void ComputeSsao(
-		ID3D12GraphicsCommandList* inCmdList,
-		FrameResource* inCurrFrame,
+		ID3D12GraphicsCommandList* outCmdList,
+		const FrameResource* inCurrFrame,
 		int inBlurCount);
 
-	UINT SsaoMapWidth() const;
-	UINT SsaoMapHeight() const;
+	UINT GetSsaoMapWidth() const;
+	UINT GetSsaoMapHeight() const;
 
 	void GetOffsetVectors(DirectX::XMFLOAT4 inOffsets[14]);
-	std::vector<float> CalcGaussWeights(float inSigma);
 
 	ID3D12Resource* GetAmbientMap();
 
@@ -70,8 +66,8 @@ private:
 	/// few random samples per pixel.  We use an edge preserving blur so that 
 	/// we do not blur across discontinuities--we want edges to remain edges.
 	///</summary>
-	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, FrameResource* inCurrFrame, int inBlurCount);
-	void BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);
 
 	GameResult BuildResources();
 	GameResult BuildRandomVectorTexture(ID3D12GraphicsCommandList* inCmdList);
@@ -82,15 +78,13 @@ public:
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-	static const int MaxBlurRadius = 5;
 	static const UINT NumRenderTargets = 2;
 
 private:
 	ID3D12Device* md3dDevice;
-	ID3D12GraphicsCommandList* mCmdList;
 
-	UINT mClientWidth;
-	UINT mClientHeight;
+	UINT mSsaoMapWidth;
+	UINT mSsaoMapHeight;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSig;
 
@@ -104,9 +98,7 @@ private:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;
-
+	
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhRandomVectorMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhRandomVectorMapGpuSrv;
 
@@ -118,9 +110,6 @@ private:
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAmbientMap1GpuSrv;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuRtv;
-
-	UINT mRenderTargetWidth;
-	UINT mRenderTargetHeight;
 
 	DirectX::XMFLOAT4 mOffsets[14];
 

@@ -22,7 +22,7 @@ class Animation;
 
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
-	using UpdateFunc = std::function<void(DxRenderer&, const GameTimer&, UINT)>;
+	using UpdateFunc = std::function<GameResult(DxRenderer&, const GameTimer&, UINT)>;
 
 private:
 	enum RenderLayer : int {
@@ -103,7 +103,7 @@ private:
 		UINT mSpecularMapHeapIndex;
 		UINT mShadowMapHeapIndex;
 		UINT mSsaoAmbientMapIndex;
-		UINT mReflectionMapIndex;
+		UINT mSsrMapIndex;
 		UINT mAnimationsMapIndex;
 		UINT mSsaoAdditionalMapIndex;
 		UINT mSsrAdditionalMapIndex;
@@ -246,6 +246,7 @@ private:
 	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToGBuffer(UINT inTid = 0);
+	GameResult DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
 	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
@@ -329,6 +330,8 @@ private:
 
 	const UINT MaxInstanceCount = 128;
 	std::array<float, 2> mRootConstants;
+
+	std::vector<DirectX::XMFLOAT4> mBlurWeights;
 
 #ifdef MT_World
 	CVBarrier* mCVBarrier;

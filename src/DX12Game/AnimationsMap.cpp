@@ -9,9 +9,8 @@ namespace {
 	const double InvLineSize = static_cast<double>(1.0 / LineSize);
 }
 
-GameResult AnimationsMap::Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList) {
+GameResult AnimationsMap::Initialize(ID3D12Device* inDevice) {
 	md3dDevice = inDevice;
-	mCommandList = inCmdList;
 
 	mAnimations.resize(LineSize * LineSize);
 
@@ -50,7 +49,7 @@ void AnimationsMap::BuildDescriptors(
 	BuildDescriptors();
 }
 
-void AnimationsMap::UpdateAnimationsMap() {
+void AnimationsMap::UpdateAnimationsMap(ID3D12GraphicsCommandList* outCmdList) {
 	D3D12_SUBRESOURCE_DATA subResourceData = {};
 	subResourceData.pData = mAnimations.data();
 	subResourceData.RowPitch = LineSize * sizeof(XMFLOAT4);
@@ -62,11 +61,11 @@ void AnimationsMap::UpdateAnimationsMap() {
 	// read by a shader.
 	//
 
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
+	outCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST));
-	UpdateSubresources(mCommandList, mAnimsMap.Get(), mAnimsMapUploadBuffer.Get(),
+	UpdateSubresources(outCmdList, mAnimsMap.Get(), mAnimsMapUploadBuffer.Get(),
 		0, 0, mNumSubresources, &subResourceData);
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
+	outCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAnimsMap.Get(),
 		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
@@ -74,7 +73,7 @@ ID3D12Resource* AnimationsMap::GetAnimationsMap() const {
 	return mAnimsMap.Get();
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMap::AnimationsMapSrv() const {
+CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMap::GetAnimationsMapSrv() const {
 	return mhAnimsMapGpuSrv;
 }
 

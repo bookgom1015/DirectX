@@ -1,33 +1,31 @@
 #include "DX12Game/Ssr.h"
 
 GameResult Ssr::Initialize(
-	ID3D12Device*				inDevice, 
-	ID3D12GraphicsCommandList*	inCmdList, 
-	UINT						inClientWidth, 
-	UINT						inClientHeight) {
+	ID3D12Device*				inDevice,
+	UINT						inSsrMapWidth, 
+	UINT						inSsrMapHeight) {
 
 	md3dDevice = inDevice;
-	mCmdList = inCmdList;
 
-	CheckGameResult(OnResize(inClientWidth, inClientHeight));
+	CheckGameResult(OnResize(inSsrMapWidth, inSsrMapHeight));
 
 	return GameResultOk;
 }
 
 GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
-	if (mClientWidth != inNewWidth || mClientHeight != inNewHeight) {
-		mClientWidth = inNewWidth;
-		mClientHeight = inNewHeight;
+	if (mSsrMapWidth != inNewWidth || mSsrMapHeight != inNewHeight) {
+		mSsrMapWidth = inNewWidth;
+		mSsrMapHeight = inNewHeight;
 
 		// We render to ambient map at half the resolution.
 		mViewport.TopLeftX = 0.0f;
 		mViewport.TopLeftY = 0.0f;
-		mViewport.Width = static_cast<float>(mClientWidth);
-		mViewport.Height = static_cast<float>(mClientHeight);
+		mViewport.Width = static_cast<float>(mSsrMapWidth);
+		mViewport.Height = static_cast<float>(mSsrMapHeight);
 		mViewport.MinDepth = 0.0f;
 		mViewport.MaxDepth = 1.0f;
 
-		mScissorRect = { 0, 0, static_cast<int>(mClientWidth), static_cast<int>(mClientHeight) };
+		mScissorRect = { 0, 0, static_cast<int>(mSsrMapWidth), static_cast<int>(mSsrMapHeight) };
 
 		CheckGameResult(BuildResources());
 	}
@@ -88,41 +86,43 @@ void Ssr::RebuildDescriptors(
 }
 
 void Ssr::ComputeSsr(
-	ID3D12GraphicsCommandList*	inCmdList,
-	FrameResource*				inCurrFrame,
+	ID3D12GraphicsCommandList*	outCmdList,
+	const FrameResource*		inCurrFrame,
 	int							inBlurCount) {
 
-	inCmdList->RSSetViewports(1, &mViewport);
-	inCmdList->RSSetScissorRects(1, &mScissorRect);
+	outCmdList->RSSetViewports(1, &mViewport);
+	outCmdList->RSSetScissorRects(1, &mScissorRect);
 
 	// We compute the initial SSAO to AmbientMap0.
 
 	// Change to RENDER_TARGET.
-	inCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.Get(),
+	outCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.Get(),
 		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	float clearValue[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	inCmdList->ClearRenderTargetView(mhAmbientMap0CpuRtv, clearValue, 0, nullptr);
+	float clearValue[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	outCmdList->ClearRenderTargetView(mhAmbientMap0CpuRtv, clearValue, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	inCmdList->OMSetRenderTargets(1, &mhAmbientMap0CpuRtv, true, nullptr);
+	outCmdList->OMSetRenderTargets(1, &mhAmbientMap0CpuRtv, true, nullptr);
 
 	// Bind the constant buffer for this pass.
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();
-	inCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
-	// Bind the diffuse, normal and depth maps.
-	inCmdList->SetGraphicsRootDescriptorTable(1, mhDiffuseMapGpuSrv);
+	outCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
+	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 
-	inCmdList->SetPipelineState(mSsrPso);
+	// Bind the diffuse, normal and depth maps.
+	outCmdList->SetGraphicsRootDescriptorTable(2, mhDiffuseMapGpuSrv);
+
+	outCmdList->SetPipelineState(mSsrPso);
 
 	// Draw fullscreen quad.
-	inCmdList->IASetVertexBuffers(0, 0, nullptr);
-	inCmdList->IASetIndexBuffer(nullptr);
-	inCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	inCmdList->DrawInstanced(6, 1, 0, 0);
+	outCmdList->IASetVertexBuffers(0, 0, nullptr);
+	outCmdList->IASetIndexBuffer(nullptr);
+	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	outCmdList->DrawInstanced(6, 1, 0, 0);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
-	inCmdList->ResourceBarrier(
+	outCmdList->ResourceBarrier(
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			mAmbientMap0.Get(),
@@ -131,7 +131,7 @@ void Ssr::ComputeSsr(
 		)
 	);
 
-	//BlurAmbientMap(inCmdList, inCurrFrame, inBlurCount);
+	BlurAmbientMap(outCmdList, inCurrFrame, inBlurCount);
 }
 
 void Ssr::SetPSOs(ID3D12PipelineState* inSsrPso, ID3D12PipelineState* inSsrBlurPso) {
@@ -139,23 +139,31 @@ void Ssr::SetPSOs(ID3D12PipelineState* inSsrPso, ID3D12PipelineState* inSsrBlurP
 	mBlurPso = inSsrBlurPso;
 }
 
-void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, FrameResource* inCurrFrame, int inBlurCount) {
-	inCmdList->SetPipelineState(mBlurPso);
+void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
+	outCmdList->SetPipelineState(mBlurPso);
 
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();
-	inCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
+	outCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
 
 	for (int i = 0; i < inBlurCount; ++i) {
-		BlurAmbientMap(inCmdList, true);
-		BlurAmbientMap(inCmdList, false);
+		BlurAmbientMap(outCmdList, true);
+		BlurAmbientMap(outCmdList, false);
 	}
 }
 
-ID3D12Resource* Ssr::GetAmbientMap() {
+ID3D12Resource* Ssr::GetAmbientMap() const  {
 	return mAmbientMap0.Get();
 }
 
-void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur) {
+UINT Ssr::GetSsrMapWidth() const {
+	return mSsrMapWidth;
+}
+
+UINT Ssr::GetSsrMapHeight() const {
+	return mSsrMapHeight;
+}
+
+void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur) {
 	ID3D12Resource* output = nullptr;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE inputSrv;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE outputRtv;
@@ -166,14 +174,16 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur) 
 		output = mAmbientMap1.Get();
 		inputSrv = mhAmbientMap0GpuSrv;
 		outputRtv = mhAmbientMap1CpuRtv;
+		outCmdList->SetGraphicsRoot32BitConstant(1, 1, 0);
 	}
 	else {
 		output = mAmbientMap0.Get();
 		inputSrv = mhAmbientMap1GpuSrv;
 		outputRtv = mhAmbientMap0CpuRtv;
+		outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 	}
 
-	inCmdList->ResourceBarrier(
+	outCmdList->ResourceBarrier(
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output,
@@ -182,25 +192,25 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* inCmdList, bool inHorzBlur) 
 		)
 	);
 
-	float clearValue[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	inCmdList->ClearRenderTargetView(outputRtv, clearValue, 0, nullptr);
+	float clearValue[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	outCmdList->ClearRenderTargetView(outputRtv, clearValue, 0, nullptr);
 
-	inCmdList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
+	outCmdList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
 
 	// Normal/depth map still bound.
 	// Bind the normal and depth maps.
 	//inCmdList->SetGraphicsRootDescriptorTable(2, mhNormalMapGpuSrv);
 
 	// Bind the input ambient map to second texture table.
-	inCmdList->SetGraphicsRootDescriptorTable(3, inputSrv);
+	outCmdList->SetGraphicsRootDescriptorTable(3, inputSrv);
 
 	// Draw fullscreen quad.
-	inCmdList->IASetVertexBuffers(0, 0, nullptr);
-	inCmdList->IASetIndexBuffer(nullptr);
-	inCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	inCmdList->DrawInstanced(6, 1, 0, 0);
+	outCmdList->IASetVertexBuffers(0, 0, nullptr);
+	outCmdList->IASetIndexBuffer(nullptr);
+	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	outCmdList->DrawInstanced(6, 1, 0, 0);
 
-	inCmdList->ResourceBarrier(
+	outCmdList->ResourceBarrier(
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output,
@@ -219,8 +229,8 @@ GameResult Ssr::BuildResources() {
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	texDesc.Alignment = 0;
-	texDesc.Width = mClientWidth;
-	texDesc.Height = mClientHeight;
+	texDesc.Width = mSsrMapWidth;
+	texDesc.Height = mSsrMapHeight;
 	texDesc.DepthOrArraySize = 1;
 	texDesc.MipLevels = 1;
 	texDesc.Format = Ssr::AmbientMapFormat;

@@ -212,7 +212,7 @@ bool GameWorld::LoadData() {
 
 	Actor* grassoneActor;
 	MeshComponent* grassoneMeshComp;
-	int numGrass = 6;
+	int numGrass = 5;
 	for (int i = -numGrass; i <= numGrass; ++i) {
 		for (int j = -numGrass; j <= numGrass; ++j) {
 			if (i == 0 && j == 0)
@@ -441,7 +441,7 @@ GameResult GameWorld::GameLoop() {
 			}, std::ref(msg), i + 1, std::ref(barrier));
 		}
 	#endif // MT_World
-		while (msg.message != WM_QUIT) {
+		while (msg.message != WM_QUIT && mGameState != GameState::ETerminated) {
 			// If there are Window messages then process them
 			if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
 				TranslateMessage(&msg);

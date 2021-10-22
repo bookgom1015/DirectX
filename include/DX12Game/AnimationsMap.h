@@ -15,7 +15,7 @@ public:
 	virtual ~AnimationsMap() = default;
 
 public:
-	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* inCmdList);
+	GameResult Initialize(ID3D12Device* inDevice);
 
 	UINT AddAnimation(const std::string& inClipName, const DirectX::XMFLOAT4* inAnimCurves, 
 					  size_t inNumFrames, size_t inNumCurves);
@@ -24,10 +24,10 @@ public:
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv);
 
-	void UpdateAnimationsMap();
+	void UpdateAnimationsMap(ID3D12GraphicsCommandList* outCmdList);
 
 	ID3D12Resource* GetAnimationsMap() const;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE AnimationsMapSrv() const;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE GetAnimationsMapSrv() const;
 
 	UINT GetLineSize() const;
 	double GetInvLineSize() const;
@@ -41,7 +41,6 @@ public:
 
 private:
 	ID3D12Device* md3dDevice;
-	ID3D12GraphicsCommandList* mCommandList;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAnimsMap;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAnimsMapUploadBuffer;
