@@ -18,9 +18,12 @@ public:
 	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
 		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
+	virtual void CleanUpSwapChain() override;
+
 	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
+	virtual GameResult RecreateSwapChain() override;
 
 	GameResult CreateGraphicsPipeline();
 	GameResult CreateCommandBuffers();
@@ -41,12 +44,19 @@ public:
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
 
+	void SetFramebufferResized(bool inValue);
+
 private:
 	bool bIsCleaned = false;
+
+	VkPipelineLayout mPipelineLayout;
+	VkPipeline mGraphicsPipeline;
 
 	std::vector<VkSemaphore> mImageAvailableSemaphores;
 	std::vector<VkSemaphore> mRenderFinishedSemaphores;
 	std::vector<VkFence> mInFlightFences;
 	std::vector<VkFence> mImagesInFlight;
 	size_t mCurrentFrame = 0;
+
+	bool mFramebufferResized = false;
 };

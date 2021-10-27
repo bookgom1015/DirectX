@@ -17,7 +17,7 @@ GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UIN
 	CheckGameResult(CreateCommandBuffers());
 	CheckGameResult(CreateSyncObjects());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::CleanUp() {
@@ -29,22 +29,30 @@ void VkRenderer::CleanUp() {
 		vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
 	}
 
-	VkLowRenderer::CleanUp();
+	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
 	bIsCleaned = true;
+}
+
+void VkRenderer::CleanUpSwapChain() {
+	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+
+	VkLowRenderer::CleanUpSwapChain();
 }
 
 GameResult VkRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 	vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
 
 	std::uint32_t imageIndex;
-	vkAcquireNextImageKHR(
+	VkResult result = vkAcquireNextImageKHR(
 		mDevice,
 		mSwapChain, 
 		UINT64_MAX,
@@ -52,6 +60,15 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 		VK_NULL_HANDLE,
 		&imageIndex
 	);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		RecreateSwapChain();
+
+		return GameResultOk;
+	}
+	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+		return GameResult(S_FALSE, L"Failed to acquire swap chain image");
+	}
 
 	if (mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
 		vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
@@ -82,7 +99,7 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 
 	vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
 
-	if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[imageIndex]) != VK_SUCCESS)
+	if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to submit draw command buffer"); 
 
 	VkPresentInfoKHR presentInfo = {};
@@ -96,17 +113,49 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-	vkQueuePresentKHR(mPresentQueue, &presentInfo);
+	result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mFramebufferResized) {
+		mFramebufferResized = false;
+
+		RecreateSwapChain();
+	}
+	else if (result != VK_SUCCESS) {
+		return GameResult(S_FALSE, L"Failed to present swap chain image");
+	}
 
 	mCurrentFrame = (mCurrentFrame + 1) % mSwapChainImageCount;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	CheckGameResult(VkLowRenderer::OnResize(inClientWidth, inClientHeight));
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+GameResult VkRenderer::RecreateSwapChain() {
+	int width = 0;
+	int height = 0;
+
+	glfwGetFramebufferSize(mMainWindow, &width, &height);
+
+	while (width == 0 || height == 0) {
+		glfwWaitEvents();
+		glfwGetFramebufferSize(mMainWindow, &width, &height);
+	}
+
+	vkDeviceWaitIdle(mDevice);
+
+	CleanUpSwapChain();
+
+	CheckGameResult(VkLowRenderer::RecreateSwapChain());
+
+	CheckGameResult(CreateGraphicsPipeline());
+	CheckGameResult(CreateCommandBuffers());
+
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateGraphicsPipeline() {
@@ -251,7 +300,7 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 	vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
 	vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateCommandBuffers() {
@@ -298,7 +347,7 @@ GameResult VkRenderer::CreateCommandBuffers() {
 			ReturnGameResult(S_FALSE, L"Failed to record command buffer");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateSyncObjects() {
@@ -321,7 +370,7 @@ GameResult VkRenderer::CreateSyncObjects() {
 			ReturnGameResult(S_FALSE, L"Failed to create synchronization object(s) for a frame");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
@@ -345,7 +394,7 @@ void VkRenderer::SetSkeletonVisible(const std::string& inRenderItemName, bool in
 GameResult VkRenderer::AddGeometry(const Mesh* inMesh) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) {
@@ -355,7 +404,7 @@ void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 GameResult VkRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 UINT VkRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
@@ -366,5 +415,9 @@ UINT VkRenderer::AddAnimations(const std::string& inClipName, const Animation& i
 GameResult VkRenderer::UpdateAnimationsMap() {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+void VkRenderer::SetFramebufferResized(bool inValue) {
+	mFramebufferResized = inValue;
 }

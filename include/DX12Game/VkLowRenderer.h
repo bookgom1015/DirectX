@@ -37,8 +37,11 @@ public:
 	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
 		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
 	virtual void CleanUp() override;
+	virtual void CleanUpSwapChain();
 
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
+
+	virtual GameResult RecreateSwapChain();
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -107,15 +110,14 @@ protected:
 
 	VkSwapchainKHR mSwapChain;
 	std::vector<VkImage> mSwapChainImages;
-	const std::uint32_t mSwapChainImageCount = 3;
+	UINT mSwapChainImageCount = 3;
+
 	VkFormat mSwapChainImageFormat;
 	VkExtent2D mSwapChainExtent;
 
 	std::vector<VkImageView> mSwapChainImageViews;
 
 	VkRenderPass mRenderPass;
-	VkPipelineLayout mPipelineLayout;
-	VkPipeline mGraphicsPipeline;
 
 	std::vector<VkFramebuffer> mSwapChainFramebuffers;
 

@@ -72,6 +72,8 @@ public:
 	//* Processes window messages.
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+	static void GLFWFramebufferResizeCallback(GLFWwindow* inWindow, int inWidth, int inHeight);
+
 private:
 	void ProcessInput(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateGame(const GameTimer& gt, UINT inTid = 0);
@@ -129,24 +131,21 @@ private:
 	GameTimer mTimer;
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
-#ifdef MT_World
-	std::vector<std::thread> mThreads;
+	UINT mNumProcessors = 1;
+
 	std::vector<std::vector<Actor*>> mActors;
 	std::vector<std::vector<Actor*>> mPendingActors;
-
 	std::vector<bool> bUpdatingActors;
+
+	std::vector<std::thread> mThreads;
+
 	UINT mNextThreadId = 0;
 
+#ifdef MT_World
 	std::mutex mAddingActorMutex;
-
-	UINT mNumProcessors = 1;
 
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
-#else
-	GVector<Actor*> mActors;
-	GVector<Actor*> mPendingActors;
-	bool bUpdatingActors = false;
 #endif
 
 	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;

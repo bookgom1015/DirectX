@@ -30,8 +30,11 @@ float NdcDepthToViewDepth(float z_ndc) {
 	return viewZ;
 }
 
-float4 GetReflectionColor(float3 posW, float3 reflectionW) {
-	float3 r = normalize(reflectionW) * 0.5f;
+float4 GetReflectionColor(float3 posW, float3 normalW) {
+	// Vector from point being lit to eye. 
+	float3 toEyeW = normalize(gEyePosW - posW);
+
+	float3 r = normalize(reflect(-toEyeW, normalW));
 
 	for (int i = 0; i < 8; ++i) {
 		// 
@@ -53,15 +56,16 @@ float4 GetReflectionColor(float3 posW, float3 reflectionW) {
 			//                         <------------------ 
 			//                         ------------------>
 			//
-			// 4.
-			//                                  <--------- 
+			// 4.                      
+			//                                  <---------
+			//        
 			//        | step n-1       | step n-1/4      | step n-1/2                      | step n
 			// -------o----------------o--------o-0------o---------------------------------o-------
 			//                                  | |-Object
 			//                       step n-1/8 |
 			float3 half_r = r;
 
-			for (int j = 0; j < 8; ++j) {
+			for (int j = 0; j < 8; ++j) {				
 				half_r *= 0.5f;
 				deltaPosW -= half_r;
 				posH = mul(float4(deltaPosW, 1.0f), gViewProj);
@@ -74,11 +78,11 @@ float4 GetReflectionColor(float3 posW, float3 reflectionW) {
 					deltaPosW += half_r;
 			}
 
-			deltaPosW -= half_r;
 			posH = mul(float4(deltaPosW, 1.0f), gViewProj);
 			posH /= posH.w;
 
-			texC = float2(posH.x, -posH.y) * 0.5f + float2(0.5f, -0.5f);
+			texC = float2(posH.x, -posH.y) * 0.5f + (float2)0.5f;
+			depthSample = gDepthMap.Sample(gsamDepthMap, texC).r;
 
 			// Since the current collision is determined using only difference in depth values, 
 			//  an image is formed on the object even though it is a long distance. Therefore,
@@ -117,12 +121,8 @@ float4 PS(VertexOut pin) : SV_Target{
 
 	float3 normalW = normalize(gNormalMap.Sample(gsamLinearWrap, pin.TexC).xyz);
 
-	// Vector from point being lit to eye. 
-	float3 toEyeW = normalize(gEyePosW - posW.xyz);
-
 	// Add in specular reflections.
-	float3 r = reflect(-toEyeW, normalW);
-	float4 reflectionColor = GetReflectionColor(posW.xyz, r);
+	float4 reflectionColor = GetReflectionColor(posW.xyz, normalW);
 
 	return reflectionColor;
 }

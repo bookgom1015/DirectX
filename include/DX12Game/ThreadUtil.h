@@ -69,6 +69,17 @@
 	}
 #endif
 
+#ifndef SyncHost
+	#define SyncHost(__pBarrier)												\
+			{																	\
+				if (__pBarrier != nullptr)										\
+					__pBarrier->Wait();											\
+				else															\
+					ReturnGameResult(S_FALSE, L#__pBarrier L" is nullptr");		\
+			}
+	#else
+#endif
+
 class ThreadUtil {
 private:
 	typedef BOOL(WINAPI *LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
