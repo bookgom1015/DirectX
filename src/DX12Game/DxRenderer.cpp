@@ -45,19 +45,8 @@ DxRenderer::~DxRenderer() {
 GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	CheckGameResult(DxLowRenderer::Initialize(hMainWnd, inClientWidth, inClientHeight, inNumThreads));
 
-#ifdef MT_World
 	mNumInstances.resize(mNumThreads);
 	mEachUpdateFunctions.resize(mNumThreads);
-
-	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
-	mWaitTimers.resize(mNumThreads, 0.0f);
-	mUpdateObjTimers.resize(mNumThreads, 0.0f);
-
-	mDxDrawTimers.resize(mNumThreads, 0.0f);
-
-	mUpdateAccums.resize(mNumThreads, 0);
-
-	mDrawAccums.resize(mNumThreads, 0);
 
 	if (mNumThreads > 1) {
 		UINT i = 1;
@@ -75,9 +64,18 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 		if (i >= mNumThreads) i = 0;
 	}
 	else {
-
+		mEachUpdateFunctions[0].push_back(&DxRenderer::UpdateSsaoCB);
+		mEachUpdateFunctions[0].push_back(&DxRenderer::UpdateSsrCB);
+		mEachUpdateFunctions[0].push_back(&DxRenderer::UpdateShadowPassCB);
 	}
-#endif
+
+	mDxRenderUpdateTimers.resize(mNumThreads, 0.0f);
+	mWaitTimers.resize(mNumThreads, 0.0f);
+	mUpdateObjTimers.resize(mNumThreads, 0.0f);
+	mDxDrawTimers.resize(mNumThreads, 0.0f);
+
+	mUpdateAccums.resize(mNumThreads, 0);
+	mDrawAccums.resize(mNumThreads, 0);
 
 	// Reset the command list to prep for initialization commands.
 	for (UINT i = 0; i < mNumThreads; ++i)
@@ -3183,7 +3181,8 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 
 	DrawRenderItems(cmdList, opaque.data(), begin, end);
 #else
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
+	const auto opaque = mRitemLayer[RenderLayer::Opaque];
+	DrawRenderItems(cmdList, opaque.data(), opaque.size());
 #endif // MT_World
 
 	// Done recording commands.
@@ -3284,7 +3283,8 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 
 	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
 #else
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+	DrawRenderItems(cmdList, skinnedOpaque.data(), skinnedOpaque.size());
 #endif // MT_World
 
 	// Done recording commands.
@@ -3429,7 +3429,8 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 
 	DrawRenderItems(cmdList, opaque.data(), begin, end);
 #else
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::Opaque]);
+	const auto& opaque = mRitemLayer[RenderLayer::Opaque];
+	DrawRenderItems(cmdList, opaque.data(), opaque.size());
 #endif
 
 	// Done recording commands.
@@ -3528,7 +3529,8 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 
 	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
 #else
-	DrawRenderItems(cmdList, mRitemLayer[RenderLayer::SkinnedOpaque]);
+	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+	DrawRenderItems(cmdList, skinnedOpaque.data(), skinnedOpaque.size());
 #endif
 
 	// Done recording commands.

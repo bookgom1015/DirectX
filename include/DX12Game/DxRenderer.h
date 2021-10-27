@@ -323,6 +323,13 @@ private:
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToRitem;
 	std::unordered_map<const Mesh*, std::vector<RenderItem*>> mMeshToSkeletonRitem;
 
+	std::vector<UINT> mNumInstances;
+
+	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
+
+	CVBarrier* mCVBarrier;
+	SpinlockBarrier* mSpinlockBarrier;
+
 	// Variables for drawing text on the screen.
 	std::unique_ptr<DirectX::GraphicsMemory> mGraphicsMemory;
 	std::unique_ptr<DirectX::SpriteFont> mDefaultFont;
@@ -333,21 +340,11 @@ private:
 
 	std::vector<DirectX::XMFLOAT4> mBlurWeights;
 
-#ifdef MT_World
-	CVBarrier* mCVBarrier;
-	SpinlockBarrier* mSpinlockBarrier;
-
-	std::vector<UINT> mNumInstances;
-	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
-
 	std::vector<float> mDxRenderUpdateTimers;
 	std::vector<float> mWaitTimers;
 	std::vector<float> mUpdateObjTimers;
-
 	std::vector<float> mDxDrawTimers;
 
 	std::vector<UINT> mUpdateAccums;
-
 	std::vector<UINT> mDrawAccums;
-#endif
 };

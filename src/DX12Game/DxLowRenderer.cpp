@@ -250,15 +250,10 @@ GameResult DxLowRenderer::OnResize() {
 		ReturnGameResult(S_FALSE, L"ID3D12Device does not exist");
 	if (!mSwapChain)
 		ReturnGameResult(S_FALSE, L"IDXGISwapChain does not exist");
-#ifdef MT_World
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		if (!mCommandAllocators[i])
 			ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator(idx: " + std::to_wstring(i) + L" does not exist");
 	}
-#else
-	if (!mDirectCmdListAlloc)
-		ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator does not exist");
-#endif
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -315,13 +310,7 @@ GameResult DxLowRenderer::OnResize() {
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	// Execute the resize commands.
-#ifdef MT_World
 	ExecuteCommandLists();
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-#endif
 
 	// Wait until resize is complete.
 	CheckGameResult(FlushCommandQueue());

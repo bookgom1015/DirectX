@@ -83,14 +83,14 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 
 	mNumProcessors = ThreadUtil::GetProcessorCount(false);
 
+	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
+	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
+#endif 
+
 	mThreads.resize(mNumProcessors);
 	mActors.resize(mNumProcessors);
 	mPendingActors.resize(mNumProcessors);
 	bUpdatingActors.resize(mNumProcessors, false);
-
-	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
-	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
-#endif 
 
 #ifdef UsingVulkan
 	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight, mNumProcessors));
@@ -99,7 +99,8 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, 
 			mCVBarrier.get(), mSpinlockBarrier.get(), mNumProcessors));
 	#else
-		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, mNumProcessors));
+		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, 
+			nullptr, nullptr, mNumProcessors));
 	#endif
 #endif
 	
@@ -340,23 +341,15 @@ bool GameWorld::LoadData() {
 	}
 #endif // UsingVulkan
 
-#ifdef MT_World
 	for (auto& actors : mActors) {
 		for (auto& actor : actors)
 			actor->OnLoadingData();
 	}
-#else
-	for (auto& actor : mActors) {
-		if (!actor->OnLoadingData())
-			return false;
-	}
-#endif
 
 	return true;
 }
 
 void GameWorld::UnloadData() {
-#ifdef MT_World
 	for (auto& actors : mActors) {
 		for (auto actor : actors)
 			actor->OnUnloadingData();
@@ -364,13 +357,6 @@ void GameWorld::UnloadData() {
 		while (!actors.empty())
 			actors.pop_back();
 	}
-#else
-	for (auto& actor : mActors)
-		actor->OnUnloadingData();
-
-	while (!mActors.empty())
-		mActors.pop_back();
-#endif
 }
 
 GameResult GameWorld::RunLoop() {
@@ -409,7 +395,7 @@ GameResult GameWorld::GameLoop() {
 			beginTime = endTime;
 			if (!mAppPaused) {
 				CalculateFrameStats();
-				ProcessInput();
+				ProcessInput(mTimer);
 			}
 			UpdateGame(mTimer);
 			if (!mAppPaused)
@@ -483,38 +469,33 @@ GameResult GameWorld::GameLoop() {
 			mThreads[i].join();
 	#endif
 #endif // UsingVulkan
+
 	return GameResult(static_cast<HRESULT>(msg.wParam));
 }
 
 void GameWorld::AddActor(Actor* inActor) {
 #ifdef MT_World
 	mAddingActorMutex.lock();
+#endif
 
 	inActor->SetOwnerThreadID(mNextThreadId);
 
 	if (bUpdatingActors[mNextThreadId])
 		mPendingActors[mNextThreadId].push_back(inActor);
-	else 
+	else
 		mActors[mNextThreadId].push_back(inActor);
 
 	++mNextThreadId;
 
-	std::vector<bool> vec;
-
-	if (mNextThreadId >= mThreads.size())
+	if (mNextThreadId >= mNumProcessors)
 		mNextThreadId = 0;
 
+#ifdef MT_World
 	mAddingActorMutex.unlock();
-#else
-	if (bUpdatingActors)
-		mPendingActors.push_back(inActor);
-	else
-		mActors.push_back(inActor);
 #endif
 }
 
 void GameWorld::RemoveActor(Actor* inActor) {
-#ifdef MT_World
 	UINT tid = inActor->GetOwnerThreadID();
 	auto& actors = mActors[tid];
 	auto iter = std::find(actors.begin(), actors.end(), inActor);
@@ -522,13 +503,6 @@ void GameWorld::RemoveActor(Actor* inActor) {
 		std::iter_swap(iter, actors.end() - 1);
 		actors.pop_back();
 	}
-#else
-	auto iter = std::find(mActors.begin(), mActors.end(), inActor);
-	if (iter != mActors.end()) {
-		std::iter_swap(iter, mActors.end() - 1);
-		mActors.pop_back();
-	}
-#endif
 }
 
 Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned, bool bMultiThreading) {
@@ -587,11 +561,11 @@ HWND GameWorld::GetMainWindowsHandle() const {
 }
 
 void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
-	if (inTid == 0) {
-		mInputSystem->PrepareForUpdate();
-		mInputSystem->SetRelativeMouseMode(true);
-		mInputSystem->Update();
-	}
+	//if (inTid == 0) {
+	//	mInputSystem->PrepareForUpdate();
+	//	mInputSystem->SetRelativeMouseMode(true);
+	//	mInputSystem->Update();
+	//}
 
 #ifdef MT_World
 	mCVBarrier->Wait();
@@ -671,7 +645,7 @@ GameResult GameWorld::InitMainWindow() {
 	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	//glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
 	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
@@ -688,6 +662,9 @@ GameResult GameWorld::InitMainWindow() {
 	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
 
 	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
+	glfwSetFramebufferSizeCallback(mMainGLFWWindow, GLFWFramebufferResizeCallback);
+
+	glfwSetWindowUserPointer(mMainGLFWWindow, mRenderer.get());
 #else
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
@@ -873,6 +850,12 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void GameWorld::GLFWFramebufferResizeCallback(GLFWwindow* inWindow, int inWidth, int inHeight) {
+	auto app = reinterpret_cast<VkRenderer*>(glfwGetWindowUserPointer(inWindow));
+
+	app->SetFramebufferResized(true);
 }
 
 GameResult GameWorld::OnResize() {

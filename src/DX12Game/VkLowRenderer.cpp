@@ -59,7 +59,7 @@ GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, 
 
 	CheckGameResult(InitVulkan());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkLowRenderer::CleanUp() {
@@ -68,8 +68,6 @@ void VkLowRenderer::CleanUp() {
 	for (auto framebuffer : mSwapChainFramebuffers)
 		vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
 
-	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
 	for (auto imageView : mSwapChainImageViews)
@@ -89,10 +87,31 @@ void VkLowRenderer::CleanUp() {
 	bIsCleaned = true;
 }
 
+void VkLowRenderer::CleanUpSwapChain() {
+	for (auto framebuffer : mSwapChainFramebuffers)
+		vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
+	
+	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
+
+	for (auto imageView : mSwapChainImageViews)
+		vkDestroyImageView(mDevice, imageView, nullptr);
+
+	vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+}
+
 GameResult VkLowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::RecreateSwapChain() {
+	CheckGameResult(CreateSwapChain());
+	CheckGameResult(CreateImageViews());
+	CheckGameResult(CreateRenderPass());
+	CheckGameResult(CreateFramebuffers());
+
+	return GameResultOk;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL VkLowRenderer::DebugCallback(
@@ -115,7 +134,7 @@ GameResult VkLowRenderer::CreateShaderModule(const std::vector<char>& inCode, Vk
 	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &outModule) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create shader module");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<char>& outData) {
@@ -137,14 +156,14 @@ GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<ch
 
 	file.close();
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
 	// Do nothing.
 	// This is for D3D12.
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::InitVulkan() {
@@ -159,7 +178,7 @@ GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(CreateFramebuffers());
 	CheckGameResult(CreateCommandPool());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 std::vector<const char*> VkLowRenderer::GetRequiredExtensions() {
@@ -212,7 +231,7 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 		ReturnGameResult(S_FALSE, wsstream.str());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateInstance() {
@@ -283,12 +302,12 @@ GameResult VkLowRenderer::CreateInstance() {
 	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create instance");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::SetUpDebugMessenger() {
 	if (!EnableValidationLayers)
-		return GameResult(S_OK);
+		return GameResultOk;
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
 	PopulateDebugMessengerCreateInfo(createInfo);
@@ -296,7 +315,7 @@ GameResult VkLowRenderer::SetUpDebugMessenger() {
 	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create debug messenger");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkLowRenderer::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& inCreateInfo) {
@@ -318,7 +337,7 @@ GameResult VkLowRenderer::CreateSurface() {
 	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr, &mSurface) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create window surface");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::PickPhysicalDevice() {
@@ -342,7 +361,7 @@ GameResult VkLowRenderer::PickPhysicalDevice() {
 	else
 		ReturnGameResult(S_FALSE, L"Failed to find a suitable GPU");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 bool VkLowRenderer::IsDeviceSuitable(VkPhysicalDevice inDevice) {
@@ -518,7 +537,7 @@ GameResult VkLowRenderer::CreateLogicalDevice() {
 	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
 	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 VkSurfaceFormatKHR VkLowRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats) {
@@ -545,6 +564,14 @@ VkExtent2D VkLowRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCap
 		return inCapabilities.currentExtent;
 	}
 	else {
+		int width;
+		int height;
+
+		glfwGetFramebufferSize(mMainWindow, &width, &height);
+
+		mClientWidth = static_cast<UINT>(width);
+		mClientHeight = static_cast<std::uint32_t>(height);
+
 		VkExtent2D actualExtent = { mClientWidth, mClientHeight };
 
 		actualExtent.width = std::max(inCapabilities.minImageExtent.width,
@@ -566,11 +593,17 @@ GameResult VkLowRenderer::CreateSwapChain() {
 
 	std::uint32_t imageCount = mSwapChainImageCount;
 
-	if (imageCount < swapChainSupport.mCapabilities.minImageCount)
+	if (imageCount < swapChainSupport.mCapabilities.minImageCount) {
+
 		imageCount = swapChainSupport.mCapabilities.minImageCount;
+		mSwapChainImageCount = swapChainSupport.mCapabilities.minImageCount;
+	}
 	else if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
-			 imageCount > swapChainSupport.mCapabilities.maxImageCount)
+		imageCount > swapChainSupport.mCapabilities.maxImageCount) {
+
 		imageCount = swapChainSupport.mCapabilities.maxImageCount;
+		mSwapChainImageCount = swapChainSupport.mCapabilities.maxImageCount;
+	}
 
 	VkSwapchainCreateInfoKHR createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -614,7 +647,7 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	mSwapChainImageFormat = surfaceFormat.format;
 	mSwapChainExtent = extent;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateImageViews() {
@@ -640,7 +673,7 @@ GameResult VkLowRenderer::CreateImageViews() {
 			ReturnGameResult(S_FALSE, L"Failed to create image view");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateRenderPass() {
@@ -684,7 +717,7 @@ GameResult VkLowRenderer::CreateRenderPass() {
 	if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create render pass");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateFramebuffers() {
@@ -708,7 +741,7 @@ GameResult VkLowRenderer::CreateFramebuffers() {
 			ReturnGameResult(S_FALSE, L"Failed to create framebuffer");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateCommandPool() {
@@ -722,5 +755,5 @@ GameResult VkLowRenderer::CreateCommandPool() {
 	if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create command pool");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
