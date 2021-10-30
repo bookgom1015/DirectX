@@ -19,13 +19,13 @@
 #include "Common.hlsl"
 
 struct VertexIn {
-	float3 PosL				: POSITION;
-	float2 TexC				: TEXCOORD;
+	float3 PosL						: POSITION;
+	float2 TexC						: TEXCOORD;
 #ifdef SKINNED
-	float4 BoneWeights0		: BONEWEIGHTS0;
-	float4 BoneWeights1		: BONEWEIGHTS1;
-	int4 BoneIndices0		: BONEINDICES0;
-	int4 BoneIndices1		: BONEINDICES1;
+	float4 BoneWeights0				: BONEWEIGHTS0;
+	float4 BoneWeights1				: BONEWEIGHTS1;
+	int4 BoneIndices0				: BONEINDICES0;
+	int4 BoneIndices1				: BONEINDICES1;
 #endif
 };
 

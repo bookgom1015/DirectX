@@ -22,10 +22,10 @@
 #include "LightingUtil.hlsl"
 
 struct InstanceIdxData {
-	uint InstIdx;
-	uint InstIdxPad0;
-	uint InstIdxPad1;
-	uint InstIdxPad2;
+	uint		InstIdx;
+	uint		InstIdxPad0;
+	uint		InstIdxPad1;
+	uint		InstIdxPad2;
 };
 
 struct InstanceData {
@@ -204,7 +204,7 @@ float CalcShadowFactor(float4 shadowPosH) {
 	const float2 offsets[9] = {
 		float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),
 		float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
-		float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
+		float2(-dx,   dx), float2(0.0f,  +dx), float2(dx,  +dx)
 	};
 
 	[unroll]

@@ -10,18 +10,19 @@
 //=============================================================================
 
 cbuffer cbSsao : register(b0) {
-    float4x4 gProj;
-    float4x4 gInvProj;
-    float4x4 gProjTex;
-    float4   gOffsetVectors[14];
+	float4x4	gView;
+    float4x4	gProj;
+    float4x4	gInvProj;
+    float4x4	gProjTex;
+    float4		gOffsetVectors[14];
     // For SsaoBlur.hlsl
-    float4	gBlurWeights[3];
-    float2	gInvRenderTargetSize;
+    float4		gBlurWeights[3];
+    float2		gInvRenderTargetSize;
     // Coordinates given in view space.
-    float	gOcclusionRadius;
-    float	gOcclusionFadeStart;
-    float	gOcclusionFadeEnd;
-    float	gSurfaceEpsilon;    
+    float		gOcclusionRadius;
+    float		gOcclusionFadeStart;
+    float		gOcclusionFadeEnd;
+    float		gSurfaceEpsilon;    
 };
 
 cbuffer cbRootConstants : register(b1) {

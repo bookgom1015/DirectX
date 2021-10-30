@@ -92,6 +92,7 @@ public:
 };
 
 struct SsaoConstants {
+	DirectX::XMFLOAT4X4 mView;
 	DirectX::XMFLOAT4X4 mProj;
 	DirectX::XMFLOAT4X4 mInvProj;
 	DirectX::XMFLOAT4X4 mProjTex;

@@ -178,7 +178,8 @@ float4 PS(VertexOut pin) : SV_Target{
 	pin.NormalW = normalize(pin.NormalW);
 
 	float4 normalMapSample = gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
+	float3 normal = normalize(normalMapSample.xyz);
+	float3 bumpedNormalW = normalize(NormalSampleToWorldSpace(normal, pin.NormalW, pin.TangentW));
 
 	// Uncomment to turn off normal mapping.
 	//bumpedNormalW = pin.NormalW;

@@ -1654,6 +1654,7 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 		0.5f,  0.5f, 0.0f, 1.0f
 	);
 
+	ssaoCB.mView = mMainPassCB.mView;
 	ssaoCB.mProj = mMainPassCB.mProj;
 	ssaoCB.mInvProj = mMainPassCB.mInvProj;
 	XMStoreFloat4x4(&ssaoCB.mProjTex, XMMatrixTranspose(P * T));

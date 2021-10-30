@@ -19,8 +19,8 @@
 #include "Common.hlsl"
 
 struct VertexIn {
-	float3	PosL				: POSITION;
-	float2	TexC				: TEXCOORD;
+	float3		PosL			: POSITION;
+	float2		TexC			: TEXCOORD;
 };
 
 struct VertexOut {
@@ -32,8 +32,8 @@ struct VertexOut {
 };
 
 struct GeoOut {
-	float4	PosH				: SV_POSITION;
-	uint	PrimID				: SV_PrimitiveID;
+	float4		PosH			: SV_POSITION;
+	uint		PrimID			: SV_PrimitiveID;
 };
 
 VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {

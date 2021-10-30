@@ -50,10 +50,11 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	VertexOut vout = (VertexOut)0.0f;
 
 	InstanceIdxData instIdxData = gInstIdxData[gObjectIndex * gMaxInstanceCount + instanceID];
-	InstanceData instData = gInstanceData[instIdxData.InstIdx];
-	float4x4 world = instData.World;
+	InstanceData    instData    = gInstanceData[instIdxData.InstIdx];
+
+	float4x4 world        = instData.World;
 	float4x4 texTransform = instData.TexTransform;
-	uint matIndex = instData.MaterialIndex;
+	uint     matIndex     = instData.MaterialIndex;
 
 	vout.MatIndex = matIndex;
 
@@ -122,7 +123,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 #endif
 
 	// Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
-	vout.NormalW = mul(vin.NormalL, (float3x3)world);
+	vout.NormalW  = mul(vin.NormalL, (float3x3)world);
 	vout.TangentW = mul(vin.TangentL, (float3x3)world);
 
 	// Transform to homogeneous clip space.
@@ -162,25 +163,24 @@ PixelOut PS(VertexOut pin) : SV_Target {
 
 	// Interpolating normal can unnormalize it, so renormalize it.
 	pin.NormalW = normalize(pin.NormalW);
-	uint normalMapIndex = matData.NormalMapIndex;
-	float4 normalMapSample = gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.xyz, pin.NormalW, pin.TangentW);
 
-	float3 fresnelR0 = matData.FresnelR0;
-	float  roughness = matData.Roughness;
-	int specularMapIndex = matData.SpecularMapIndex;
+	uint   normalMapIndex	= matData.NormalMapIndex;
+	float4 normalMapSample	= gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
+	float3 bumpedNormalW	= normalize(NormalSampleToWorldSpace(normalMapSample.xyz, pin.NormalW, pin.TangentW));
+
+	float3 fresnelR0		= matData.FresnelR0;
+	float  roughness		= matData.Roughness;
+	int	   specularMapIndex	= matData.SpecularMapIndex;
+
 	if (specularMapIndex != -1)
 		fresnelR0 = gTextureMaps[specularMapIndex].Sample(gsamLinearWrap, pin.TexC).rgb;
 
 	// NOTE: We use interpolated vertex normal for SSAO.
 
-	// Write normal in view space coordinates
-	float3 normalV = mul(pin.NormalW, (float3x3)gView);
-
 	PixelOut pout = (PixelOut)0.0f;
-	pout.DiffuseMap = diffuseAlbedo;
-	pout.NormalMap = float4(bumpedNormalW, normalMapSample.a);
-	pout.SpecularMap = float4(fresnelR0, roughness);
+	pout.DiffuseMap		= diffuseAlbedo;
+	pout.NormalMap		= float4(bumpedNormalW, normalMapSample.a);
+	pout.SpecularMap	= float4(fresnelR0, roughness);
 	
 	return pout;
 }

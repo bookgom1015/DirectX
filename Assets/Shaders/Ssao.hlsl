@@ -3,6 +3,7 @@
 //=============================================================================
 
 cbuffer cbSsao : register(b0) {
+	float4x4	gView;
     float4x4	gProj;
     float4x4	gInvProj;
     float4x4	gProjTex;
@@ -110,7 +111,9 @@ float4 PS(VertexOut pin) : SV_Target {
 	// r -- a potential occluder that might occlude p.
 
 	// Get viewspace normal and z-coord of this pixel.  
-	float3 n = normalize(gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz);
+	float3 n = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
+	n = normalize(mul(n, (float3x3)gView));
+
 	float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
 	pz = NdcDepthToViewDepth(pz);
 
