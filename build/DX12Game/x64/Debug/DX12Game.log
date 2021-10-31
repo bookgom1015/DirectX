@@ -1,5 +1,4 @@
 ﻿  GameWorld.cpp
-  VkLowRenderer.cpp
   VkRenderer.cpp
   Generating Code...
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Debug\DX12Game.exe

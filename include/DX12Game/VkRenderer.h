@@ -5,6 +5,15 @@
 
 class VkRenderer : public VkLowRenderer, public Renderer {
 public:
+	struct VkVertex {
+		glm::vec2 mPos;
+		glm::vec3 mColor;
+
+		static VkVertexInputBindingDescription GetBindingDescription();
+		static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescription();
+	};
+
+public:
 	VkRenderer();
 	virtual ~VkRenderer();
 
@@ -25,7 +34,10 @@ public:
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 	virtual GameResult RecreateSwapChain() override;
 
+	GameResult FindMemoryType(std::uint32_t inTypeFilter, VkMemoryPropertyFlags inProperties, std::uint32_t& outMemTypeIndex);
+
 	GameResult CreateGraphicsPipeline();
+	GameResult CreateVertexBuffer();
 	GameResult CreateCommandBuffers();
 	GameResult CreateSyncObjects();
 
@@ -59,4 +71,12 @@ private:
 	size_t mCurrentFrame = 0;
 
 	bool mFramebufferResized = false;
+
+	const std::vector<VkVertex> mVertices = {
+		{{ 0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+		{{ 0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}}
+	};
+	VkBuffer mVertexBuffer;
+	VkDeviceMemory mVertexBufferMemory;
 };

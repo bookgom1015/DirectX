@@ -1,5 +1,30 @@
 #include "DX12Game/VkRenderer.h"
 
+VkVertexInputBindingDescription VkRenderer::VkVertex::GetBindingDescription() {
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(VkVertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+
+	return bindingDescription;
+}
+
+std::array<VkVertexInputAttributeDescription, 2> VkRenderer::VkVertex::GetAttributeDescription() {
+	std::array<VkVertexInputAttributeDescription, 2> attributeDescription = {};
+	attributeDescription[0].binding = 0;
+	attributeDescription[0].location = 0;
+	attributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescription[0].offset = offsetof(VkVertex, mPos);
+
+	attributeDescription[1].binding = 0;
+	attributeDescription[1].location = 1;
+	attributeDescription[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescription[1].offset = offsetof(VkVertex, mColor);
+
+	return attributeDescription;
+}
+
 VkRenderer::VkRenderer()
 	: VkLowRenderer() {
 
@@ -14,6 +39,7 @@ GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UIN
 	CheckGameResult(VkLowRenderer::Initialize(inMainWnd, inClientWidth, inClientHeight));
 
 	CheckGameResult(CreateGraphicsPipeline());
+	CheckGameResult(CreateVertexBuffer());
 	CheckGameResult(CreateCommandBuffers());
 	CheckGameResult(CreateSyncObjects());
 
@@ -22,6 +48,9 @@ GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UIN
 
 void VkRenderer::CleanUp() {
 	vkDeviceWaitIdle(mDevice);
+
+	vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
+	vkFreeMemory(mDevice, mVertexBufferMemory, nullptr);
 
 	for (size_t i = 0; i < mSwapChainImageCount; ++i) {
 		vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
@@ -121,7 +150,7 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 		RecreateSwapChain();
 	}
 	else if (result != VK_SUCCESS) {
-		return GameResult(S_FALSE, L"Failed to present swap chain image");
+		ReturnGameResult(S_FALSE, L"Failed to present swap chain image");
 	}
 
 	mCurrentFrame = (mCurrentFrame + 1) % mSwapChainImageCount;
@@ -158,6 +187,20 @@ GameResult VkRenderer::RecreateSwapChain() {
 	return GameResultOk;
 }
 
+GameResult VkRenderer::FindMemoryType(std::uint32_t inTypeFilter, VkMemoryPropertyFlags inProperties, std::uint32_t& outMemTypeIndex) {
+	VkPhysicalDeviceMemoryProperties memProperties = {};
+	vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
+
+	for (std::uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+		if ((inTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & inProperties) == inProperties) {
+			outMemTypeIndex = i;
+			return GameResultOk;
+		}
+	}
+
+	return GameResult(S_FALSE, L"Failed to find suitable memory type");
+}
+
 GameResult VkRenderer::CreateGraphicsPipeline() {
 	VkShaderModule vertShaderModule;
 	VkShaderModule fragShaderModule;
@@ -188,12 +231,15 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 		vertShaderStageInfo, fragShaderStageInfo
 	};
 
+	auto bindingDescriptions = VkVertex::GetBindingDescription();
+	auto attributesDescriptions = VkVertex::GetAttributeDescription();
+
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescriptions;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<std::uint32_t>(attributesDescriptions.size()); 
+	vertexInputInfo.pVertexAttributeDescriptions = attributesDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -303,6 +349,49 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 	return GameResultOk;
 }
 
+GameResult VkRenderer::CreateVertexBuffer() {
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(mVertices[0]) * mVertices.size();
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	bufferInfo.flags = 0;
+
+	if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mVertexBuffer) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create vertex buffer");
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(mDevice, mVertexBuffer, &memRequirements);
+
+	std::uint32_t memTypeIndex;
+	CheckGameResult(
+		FindMemoryType(
+			memRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+			memTypeIndex
+		)
+	);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = memTypeIndex;
+
+	if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &mVertexBufferMemory) != VK_SUCCESS)
+		return GameResult(S_FALSE, L"Failed to allocate vertex buffer memory");
+
+	vkBindBufferMemory(mDevice, mVertexBuffer, mVertexBufferMemory, 0);
+
+	void* data;
+	vkMapMemory(mDevice, mVertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	
+	std::memcpy(data, mVertices.data(), static_cast<size_t>(bufferInfo.size));
+
+	vkUnmapMemory(mDevice, mVertexBufferMemory);
+
+	return GameResultOk;
+}
+
 GameResult VkRenderer::CreateCommandBuffers() {
 	mCommandBuffers.resize(mSwapChainFramebuffers.size());
 
@@ -339,7 +428,11 @@ GameResult VkRenderer::CreateCommandBuffers() {
 
 		vkCmdBindPipeline(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
-		vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+		VkBuffer vertexBuffers[] = { mVertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(mCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+		vkCmdDraw(mCommandBuffers[i], static_cast<std::uint32_t>(mVertices.size()), 1, 0, 0);
 
 		vkCmdEndRenderPass(mCommandBuffers[i]);
 
