@@ -12,7 +12,8 @@ public:
 	GameResult Initialize(
 		ID3D12Device* inDevice,
 		UINT inClientWidth, 
-		UINT inClientHeight);
+		UINT inClientHeight,
+		UINT inDistance);
 
 	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
@@ -62,6 +63,8 @@ private:
 
 	UINT mSsrMapWidth = 0;
 	UINT mSsrMapHeight = 0;
+
+	UINT mSsrDistance = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSig;
 

@@ -101,7 +101,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth / 2, mClientHeight / 2));
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get()));
-	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 2, mClientHeight / 2));
+	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 2, mClientHeight / 2, 25));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
@@ -650,6 +650,28 @@ GameResult DxRenderer::UpdateAnimationsMap() {
 	CheckGameResult(FlushCommandQueue());
 
 	return GameResultOk;
+}
+
+bool DxRenderer::GetSsaoEnabled() const {
+	return (mEffectEnabled & EffectEnabled::ESsao) == EffectEnabled::ESsao;
+}
+
+void DxRenderer::SetSsaoEnabled(bool bState) {
+	if (bState)
+		mEffectEnabled |= EffectEnabled::ESsao;
+	else
+		mEffectEnabled &= ~EffectEnabled::ESsao;
+}
+
+bool DxRenderer::GetSsrEnabled() const {
+	return (mEffectEnabled & EffectEnabled::ESsr) == EffectEnabled::ESsr;
+}
+
+void DxRenderer::SetSsrEnabled(bool bState) {
+	if (bState)
+		mEffectEnabled |= EffectEnabled::ESsr;
+	else
+		mEffectEnabled &= ~EffectEnabled::ESsr;
 }
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
@@ -1682,11 +1704,9 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 GameResult DxRenderer::UpdateSsrCB(const GameTimer& gt, UINT inTid) {
 	SsrConstants ssrCB;
 
-	ssrCB.mInvView = mMainPassCB.mInvView;
 	ssrCB.mProj = mMainPassCB.mProj;
 	ssrCB.mInvProj = mMainPassCB.mInvProj;
 	ssrCB.mViewProj = mMainPassCB.mViewProj;
-	ssrCB.mEyePosW = mMainPassCB.mEyePosW;
 	
 	ssrCB.mBlurWeights[0] = mBlurWeights[0];
 	ssrCB.mBlurWeights[1] = mBlurWeights[1];
@@ -1876,7 +1896,7 @@ GameResult DxRenderer::BuildRootSignature() {
 		1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL
 	);
 	slotRootParameter[mRootParams.mConstSettingsIndex].InitAsConstants(
-		3, 2, 0, D3D12_SHADER_VISIBILITY_ALL
+		4, 2, 0, D3D12_SHADER_VISIBILITY_ALL
 	);
 	slotRootParameter[mRootParams.mAnimationsMapIndex].InitAsDescriptorTable(
 		1, &texTable2, D3D12_SHADER_VISIBILITY_ALL
@@ -2024,7 +2044,7 @@ GameResult DxRenderer::BuildSsrRootSignature() {
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstants(1, 1);
+	slotRootParameter[1].InitAsConstants(2, 1);
 	slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -3163,6 +3183,13 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 		1
 	);
 
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
+	);
+
 	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
 	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
 
@@ -3262,6 +3289,13 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 		static_cast<UINT>(mRootConstants.size()),
 		mRootConstants.data(),
 		1
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
 	);
 
 	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
@@ -3409,6 +3443,13 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 		1
 	);
 
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
+	);
+
 	cmdList->RSSetViewports(1, &mScreenViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
 
@@ -3506,6 +3547,13 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 		static_cast<UINT>(mRootConstants.size()),
 		mRootConstants.data(),
 		1
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
 	);
 
 	cmdList->RSSetViewports(1, &mScreenViewport);
@@ -3632,14 +3680,18 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	//
 	// Compute SSAO.
 	//
-	cmdList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
-	mSsao.ComputeSsao(cmdList, mCurrFrameResource, 3);
+	if (mEffectEnabled & EffectEnabled::ESsao) {
+		cmdList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
+		mSsao.ComputeSsao(cmdList, mCurrFrameResource, 3);
+	}
 
 	//
 	// Compute SSR.
 	//
-	cmdList->SetGraphicsRootSignature(mSsrRootSignature.Get());
-	mSsr.ComputeSsr(cmdList, mCurrFrameResource, 3);
+	if (mEffectEnabled & EffectEnabled::ESsr) {
+		cmdList->SetGraphicsRootSignature(mSsrRootSignature.Get());
+		mSsr.ComputeSsr(cmdList, mCurrFrameResource, 3);
+	}
 
 	//
 	// Main rendering pass.
@@ -3691,6 +3743,13 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 		static_cast<UINT>(mRootConstants.size()),
 		mRootConstants.data(),
 		1
+	);
+
+	cmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
 	);
 
 	cmdList->RSSetViewports(1, &mScreenViewport);

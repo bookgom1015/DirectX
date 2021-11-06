@@ -301,6 +301,11 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Random.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets" Condition="Exists('..\..\packages\directxtk12_desktop_2017.2021.4.7.2\build\native\directxtk12_desktop_2017.targets')" />

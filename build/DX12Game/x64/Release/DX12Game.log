@@ -1,8 +1,10 @@
-﻿  Ssao.cpp
+﻿  DxRenderer.cpp
+  GameWorld.cpp
+  Ssr.cpp
   Generating code
-  0 of 13224 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
+  63 of 13228 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
+    1 functions were new in current compilation
+    4 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   DX12Game.vcxproj -> F:\Visual Studio Projects\Window Projects\DirectX\bin\x64\DX12Game\Release\DX12Game.exe
   F:\Visual Studio Projects\Window Projects\DirectX\lib\dll\fmod.dll

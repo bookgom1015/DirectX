@@ -7,15 +7,23 @@
 
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 3
+	#define NUM_DIR_LIGHTS 3
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-#define NUM_POINT_LIGHTS 0
+	#define NUM_POINT_LIGHTS 0
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
-#define NUM_SPOT_LIGHTS 0
+	#define NUM_SPOT_LIGHTS 0
+#endif
+
+#ifndef SSAO_ENABLED
+	#define SSAO_ENABLED 1 << 0
+#endif
+
+#ifndef SSR_ENABLED
+	#define SSR_ENABLED 1 << 1
 #endif
 
 // Include structures and functions for lighting.
@@ -119,9 +127,10 @@ cbuffer cbPass : register(b1) {
 };
 
 cbuffer cbRootConstants : register(b2) {
-	int		gMaxInstanceCount;
+	uint	gMaxInstanceCount;
 	float	gCubeMapCenter;
 	float	gCubeMapExtents;
+	uint	gEffectEnabled;
 };
 
 //---------------------------------------------------------------------------------------

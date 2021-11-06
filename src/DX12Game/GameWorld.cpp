@@ -925,6 +925,7 @@ void GameWorld::OnMouseUp(WPARAM inBtnState, int inX, int inY) {}
 void GameWorld::OnMouseMove(WPARAM inBtnState, int inX, int inY) {}
 
 void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
+
 	if (msg != WM_KEYUP) {
 		if (wParam == VK_OEM_PLUS) {
 			// Increase master volume
@@ -939,6 +940,16 @@ void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
 			volume -= 0.1f;
 			if (volume < 0.0f) volume = 0.0f;
 			mAudioSystem->SetBusVolume("bus:/", volume);
+		}
+		else if (wParam == VK_F1) {
+			bool state = mRenderer->GetSsaoEnabled();
+
+			mRenderer->SetSsaoEnabled(!state);
+		}
+		else if (wParam == VK_F2) {
+			bool state = mRenderer->GetSsrEnabled();
+
+			mRenderer->SetSsrEnabled(!state);
 		}
 	}
 	else {

@@ -399,9 +399,10 @@
     <None Include="..\..\Assets\Shaders\Ssr.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\SsrBlur.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\SsrBlur.hlsl">
+    <FxCompile Include="..\..\Assets\Shaders\Random.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </FxCompile>
   </ItemGroup>

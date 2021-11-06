@@ -27,7 +27,7 @@ struct VertexIn {
 };
 
 struct VertexOut {
-	float4 PosH		: SV_POSITION;
+	float4 PosH		: SV_POSITION; 
 	float3 PosV		: POSITION;
 	float2 TexC		: TEXCOORD;
 };
@@ -67,8 +67,8 @@ float4 PS(VertexOut pin) : SV_Target{
 	float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC);
 
 	// Sample SSAO map.
-	float ambientAccess = gSsaoMap.Sample(gsamLinearWrap, pin.TexC, 0.0f).r;
-	
+	float ambientAccess = gEffectEnabled & SSAO_ENABLED ? gSsaoMap.Sample(gsamLinearWrap, pin.TexC, 0.0f).r : 1.0f;
+
 	// Light terms. 
 	float4 ambient = ambientAccess * gAmbientLight * diffuseAlbedo;
 
@@ -78,7 +78,8 @@ float4 PS(VertexOut pin) : SV_Target{
 	shadowFactor[0] = CalcShadowFactor(shadowPosH);
 
 	float4 normalMapSample = gNormalMap.Sample(gsamAnisotropicWrap, pin.TexC);
-	float3 normalW = normalize(normalMapSample.xyz);
+	float3 normalW = mul(normalMapSample.xyz, (float3x3)gInvView);
+	normalW = normalize(normalW);
 
 	const float4 specMapSample = gSpecularMap.Sample(gsamLinearWrap, pin.TexC);
 
@@ -100,7 +101,9 @@ float4 PS(VertexOut pin) : SV_Target{
 
 	float4 reflectionSample = gSsrMap.Sample(gsamLinearWrap, pin.TexC);
 
-	float4 reflectionColor = reflectionSample.a * reflectionSample + (1.0f - reflectionSample.a) * gBlurCubeMap.Sample(gsamLinearWrap, lookup);
+	float4 reflectionColor = gEffectEnabled & SSR_ENABLED ?
+		reflectionSample.a * reflectionSample + (1.0f - reflectionSample.a) * gBlurCubeMap.Sample(gsamLinearWrap, lookup) : (float4)1.0f;
+
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, normalW, r);
 	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
 	

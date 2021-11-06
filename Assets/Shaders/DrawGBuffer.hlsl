@@ -167,6 +167,7 @@ PixelOut PS(VertexOut pin) : SV_Target {
 	uint   normalMapIndex	= matData.NormalMapIndex;
 	float4 normalMapSample	= gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 	float3 bumpedNormalW	= normalize(NormalSampleToWorldSpace(normalMapSample.xyz, pin.NormalW, pin.TangentW));
+	bumpedNormalW = mul(bumpedNormalW, (float3x3)gView);
 
 	float3 fresnelR0		= matData.FresnelR0;
 	float  roughness		= matData.Roughness;

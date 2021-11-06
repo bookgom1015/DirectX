@@ -112,7 +112,6 @@ float4 PS(VertexOut pin) : SV_Target {
 
 	// Get viewspace normal and z-coord of this pixel.  
 	float3 n = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
-	n = normalize(mul(n, (float3x3)gView));
 
 	float pz = gDepthMap.SampleLevel(gsamDepthMap, pin.TexC, 0.0f).r;
 	pz = NdcDepthToViewDepth(pz);

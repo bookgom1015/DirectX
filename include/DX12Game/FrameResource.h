@@ -111,11 +111,9 @@ public:
 };
 
 struct SsrConstants {
-	DirectX::XMFLOAT4X4	mInvView;
 	DirectX::XMFLOAT4X4	mProj;
 	DirectX::XMFLOAT4X4	mInvProj;
 	DirectX::XMFLOAT4X4	mViewProj;
-	DirectX::XMFLOAT3	mEyePosW;
 	// For SsrBlur.hlsl
 	DirectX::XMFLOAT4 mBlurWeights[3];
 	DirectX::XMFLOAT2 mInvRenderTargetSize;

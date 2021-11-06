@@ -2,17 +2,16 @@
 #define __SSRCOMMON_HLSL__
 
 cbuffer cbSsr : register(b0) {
-	float4x4	gInvView;
 	float4x4	gProj;
 	float4x4	gInvProj;
 	float4x4	gViewProj;
-	float3		gEyePosW;
 	// For SsrBlur.hlsl
 	float4		gBlurWeights[3];
 	float2		gInvRenderTargetSize;
 };
 
 cbuffer cbRootConstants : register(b1) {
+	uint gSsrDistance;
 	bool gHorizontalBlur;
 };
 

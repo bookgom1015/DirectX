@@ -2,6 +2,7 @@
 #define __SSR_HLSL__
 
 #include "SsrCommon.hlsl"
+#include "Random.hlsl"
 
 struct VertexOut {
 	float4 PosH		: SV_POSITION;
@@ -30,22 +31,26 @@ float NdcDepthToViewDepth(float z_ndc) {
 	return viewZ;
 }
 
-float4 GetReflectionColor(float3 posW, float3 normalW) {
+float4 GetReflectionColor(float3 posV, float3 normalV, float texC) {
+	if (posV.z > (float)gSsrDistance) return (float4)0.0f;
+
 	// Vector from point being lit to eye. 
-	float3 toEyeW = normalize(gEyePosW - posW);
+	float3 toEyeV = normalize(-posV);
 
-	float3 r = normalize(reflect(-toEyeW, normalW));
+	float3 r = normalize(reflect(-toEyeV, normalV)) * 0.5f;
 
-	for (int i = 0; i < 8; ++i) {
+	for (int i = 0; i < 16; ++i) {
 		// 
-		float3 deltaPosW = posW + r * (i + 1);
-		float4 posH = mul(float4(deltaPosW, 1.0f), gViewProj);
+		float3 deltaPosV = posV + r * (i + 1);
+		float4 posH = mul(float4(deltaPosV, 1.0f), gProj);
 		posH /= posH.w;
 
 		float2 texC = float2(posH.x, -posH.y) * 0.5f + (float2)0.5f;
 		float depthSample = gDepthMap.Sample(gsamDepthMap, texC).r;
 
-		if (posH.z > depthSample) {
+		float noise = rand_1_05(texC) * 0.1f;
+
+		if (posH.z > depthSample - noise) {
 			// 1. 
 			//        --------------------------------------------------------------------->
 			//
@@ -67,18 +72,18 @@ float4 GetReflectionColor(float3 posW, float3 normalW) {
 
 			for (int j = 0; j < 8; ++j) {				
 				half_r *= 0.5f;
-				deltaPosW -= half_r;
-				posH = mul(float4(deltaPosW, 1.0f), gViewProj);
+				deltaPosV -= half_r;
+				posH = mul(float4(deltaPosV, 1.0f), gProj);
 				posH /= posH.w;
 
 				texC = float2(posH.x, -posH.y) * 0.5f + (float2)0.5f;
 				depthSample = gDepthMap.Sample(gsamDepthMap, texC).r;
 
 				if (posH.z < depthSample)
-					deltaPosW += half_r;
+					deltaPosV += half_r;
 			}
 
-			posH = mul(float4(deltaPosW, 1.0f), gViewProj);
+			posH = mul(float4(deltaPosV, 1.0f), gProj);
 			posH /= posH.w;
 
 			texC = float2(posH.x, -posH.y) * 0.5f + (float2)0.5f;
@@ -94,11 +99,10 @@ float4 GetReflectionColor(float3 posW, float3 normalW) {
 			float pz = NdcDepthToViewDepth(depthSample);
 
 			float3 samplePosV = (pz / pv.z) * pv.xyz;
-			float4 samplePosW = mul(float4(samplePosV, 1.0f), gInvView);
+			
+			float dist = deltaPosV.z - samplePosV.z;
 
-			float dist = distance(samplePosW, deltaPosW);
-
-			if (dist < 0.05f)
+			if (dist >= 0.0f && dist < 0.01f)
 				return gDiffuseMap.Sample(gsamLinearWrap, texC);
 		}
 	}
@@ -117,12 +121,11 @@ float4 PS(VertexOut pin) : SV_Target{
 	// t = p.z / pin.PosV.z
 	//
 	float3 posV = (pz / pin.PosV.z) * pin.PosV;
-	float4 posW = mul(float4(posV, 1.0f), gInvView);
 
-	float3 normalW = normalize(gNormalMap.Sample(gsamLinearWrap, pin.TexC).xyz);
+	float3 normalV = normalize(gNormalMap.Sample(gsamLinearWrap, pin.TexC).xyz);
 
 	// Add in specular reflections.
-	float4 reflectionColor = GetReflectionColor(posW.xyz, normalW);
+	float4 reflectionColor = GetReflectionColor(posV.xyz, normalV, pin.TexC);
 
 	return reflectionColor;
 }

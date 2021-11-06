@@ -43,6 +43,11 @@ private:
 		Sphere
 	};
 
+	enum EffectEnabled : UINT {
+		ESsao		= 1 << 0,
+		ESsr		= 1 << 1
+	};
+
 	// Lightweight structure stores parameters to draw a shape.  This will
 	//  vary from app-to-app.
 	struct RenderItem {
@@ -180,6 +185,12 @@ public:
 
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
+
+	bool GetSsaoEnabled() const;
+	void SetSsaoEnabled(bool bState);
+
+	bool GetSsrEnabled() const;
+	void SetSsrEnabled(bool bState);
 
 protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
@@ -330,6 +341,7 @@ private:
 
 	const UINT MaxInstanceCount = 128;
 	std::array<float, 2> mRootConstants;
+	UINT mEffectEnabled = EffectEnabled::ESsao | EffectEnabled::ESsr;
 
 	std::vector<DirectX::XMFLOAT4> mBlurWeights;
 

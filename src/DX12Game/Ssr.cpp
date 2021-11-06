@@ -3,9 +3,11 @@
 GameResult Ssr::Initialize(
 	ID3D12Device*				inDevice,
 	UINT						inSsrMapWidth, 
-	UINT						inSsrMapHeight) {
+	UINT						inSsrMapHeight,
+	UINT						inDistance) {
 
 	md3dDevice = inDevice;
+	mSsrDistance = inDistance;
 
 	CheckGameResult(OnResize(inSsrMapWidth, inSsrMapHeight));
 
@@ -108,7 +110,8 @@ void Ssr::ComputeSsr(
 	// Bind the constant buffer for this pass.
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();
 	outCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
-	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
+	outCmdList->SetGraphicsRoot32BitConstant(1, mSsrDistance, 0);
+	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 1);
 
 	// Bind the diffuse, normal and depth maps.
 	outCmdList->SetGraphicsRootDescriptorTable(2, mhDiffuseMapGpuSrv);
@@ -174,13 +177,13 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur)
 		output = mAmbientMap1.Get();
 		inputSrv = mhAmbientMap0GpuSrv;
 		outputRtv = mhAmbientMap1CpuRtv;
-		outCmdList->SetGraphicsRoot32BitConstant(1, 1, 0);
+		outCmdList->SetGraphicsRoot32BitConstant(1, 1, 1);
 	}
 	else {
 		output = mAmbientMap0.Get();
 		inputSrv = mhAmbientMap1GpuSrv;
 		outputRtv = mhAmbientMap0CpuRtv;
-		outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
+		outCmdList->SetGraphicsRoot32BitConstant(1, 0, 1);
 	}
 
 	outCmdList->ResourceBarrier(
