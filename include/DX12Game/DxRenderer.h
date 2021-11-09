@@ -192,6 +192,12 @@ public:
 	bool GetSsrEnabled() const;
 	void SetSsrEnabled(bool bState);
 
+	bool GetDrawDebugSkeletonsEnabled() const;
+	void SetDrawDebugSkeletonsEnabled(bool bState);
+
+	bool GetDrawDebugWindowsEnabled() const;
+	void SetDrawDebugWindowsEnabled(bool bState);
+
 protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
 
@@ -251,13 +257,20 @@ private:
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inNum);
 	void DrawRenderItems(ID3D12GraphicsCommandList* outCmdList, RenderItem*const* inRitems, size_t inBegin, size_t inEnd);
 
+	void BindViews(ID3D12GraphicsCommandList* outCmdList, bool bShadowPass);
+	void BindDescriptorTables(ID3D12GraphicsCommandList* outCmdList, bool bNullMiscTex);
+	void BindRootConstants(ID3D12GraphicsCommandList* outCmdList);
+
 	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSceneToShadowMap(UINT inTid = 0);
 	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToGBuffer(UINT inTid = 0);
-	GameResult DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
+	void DrawDebugSkeleton(ID3D12GraphicsCommandList* outCmdList);
+	void DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
+	void DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList);
+	void DrawPostProcessingEffect(ID3D12GraphicsCommandList* outCmdList);
 	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
@@ -362,4 +375,7 @@ private:
 
 	std::vector<UINT> mDrawAccums;
 #endif
+
+	bool bDrawDebugSkeletonsEnabled = true;
+	bool bDrawDeubgWindowsEnabled = true;
 };

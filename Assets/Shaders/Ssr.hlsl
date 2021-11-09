@@ -39,7 +39,7 @@ float4 GetReflectionColor(float3 posV, float3 normalV, float texC) {
 
 	float3 r = normalize(reflect(-toEyeV, normalV)) * 0.5f;
 
-	for (int i = 0; i < 16; ++i) {
+	for (int i = 0; i < 32; ++i) {
 		// 
 		float3 deltaPosV = posV + r * (i + 1);
 		float4 posH = mul(float4(deltaPosV, 1.0f), gProj);
@@ -100,10 +100,22 @@ float4 GetReflectionColor(float3 posV, float3 normalV, float texC) {
 
 			float3 samplePosV = (pz / pv.z) * pv.xyz;
 			
-			float dist = deltaPosV.z - samplePosV.z;
+			float diffZ = deltaPosV.z - samplePosV.z;
 
-			if (dist >= 0.0f && dist < 0.01f)
-				return gDiffuseMap.Sample(gsamLinearWrap, texC);
+			if (diffZ >= 0.0f && diffZ < 0.01f) {				
+				float dist = distance(samplePosV, posV);
+				float fadeDist = 1.0f - (dist - gMinFadeDistance) / (gMaxFadeDistance - gMinFadeDistance);
+
+				float invEdgeFadeLength = 1.0f / gEdgeFadeLength;
+				float fadeMinX = min(texC.x * invEdgeFadeLength, 1.0f);
+				float fadeMaxX = 1.0f - max(texC.x - (1.0f - gEdgeFadeLength), 0.0f) * invEdgeFadeLength;
+				float fadeMinY = min(texC.y * invEdgeFadeLength, 1.0f);
+				float fadeMaxY = 1.0f - max(texC.y - (1.0f - gEdgeFadeLength), 0.0f) * invEdgeFadeLength;
+
+				float fade = fadeMinX * fadeMaxX * fadeMinY * fadeMaxY * fadeDist;
+
+				return gDiffuseMap.Sample(gsamLinearWrap, texC) * fade;
+			}
 		}
 	}
 

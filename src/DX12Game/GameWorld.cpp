@@ -951,6 +951,16 @@ void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
 
 			mRenderer->SetSsrEnabled(!state);
 		}
+		else if (wParam == VK_HOME) {
+			bool state = mRenderer->GetDrawDebugSkeletonsEnabled();
+
+			mRenderer->SetDrawDebugSkeletonsEnabled(!state);
+		}
+		else if (wParam == VK_END) {
+			bool state = mRenderer->GetDrawDebugWindowsEnabled();
+
+			mRenderer->SetDrawDebugWindowsEnabled(!state);
+		}
 	}
 	else {
 		if (wParam == VK_ESCAPE)

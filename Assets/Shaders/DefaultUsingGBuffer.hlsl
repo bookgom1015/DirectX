@@ -21,9 +21,13 @@
 // Include common HLSL code.
 #include "Common.hlsl"
 
-struct VertexIn {
-	float3 PosL		: POSITION;
-	float2 TexC		: TEXCOORD;
+static const float2 gTexCoords[6] = {
+	float2(0.0f, 1.0f),
+	float2(0.0f, 0.0f),
+	float2(1.0f, 0.0f),
+	float2(0.0f, 1.0f),
+	float2(1.0f, 0.0f),
+	float2(1.0f, 1.0f)
 };
 
 struct VertexOut {
@@ -32,15 +36,13 @@ struct VertexOut {
 	float2 TexC		: TEXCOORD;
 };
 
-VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
-	VertexOut vout = (VertexOut)0.0f;
+VertexOut VS(uint vid : SV_VertexID) {
+	VertexOut vout;
 
-	vout.TexC = vin.TexC;
+	vout.TexC = gTexCoords[vid];
 
-	float3 pos = vin.PosL * 2.0f + float3(-1.0f, 1.0f, 0.0f);
-
-	// Already in homogeneous clip space.
-	vout.PosH = float4(pos, 1.0f);
+	// Quad covering screen in NDC space.
+	vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
 
 	// Transform quad corners to view space near plane.
 	float4 ph = mul(vout.PosH, gInvProj);

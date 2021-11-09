@@ -11,8 +11,11 @@ cbuffer cbSsr : register(b0) {
 };
 
 cbuffer cbRootConstants : register(b1) {
-	uint gSsrDistance;
-	bool gHorizontalBlur;
+	uint	gSsrDistance;
+	uint	gMaxFadeDistance;
+	uint	gMinFadeDistance;
+	float	gEdgeFadeLength;
+	bool	gHorizontalBlur;
 };
 
 // Nonnumeric values cannot be added to a cbuffer.

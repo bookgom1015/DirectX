@@ -1,13 +1,19 @@
 #include "DX12Game/Ssr.h"
 
 GameResult Ssr::Initialize(
-	ID3D12Device*				inDevice,
-	UINT						inSsrMapWidth, 
-	UINT						inSsrMapHeight,
-	UINT						inDistance) {
+	ID3D12Device*	inDevice,
+	UINT			inSsrMapWidth, 
+	UINT			inSsrMapHeight,
+	UINT			inDistance,
+	UINT			inMaxFadeDistance,
+	UINT			inMinFadeDistance,
+	float			inEdgeFadeLength) {
 
 	md3dDevice = inDevice;
 	mSsrDistance = inDistance;
+	mMaxFadeDistance = inMaxFadeDistance;
+	mMinFadeDistance = inMinFadeDistance;
+	mEdgeFadeLength = inEdgeFadeLength;
 
 	CheckGameResult(OnResize(inSsrMapWidth, inSsrMapHeight));
 
@@ -111,7 +117,10 @@ void Ssr::ComputeSsr(
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();
 	outCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
 	outCmdList->SetGraphicsRoot32BitConstant(1, mSsrDistance, 0);
-	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 1);
+	outCmdList->SetGraphicsRoot32BitConstant(1, mMaxFadeDistance, 1);
+	outCmdList->SetGraphicsRoot32BitConstant(1, mMinFadeDistance, 2);
+	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &mEdgeFadeLength, 3);
+	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 4);
 
 	// Bind the diffuse, normal and depth maps.
 	outCmdList->SetGraphicsRootDescriptorTable(2, mhDiffuseMapGpuSrv);

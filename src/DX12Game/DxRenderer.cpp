@@ -101,7 +101,7 @@ GameResult DxRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClie
 
 	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth / 2, mClientHeight / 2));
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get()));
-	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 2, mClientHeight / 2, 25));
+	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 2, mClientHeight / 2, 32, 16, 1, 0.3f));
 
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(BuildRootSignature());
@@ -333,8 +333,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	return GameResultOk;
 }
 
-void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
-	const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) {
+void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName, const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) {
 	auto iter = mRefRitems.find(inRenderItemName);
 	if (iter != mRefRitems.end()) {
 		{
@@ -363,8 +362,11 @@ void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
 	}
 }
 
-void DxRenderer::UpdateInstanceAnimationData(const std::string& inRenderItemName,
-	UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal) {
+void DxRenderer::UpdateInstanceAnimationData(
+	const std::string&	inRenderItemName,
+	UINT				inAnimClipIdx, 
+	float				inTimePos, 
+	bool				inIsSkeletal) {
 		{
 			auto iter = mRefRitems.find(inRenderItemName);
 			if (iter != mRefRitems.end()) {
@@ -672,6 +674,22 @@ void DxRenderer::SetSsrEnabled(bool bState) {
 		mEffectEnabled |= EffectEnabled::ESsr;
 	else
 		mEffectEnabled &= ~EffectEnabled::ESsr;
+}
+
+bool DxRenderer::GetDrawDebugSkeletonsEnabled() const {
+	return bDrawDebugSkeletonsEnabled;
+}
+
+void DxRenderer::SetDrawDebugSkeletonsEnabled(bool bState) {
+	bDrawDebugSkeletonsEnabled = bState;
+}
+
+bool DxRenderer::GetDrawDebugWindowsEnabled() const {
+	return bDrawDeubgWindowsEnabled;
+}
+
+void DxRenderer::SetDrawDebugWindowsEnabled(bool bState) {
+	bDrawDeubgWindowsEnabled = bState;
 }
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
@@ -2044,7 +2062,7 @@ GameResult DxRenderer::BuildSsrRootSignature() {
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstants(2, 1);
+	slotRootParameter[1].InitAsConstants(5, 1);
 	slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
@@ -3049,6 +3067,7 @@ GameResult DxRenderer::BuildPSOs() {
 	// PSO for drawing screen using gbuffer.
 	//
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gbufferScreenPsoDesc = opaquePsoDesc;
+	gbufferScreenPsoDesc.InputLayout = { nullptr, 0 };
 	gbufferScreenPsoDesc.pRootSignature = mRootSignature.Get();
 	gbufferScreenPsoDesc.VS = {
 		reinterpret_cast<BYTE*>(mShaders["defaultGBufferVS"]->GetBufferPointer()),
@@ -3122,6 +3141,84 @@ void DxRenderer::DrawRenderItems(ID3D12GraphicsCommandList*	outCmdList,
 	}
 }
 
+void DxRenderer::BindViews(ID3D12GraphicsCommandList* outCmdList, bool bShadowPass) {
+	auto passCB = mCurrFrameResource->mPassCB.Resource();
+	if (bShadowPass) {
+		// Bind the pass constant buffer for the shadow map pass.
+		UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
+		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+		outCmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
+	}
+	else {
+		// Bind the constant buffer for this pass.
+		outCmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+	}
+
+	// Bind all the materials used in this scene. For structured buffers,
+	// we can bypass the heap and set as a root descriptor.
+	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
+	outCmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
+
+	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
+	outCmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
+
+	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
+	outCmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
+}
+
+void DxRenderer::BindDescriptorTables(ID3D12GraphicsCommandList* outCmdList, bool bNullMiscTex) {
+	if (bNullMiscTex) {
+		// Bind null SRV for shadow map pass.
+		outCmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
+	}
+	else {
+		// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
+		// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
+		// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
+		// index into an array of cube maps.
+		CD3DX12_GPU_DESCRIPTOR_HANDLE miscTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		miscTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
+		outCmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
+	}
+
+	// Bind all the textures used in this scene.
+	// Observe that we only have to specify the first descriptor in the table.  
+	// The root signature knows how many descriptors are expected in the table.
+	outCmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mTextureMapIndex,
+		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
+
+	// Bind the texture for extracing animations data.
+	outCmdList->SetGraphicsRootDescriptorTable(
+		mRootParams.mAnimationsMapIndex,
+		mAnimsMap.GetAnimationsMapSrv()
+	);
+}
+
+void DxRenderer::BindRootConstants(ID3D12GraphicsCommandList* outCmdList) {
+	outCmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&MaxInstanceCount,
+		0
+	);
+
+	outCmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		static_cast<UINT>(mRootConstants.size()),
+		mRootConstants.data(),
+		1
+	);
+
+	outCmdList->SetGraphicsRoot32BitConstants(
+		mRootParams.mConstSettingsIndex,
+		1,
+		&mEffectEnabled,
+		3
+	);
+}
+
 GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
@@ -3135,60 +3232,9 @@ GameResult DxRenderer::DrawOpaqueToShadowMap(UINT inTid) {
 
 	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// Bind the pass constant buffer for the shadow map pass.
-	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
-
-	// Bind all the materials used in this scene. For structured buffers,
-	// we can bypass the heap and set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind null SRV for shadow map pass.
-	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
-
-	// Bind all the textures used in this scene.
-	// Observe that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
-	);
-
-	// Bind the texture for extracing animations data.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.GetAnimationsMapSrv()
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&mEffectEnabled,
-		3
-	);
+	BindViews(cmdList, true);
+	BindDescriptorTables(cmdList, true);
+	BindRootConstants(cmdList);
 
 	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
 	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
@@ -3243,60 +3289,9 @@ GameResult DxRenderer::DrawSkinnedOpaqueToShadowMap(UINT inTid) {
 
 	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// Bind the pass constant buffer for the shadow map pass.
-	UINT passCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(PassConstants));
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCBAddress);
-
-	// Bind all the materials used in this scene. For structured buffers,
-	// we can bypass the heap and set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind null SRV for shadow map pass.
-	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
-
-	// Bind all the textures used in this scene.
-	// Observe that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
-	);
-
-	// Bind the texture for extracing animations data.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.GetAnimationsMapSrv()
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&mEffectEnabled,
-		3
-	);
+	BindViews(cmdList, true);
+	BindDescriptorTables(cmdList, true);
+	BindRootConstants(cmdList);
 
 	cmdList->RSSetViewports(1, &mShadowMap.Viewport());
 	cmdList->RSSetScissorRects(1, &mShadowMap.ScissorRect());
@@ -3397,58 +3392,9 @@ GameResult DxRenderer::DrawOpaqueToGBuffer(UINT inTid) {
 
 	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// Bind the constant buffer for this pass.
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
-
-	// Bind all the materials used in this scene. For structured buffers,
-	// we can bypass the heap and set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind null SRV for gbuffer.
-	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
-
-	// Bind all the textures used in this scene.
-	// Observe that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
-	);
-
-	// Bind the texture for extracing animations data.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.GetAnimationsMapSrv()
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&mEffectEnabled,
-		3
-	);
+	BindViews(cmdList, false);
+	BindDescriptorTables(cmdList, true);
+	BindRootConstants(cmdList);
 
 	cmdList->RSSetViewports(1, &mScreenViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
@@ -3503,58 +3449,9 @@ GameResult DxRenderer::DrawSkinnedOpaqueToGBuffer(UINT inTid) {
 
 	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// Bind the constant buffer for this pass.
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
-
-	// Bind all the materials used in this scene. For structured buffers,
-	// we can bypass the heap and set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind null SRV for gbuffer.
-	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, mNullSrv);
-
-	// Bind all the textures used in this scene.
-	// Observe that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
-	);
-
-	// Bind the texture for extracing animations data.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.GetAnimationsMapSrv()
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&mEffectEnabled,
-		3
-	);
+	BindViews(cmdList, false);
+	BindDescriptorTables(cmdList, true);
+	BindRootConstants(cmdList);
 
 	cmdList->RSSetViewports(1, &mScreenViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
@@ -3654,7 +3551,13 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	return GameResultOk;
 }
 
-GameResult DxRenderer::DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList) {
+void DxRenderer::DrawDebugSkeleton(ID3D12GraphicsCommandList* outCmdList) {
+	outCmdList->SetPipelineState(mPSOs["skeleton"].Get());
+	auto ritems = mRitemLayer[RenderLayer::Skeleton];
+	DrawRenderItems(outCmdList, ritems.data(), ritems.size());
+}
+
+void DxRenderer::DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList) {
 	outCmdList->SetPipelineState(mPSOs["debug"].Get());
 
 	// Draw fullscreen quad.
@@ -3662,8 +3565,20 @@ GameResult DxRenderer::DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList) {
 	outCmdList->IASetIndexBuffer(nullptr);
 	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	outCmdList->DrawInstanced(6, 5, 0, 0);
+}
 
-	return GameResultOk;
+void DxRenderer::DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList) {
+	outCmdList->SetPipelineState(mPSOs["gbufferScreen"].Get());
+
+	// Draw fullscreen quad.
+	outCmdList->IASetVertexBuffers(0, 0, nullptr);
+	outCmdList->IASetIndexBuffer(nullptr);
+	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	outCmdList->DrawInstanced(6, 1, 0, 0);
+}
+
+void DxRenderer::DrawPostProcessingEffect(ID3D12GraphicsCommandList* outCmdList) {
+
 }
 
 GameResult DxRenderer::DrawSceneToRenderTarget() {	
@@ -3699,65 +3614,12 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	// Rebind state whenever graphics root signature changes.
 	cmdList->SetGraphicsRootSignature(mRootSignature.Get());
 
-	// Bind all the materials used in this scene. For structured buffers,
-	// we can bypass the heap and set as a root descriptor.
-	auto matBuffer = mCurrFrameResource->mMaterialBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mMatBufferIndex, matBuffer->GetGPUVirtualAddress());
-
-	auto instIdxBuffer = mCurrFrameResource->mInstanceIdxBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstIdxBufferIndex, instIdxBuffer->GetGPUVirtualAddress());
-
-	auto instDataBuffer = mCurrFrameResource->mInstanceDataBuffer.Resource();
-	cmdList->SetGraphicsRootShaderResourceView(mRootParams.mInstBufferIndex, instDataBuffer->GetGPUVirtualAddress());
-
-	// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
-	// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
-	// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
-	// index into an array of cube maps.
-	CD3DX12_GPU_DESCRIPTOR_HANDLE miscTexDescriptor(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	miscTexDescriptor.Offset(mDescHeapIdx.mSkyTexHeapIndex, mCbvSrvUavDescriptorSize);
-	cmdList->SetGraphicsRootDescriptorTable(mRootParams.mMiscTextureMapIndex, miscTexDescriptor);
-
-	// Bind all the textures used in this scene.
-	// Observe that we only have to specify the first descriptor in the table.  
-	// The root signature knows how many descriptors are expected in the table.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mTextureMapIndex,
-		mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-
-	// Bind the texture for extracing animations data.
-	cmdList->SetGraphicsRootDescriptorTable(
-		mRootParams.mAnimationsMapIndex,
-		mAnimsMap.GetAnimationsMapSrv()
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&MaxInstanceCount,
-		0
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	cmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
-		1,
-		&mEffectEnabled,
-		3
-	);
+	BindViews(cmdList, false);
+	BindDescriptorTables(cmdList, false);
+	BindRootConstants(cmdList);
 
 	cmdList->RSSetViewports(1, &mScreenViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
-
-	// Indicate a state transition on the resource usage.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the back buffer and depth buffer.
 	cmdList->ClearRenderTargetView(CurrentBackBufferView(), Colors::Black, 0, nullptr);
@@ -3765,31 +3627,53 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	// Specify the buffers we are going to render to.
 	cmdList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
-	auto passCB = mCurrFrameResource->mPassCB.Resource();
-	cmdList->SetGraphicsRootConstantBufferView(mRootParams.mPassCBIndex, passCB->GetGPUVirtualAddress());
+	// Indicate a state transition on the resource usage.
+	cmdList->ResourceBarrier(
+		1, 
+		&CD3DX12_RESOURCE_BARRIER::Transition(
+			CurrentBackBuffer(),
+			D3D12_RESOURCE_STATE_PRESENT, 
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		)
+	);
 
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+	cmdList->ResourceBarrier(
+		1, 
+		&CD3DX12_RESOURCE_BARRIER::Transition(
+			mDepthStencilBuffer.Get(),
+			D3D12_RESOURCE_STATE_DEPTH_WRITE, 
+			D3D12_RESOURCE_STATE_GENERIC_READ
+		)
+	);
 
-	cmdList->SetPipelineState(mPSOs["gbufferScreen"].Get());
-	auto ritems = mRitemLayer[RenderLayer::Screen];
-	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+	DrawSceneUsingGBuffer(cmdList);
 
 	cmdList->SetPipelineState(mPSOs["sky"].Get());
-	ritems = mRitemLayer[RenderLayer::Sky];
+	auto ritems = mRitemLayer[RenderLayer::Sky];
 	DrawRenderItems(cmdList, ritems.data(), ritems.size());
 
-	cmdList->SetPipelineState(mPSOs["skeleton"].Get());
-	ritems = mRitemLayer[RenderLayer::Skeleton];
-	DrawRenderItems(cmdList, ritems.data(), ritems.size());
+	if (bDrawDebugSkeletonsEnabled) {
+		//
+		// Draw skeletons lines for debugging.
+		//
+		DrawDebugSkeleton(cmdList);
+	}
 
-	//
-	// Draw quad render items for debugging.
-	//
-	DrawDebugWindows(cmdList);
+	if (bDrawDeubgWindowsEnabled) {
+		//
+		// Draw quad render items for debugging.
+		//
+		DrawDebugWindows(cmdList);
+	}
 
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	cmdList->ResourceBarrier(
+		1, 
+		&CD3DX12_RESOURCE_BARRIER::Transition(
+			mDepthStencilBuffer.Get(),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE
+		)
+	);
 
 	//
 	// Draw texts.
@@ -3797,10 +3681,14 @@ GameResult DxRenderer::DrawSceneToRenderTarget() {
 	DrawTexts();
 
 	// Indicate a state transition on the resource usage.
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-		CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT));
+	cmdList->ResourceBarrier(
+		1, 
+		&CD3DX12_RESOURCE_BARRIER::Transition(
+			CurrentBackBuffer(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		)
+	);
 
 	// Done recording commands.
 	ReturnIfFailed(cmdList->Close());

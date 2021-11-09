@@ -13,7 +13,10 @@ public:
 		ID3D12Device* inDevice,
 		UINT inClientWidth, 
 		UINT inClientHeight,
-		UINT inDistance);
+		UINT inDistance,
+		UINT inMaxFadeDistance,
+		UINT inMinFadeDistance,
+		float inEdgeFadeLength);
 
 	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
@@ -65,6 +68,9 @@ private:
 	UINT mSsrMapHeight = 0;
 
 	UINT mSsrDistance = 0;
+	UINT mMaxFadeDistance = 0;
+	UINT mMinFadeDistance = 0;
+	float mEdgeFadeLength = 0.0f;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSig;
 

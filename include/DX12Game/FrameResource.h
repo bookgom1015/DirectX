@@ -208,10 +208,6 @@ public:
 	GameUploadBuffer<SsaoConstants> mSsaoCB;
 	GameUploadBuffer<SsrConstants> mSsrCB;
 	GameUploadBuffer<MaterialData> mMaterialBuffer;
-    //std::unique_ptr<UploadBuffer<PassConstants>> mPassCB = nullptr;
-    //std::unique_ptr<UploadBuffer<ObjectConstants>> mObjectCB = nullptr;
-	//std::unique_ptr<UploadBuffer<SsaoConstants>> mSsaoCB = nullptr;
-	//std::unique_ptr<UploadBuffer<MaterialData>> mMaterialBuffer = nullptr;
 
 	GameUploadBuffer<InstanceIdxData> mInstanceIdxBuffer;
 	//std::unique_ptr<UploadBuffer<InstanceIdxData>> mInstanceIdxBuffer = nullptr;
@@ -224,7 +220,6 @@ public:
 	// we would create a constant buffer with enough room for a 1000 objects.  With instancing, we would just
 	// create a structured buffer large enough to store the instance data for 1000 instances.  
 	GameUploadBuffer<InstanceData> mInstanceDataBuffer;
-	//std::unique_ptr<UploadBuffer<InstanceData>> mInstanceBuffer = nullptr;
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.
