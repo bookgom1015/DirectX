@@ -39,7 +39,7 @@ public:
 };
 
 #ifndef ReturnGameResult
-	#define ReturnGameResult(__status, __message)										\
+	#define ReturnGameResult(__status, __message)											\
 		{																					\
 			std::wstringstream __wsstream_RGR;												\
 			__wsstream_RGR << L"[HRESULT: 0x" << std::hex << __status << L"] " << std::dec	\
@@ -49,16 +49,20 @@ public:
 #endif
 
 #ifndef CheckGameResult
-	#define CheckGameResult(__statement)			\
-		{											\
-			GameResult __result = (__statement);	\
-			if (FAILED(__result.hr))				\
-				return __result;					\
+	#define CheckGameResult(__statement)													\
+		{																					\
+			GameResult __result = (__statement);											\
+			if (FAILED(__result.hr)) {														\
+				std::wstringstream __wsstream_CGR;											\
+				__wsstream_CGR << __FILE__ << L"; line: " << __LINE__ << L';' << std::endl;	\
+				__result.msg.append(__wsstream_CGR.str());									\
+				return __result;															\
+			}																				\
 		}
 #endif
 
 #ifndef ReturnIfFailed
-	#define ReturnIfFailed(__statement)															\
+	#define ReturnIfFailed(__statement)																\
 		{																							\
 			HRESULT __return_hr = (__statement);													\
 			if (FAILED(__return_hr)) {																\

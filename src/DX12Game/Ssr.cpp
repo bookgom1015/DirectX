@@ -42,9 +42,8 @@ GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
 }
 
 void Ssr::BuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hDiffuseMapGpuSrv,
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv1,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
@@ -62,18 +61,18 @@ void Ssr::BuildDescriptors(
 	mhAmbientMap0CpuRtv = hAmbientMapCpuRtv;
 	mhAmbientMap1CpuRtv = hAmbientMapCpuRtv.Offset(1, inRtvDescriptorSize);
 
+	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
+
 	//  Create the descriptors
-	RebuildDescriptors(hDiffuseMapGpuSrv, hNormalMapGpuSrv, hDepthMapGpuSrv);
+	RebuildDescriptors(hMainPassMapGpuSrv1, hNormalMapGpuSrv);
 }
 
 void Ssr::RebuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hDiffuseMapGpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hDepthMapGpuSrv) {
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv1,
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv) {
 
-	mhDiffuseMapGpuSrv = hDiffuseMapGpuSrv;
+	mhMainPassMapGpuSrv1 = hMainPassMapGpuSrv1;
 	mhNormalMapGpuSrv = hNormalMapGpuSrv;
-	mhDepthMapGpuSrv = hDepthMapGpuSrv;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -94,10 +93,9 @@ void Ssr::RebuildDescriptors(
 }
 
 void Ssr::ComputeSsr(
-	ID3D12GraphicsCommandList*	outCmdList,
-	const FrameResource*		inCurrFrame,
-	int							inBlurCount) {
-
+		ID3D12GraphicsCommandList*	outCmdList,
+		const FrameResource*		inCurrFrame,
+		int							inBlurCount) {
 	outCmdList->RSSetViewports(1, &mViewport);
 	outCmdList->RSSetScissorRects(1, &mScissorRect);
 
@@ -122,8 +120,11 @@ void Ssr::ComputeSsr(
 	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &mEdgeFadeLength, 3);
 	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 4);
 
-	// Bind the diffuse, normal and depth maps.
-	outCmdList->SetGraphicsRootDescriptorTable(2, mhDiffuseMapGpuSrv);
+	// Bind the back buffer map.
+	outCmdList->SetGraphicsRootDescriptorTable(2, mhMainPassMapGpuSrv1);
+
+	// Bind the normal and depth maps.
+	outCmdList->SetGraphicsRootDescriptorTable(3, mhNormalMapGpuSrv);
 
 	outCmdList->SetPipelineState(mSsrPso);
 
@@ -209,12 +210,8 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur)
 
 	outCmdList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
 
-	// Normal/depth map still bound.
-	// Bind the normal and depth maps.
-	//inCmdList->SetGraphicsRootDescriptorTable(2, mhNormalMapGpuSrv);
-
 	// Bind the input ambient map to second texture table.
-	outCmdList->SetGraphicsRootDescriptorTable(3, inputSrv);
+	outCmdList->SetGraphicsRootDescriptorTable(4, inputSrv);
 
 	// Draw fullscreen quad.
 	outCmdList->IASetVertexBuffers(0, 0, nullptr);

@@ -94,15 +94,6 @@ PassConstants::PassConstants() {
 	mAmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
-SsaoConstants::SsaoConstants() {
-	mInvRenderTargetSize = { 0.0f, 0.0f };
-
-	mOcclusionRadius = 0.5f;
-	mOcclusionFadeStart = 0.2f;
-	mOcclusionFadeEnd = 2.0f;
-	mSurfaceEpsilon = 0.05f;
-}
-
 MaterialData::MaterialData() {
 	mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	mFresnelR0 = { 0.01f, 0.01f, 0.01f };
@@ -198,6 +189,7 @@ GameResult FrameResource::Initialize(UINT inNumThreads) {
 	mPassCB.Initialize(mDevice, mPassCount, true);
 	mObjectCB.Initialize(mDevice, mObjectCount, true);
 	mSsaoCB.Initialize(mDevice, 1, true);
+	mPostPassCB.Initialize(mDevice, 1, true);
 	mSsrCB.Initialize(mDevice, 1, true);
 	mMaterialBuffer.Initialize(mDevice, mMaterialCount, false);
 	mInstanceIdxBuffer.Initialize(mDevice, mObjectCount * mMaxInstanceCount, false);

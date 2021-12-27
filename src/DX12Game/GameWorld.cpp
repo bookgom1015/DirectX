@@ -110,7 +110,7 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	if (!mInputSystem->Initialize(mhMainWnd))
 		ReturnGameResult(S_FALSE, L"Failed to initialize InputSystem");
 
-	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
+	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRate60f;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
 	bFinishedInit = true;

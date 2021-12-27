@@ -92,22 +92,28 @@ public:
 };
 
 struct SsaoConstants {
-	DirectX::XMFLOAT4X4 mView;
-	DirectX::XMFLOAT4X4 mProj;
-	DirectX::XMFLOAT4X4 mInvProj;
-	DirectX::XMFLOAT4X4 mProjTex;
-	DirectX::XMFLOAT4   mOffsetVectors[14];
+	DirectX::XMFLOAT4X4	mView;
+	DirectX::XMFLOAT4X4	mProj;
+	DirectX::XMFLOAT4X4	mInvProj;
+	DirectX::XMFLOAT4X4	mProjTex;
+	DirectX::XMFLOAT4	mOffsetVectors[14];
 	// For SsaoBlur.hlsl
-	DirectX::XMFLOAT4 mBlurWeights[3];
-	DirectX::XMFLOAT2 mInvRenderTargetSize;
+	DirectX::XMFLOAT4	mBlurWeights[3];
+	DirectX::XMFLOAT2	mInvRenderTargetSize;
 	// Coordinates given in view space.
-	float mOcclusionRadius;
-	float mOcclusionFadeStart;
-	float mOcclusionFadeEnd;
-	float mSurfaceEpsilon;
+	float				mOcclusionRadius;
+	float				mOcclusionFadeStart;
+	float				mOcclusionFadeEnd;
+	float				mSurfaceEpsilon;
+	float				mConstantPad0;
+	float				mConstantPad1;
+};
 
-public:
-	SsaoConstants();
+struct PostPassConstants {
+	DirectX::XMFLOAT4X4	mInvView;
+	DirectX::XMFLOAT4X4	mProj;
+	DirectX::XMFLOAT4X4	mInvProj;
+	DirectX::XMFLOAT3	mEyePosW;
 };
 
 struct SsrConstants {
@@ -115,8 +121,10 @@ struct SsrConstants {
 	DirectX::XMFLOAT4X4	mInvProj;
 	DirectX::XMFLOAT4X4	mViewProj;
 	// For SsrBlur.hlsl
-	DirectX::XMFLOAT4 mBlurWeights[3];
-	DirectX::XMFLOAT2 mInvRenderTargetSize;
+	DirectX::XMFLOAT4	mBlurWeights[5];
+	DirectX::XMFLOAT2	mInvRenderTargetSize;
+	int					mBlurRadius;
+	int					mConstantPad0;
 };
 
 struct MaterialData {
@@ -206,6 +214,7 @@ public:
 	GameUploadBuffer<PassConstants> mPassCB;
 	GameUploadBuffer<ObjectConstants> mObjectCB;
 	GameUploadBuffer<SsaoConstants> mSsaoCB;
+	GameUploadBuffer<PostPassConstants> mPostPassCB;
 	GameUploadBuffer<SsrConstants> mSsrCB;
 	GameUploadBuffer<MaterialData> mMaterialBuffer;
 

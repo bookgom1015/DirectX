@@ -303,7 +303,10 @@ GameResult DxLowRenderer::OnResize() {
 	optClear.DepthStencil.Stencil = 0;
 	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_COMMON, &optClear,
+		D3D12_HEAP_FLAG_NONE, 
+		&depthStencilDesc, 
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
+		&optClear,
 		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
 	));
 

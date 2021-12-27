@@ -3,17 +3,15 @@
 #include <vector>
 
 namespace BlurHelper {
-	static const int MaxBlurRadius = 5;
+	static const int MaxBlurRadius = 9;
 
 	float* CalcGaussWeights(float inSigma) {
 		float twoSigma2 = 2.0f * inSigma * inSigma;
 
 		// Estimate the blur radius based on sigma since sigma controls the "width" of the bell curve.
-		// For example, for sigma = 3, the width of the bell curve is 
 		int blurRadius = static_cast<int>(ceil(2.0f * inSigma));
 
-		if (blurRadius > MaxBlurRadius)
-			return nullptr;
+		if (blurRadius > MaxBlurRadius) return nullptr;
 
 		int size = 2 * blurRadius + 1;
 		float* weights = new float[size];

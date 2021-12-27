@@ -16,6 +16,7 @@
 #include "DX12Game/Ssao.h"
 #include "DX12Game/GBuffer.h"
 #include "DX12Game/Ssr.h"
+#include "DX12Game/MainPass.h"
 
 class Mesh;
 class Animation;
@@ -100,13 +101,15 @@ private:
 	};
 
 	struct DescriptorHeapIndices {
-		UINT mSkyTexHeapIndex;
-		UINT mBlurSkyTexHeapIndex;
-		UINT mDiffuseMapHeapIndex;
-		UINT mNormalMapHeapIndex;
-		UINT mDepthMapHeapIndex;
-		UINT mSpecularMapHeapIndex;
-		UINT mShadowMapHeapIndex;
+		UINT mCubeMapIndex;
+		UINT mBlurCubeMapIndex;
+		UINT mMainPassMapIndex1;
+		UINT mMainPassMapIndex2;
+		UINT mDiffuseMapIndex;
+		UINT mNormalMapIndex;
+		UINT mDepthMapIndex;
+		UINT mSpecularMapIndex;
+		UINT mShadowMapIndex;
 		UINT mSsaoAmbientMapIndex;
 		UINT mSsrMapIndex;
 		UINT mAnimationsMapIndex;
@@ -121,6 +124,8 @@ private:
 		UINT mNullTexSrvIndex5;
 		UINT mNullTexSrvIndex6;
 		UINT mNullTexSrvIndex7;
+		UINT mNullTexSrvIndex8;
+		UINT mNullTexSrvIndex9;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -233,6 +238,7 @@ private:
 	GameResult UpdateShadowTransform(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateMainPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateShadowPassCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdatePostPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsrCB(const GameTimer& gt, UINT inTid = 0);
 	/// Update functions
@@ -240,6 +246,7 @@ private:
 	GameResult LoadBasicTextures();
 	GameResult BuildRootSignature();
 	GameResult BuildSsaoRootSignature();
+	GameResult BuildPostPassRootSignature();
 	GameResult BuildSsrRootSignature();
 
 	void BuildDescriptorHeapIndices(UINT inOffset);
@@ -270,7 +277,10 @@ private:
 	void DrawDebugSkeleton(ID3D12GraphicsCommandList* outCmdList);
 	void DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
 	void DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList);
-	void DrawPostProcessingEffect(ID3D12GraphicsCommandList* outCmdList);
+	void DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+	void DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+	void DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+	void DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList);
 	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
@@ -287,6 +297,7 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> mPostPassRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSignature = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
@@ -333,6 +344,7 @@ private:
 	Ssao mSsao;
 	AnimationsMap mAnimsMap;
 	Ssr mSsr;
+	MainPass mMainPass;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;
@@ -357,6 +369,7 @@ private:
 	UINT mEffectEnabled = EffectEnabled::ESsao | EffectEnabled::ESsr;
 
 	std::vector<DirectX::XMFLOAT4> mBlurWeights;
+	std::vector<DirectX::XMFLOAT4> mSsrBlurWeights;
 
 #ifdef MT_World
 	CVBarrier* mCVBarrier;
