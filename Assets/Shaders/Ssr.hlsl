@@ -114,7 +114,9 @@ float4 GetReflectionColor(float3 posV, float3 normalV, float texC) {
 
 				float fade = fadeMinX * fadeMaxX * fadeMinY * fadeMaxY * fadeDist;
 
-				return gDiffuseMap.Sample(gsamLinearWrap, texC) * fade;
+				float4 litColor = gMainPassMap1.Sample(gsamLinearWrap, texC) + gMainPassMap2.Sample(gsamLinearWrap, texC);
+
+				return litColor * fade;
 			}
 		}
 	}

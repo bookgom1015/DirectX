@@ -6,8 +6,6 @@
 
 #include "SsrCommon.hlsl"
 
-static const int gBlurRadius = 5;
-
 struct VertexOut {
 	float4 PosH  : SV_POSITION;
 	float2 TexC  : TEXCOORD;
@@ -32,10 +30,12 @@ float NdcDepthToViewDepth(float z_ndc) {
 
 float4 PS(VertexOut pin) : SV_Target{
 	// unpack into float array.
-	float blurWeights[12] = {
+	float blurWeights[20] = {
 		gBlurWeights[0].x, gBlurWeights[0].y, gBlurWeights[0].z, gBlurWeights[0].w,
 		gBlurWeights[1].x, gBlurWeights[1].y, gBlurWeights[1].z, gBlurWeights[1].w,
 		gBlurWeights[2].x, gBlurWeights[2].y, gBlurWeights[2].z, gBlurWeights[2].w,
+		gBlurWeights[3].x, gBlurWeights[3].y, gBlurWeights[3].z, gBlurWeights[3].w,
+		gBlurWeights[4].x, gBlurWeights[4].y, gBlurWeights[4].z, gBlurWeights[4].w,
 	};
 
 	float2 texOffset;
@@ -45,20 +45,20 @@ float4 PS(VertexOut pin) : SV_Target{
 		texOffset = float2(0.0f, gInvRenderTargetSize.y);
 
 	// The center value always contributes to the sum.
-	float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0);
+	float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f);
 	float totalWeight = blurWeights[gBlurRadius];
 
-	for (float i = -gBlurRadius; i <= gBlurRadius; ++i) {
+	for (int idx = -gBlurRadius; idx <= gBlurRadius; ++idx) {
 		// We already added in the center weight.
-		if (i == 0)
+		if (idx == 0)
 			continue;
 
-		float2 tex = pin.TexC + i * texOffset;
+		float2 tex = pin.TexC + idx * texOffset;
 
-		float weight = blurWeights[i + gBlurRadius];
+		float weight = blurWeights[idx + gBlurRadius];
 				
 		// Add neighbor pixel to blur.
-		color += weight * gInputMap.SampleLevel(gsamPointClamp, tex, 0.0);
+		color += weight * gInputMap.SampleLevel(gsamPointClamp, tex, 0.0f);
 
 		totalWeight += weight;
 	}

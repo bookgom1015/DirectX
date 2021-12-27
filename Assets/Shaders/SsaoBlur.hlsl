@@ -22,7 +22,9 @@ cbuffer cbSsao : register(b0) {
     float		gOcclusionRadius;
     float		gOcclusionFadeStart;
     float		gOcclusionFadeEnd;
-    float		gSurfaceEpsilon;    
+    float		gSurfaceEpsilon;  
+	float		mConstantPad0;
+	float		mConstantPad1;
 };
 
 cbuffer cbRootConstants : register(b1) {
@@ -38,8 +40,6 @@ SamplerState	gsamPointClamp		: register(s0);
 SamplerState	gsamLinearClamp		: register(s1);
 SamplerState	gsamDepthMap		: register(s2);
 SamplerState	gsamLinearWrap		: register(s3);
-
-static const int gBlurRadius = 5;
  
 static const float2 gTexCoords[6] = {
     float2(0.0f, 1.0f),
@@ -50,6 +50,8 @@ static const float2 gTexCoords[6] = {
     float2(1.0f, 1.0f)
 };
  
+static const int gBlurRadius = 5;
+
 struct VertexOut {
     float4 PosH  : SV_POSITION;
 	float2 TexC  : TEXCOORD;

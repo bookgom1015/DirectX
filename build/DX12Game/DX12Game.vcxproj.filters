@@ -216,6 +216,9 @@
     <ClCompile Include="..\..\src\DX12Game\Ssr.cpp">
       <Filter>Source Files\Util\Shading</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\MainPass.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h">
@@ -338,6 +341,9 @@
     <ClInclude Include="..\..\include\DX12Game\BlurHelper.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\MainPass.h">
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -400,10 +406,9 @@
       <Filter>Shader Files\Dx</Filter>
     </None>
     <None Include="..\..\Assets\Shaders\SsrBlur.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\Random.hlsl">
+    <None Include="..\..\Assets\Shaders\Random.hlsl" />
+    <None Include="..\..\Assets\Shaders\PostPass.hlsl">
       <Filter>Shader Files\Dx</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>

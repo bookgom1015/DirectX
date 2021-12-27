@@ -16,6 +16,8 @@ cbuffer cbSsao : register(b0) {
     float		gOcclusionFadeStart;
     float		gOcclusionFadeEnd;
     float		gSurfaceEpsilon;
+	float		mConstantPad0;
+	float		mConstantPad1;
 };
 
 cbuffer cbRootConstants : register(b1) {

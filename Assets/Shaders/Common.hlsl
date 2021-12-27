@@ -60,21 +60,23 @@ struct MaterialData {
 	uint		MatPad2;
 };
 
-TextureCube	gCubeMap								: register(t0);
-TextureCube	gBlurCubeMap							: register(t1);
-Texture2D	gDiffuseMap								: register(t2);
-Texture2D	gNormalMap								: register(t3);
-Texture2D	gDepthMap								: register(t4);
-Texture2D	gSpecularMap							: register(t5);
-Texture2D	gShadowMap								: register(t6);
-Texture2D	gSsaoMap								: register(t7);
-Texture2D	gSsrMap									: register(t8);
+TextureCube				gCubeMap					: register(t0);
+TextureCube				gBlurCubeMap				: register(t1);
+Texture2D				gMainPassMap1				: register(t2);
+Texture2D				gMainPassMap2				: register(t3);
+Texture2D				gDiffuseMap					: register(t4);
+Texture2D				gNormalMap					: register(t5);
+Texture2D				gDepthMap					: register(t6);
+Texture2D				gSpecularMap				: register(t7);
+Texture2D				gShadowMap					: register(t8);
+Texture2D				gSsaoMap					: register(t9);
+Texture2D				gSsrMap						: register(t10);
 
 // An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
 // in this array can be different sizes and formats, making it more flexible than texture arrays.
-Texture2D	gTextureMaps[64]						: register(t9);
+Texture2D				gTextureMaps[64]			: register(t11);
 
-Texture2D	gAnimationsDataMap						: register(t73);
+Texture2D				gAnimationsDataMap			: register(t75);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 

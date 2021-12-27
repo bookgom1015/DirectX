@@ -6,8 +6,10 @@ cbuffer cbSsr : register(b0) {
 	float4x4	gInvProj;
 	float4x4	gViewProj;
 	// For SsrBlur.hlsl
-	float4		gBlurWeights[3];
+	float4		gBlurWeights[5];
 	float2		gInvRenderTargetSize;
+	int			gBlurRadius;
+	int			mConstantPad0;
 };
 
 cbuffer cbRootConstants : register(b1) {
@@ -19,10 +21,11 @@ cbuffer cbRootConstants : register(b1) {
 };
 
 // Nonnumeric values cannot be added to a cbuffer.
-Texture2D		gDiffuseMap			: register(t0);
-Texture2D		gNormalMap			: register(t1);
-Texture2D		gDepthMap			: register(t2);
-Texture2D		gInputMap			: register(t3);
+Texture2D		gMainPassMap1		: register(t0);
+Texture2D		gMainPassMap2		: register(t1);
+Texture2D		gNormalMap			: register(t2);
+Texture2D		gDepthMap			: register(t3);
+Texture2D		gInputMap			: register(t4);
 
 SamplerState	gsamPointClamp		: register(s0);
 SamplerState	gsamLinearClamp		: register(s1);

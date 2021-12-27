@@ -47,9 +47,9 @@ VertexOut VS(uint vid : SV_VertexID, uint instanceID : SV_InstanceID) {
 
 float4 PS(VertexOut pin) : SV_Target{
 	if (pin.InstID == 0)
-		return gDiffuseMap.Sample(gsamLinearWrap, pin.TexC);
+		return gMainPassMap1.Sample(gsamLinearWrap, pin.TexC);
 	else if (pin.InstID == 1)
-		return gNormalMap.Sample(gsamLinearWrap, pin.TexC);
+		return gMainPassMap2.Sample(gsamLinearWrap, pin.TexC);
 	else if (pin.InstID == 2)
 		return float4(gDepthMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	else if (pin.InstID == 3)

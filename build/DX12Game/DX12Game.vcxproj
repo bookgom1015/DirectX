@@ -158,6 +158,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GBuffer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\MainPass.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
@@ -177,6 +178,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClInclude Include="..\..\include\DX12Game\GameUploadBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\GBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
+    <ClInclude Include="..\..\include\DX12Game\MainPass.h" />
     <ClInclude Include="..\..\include\DX12Game\Renderer.h" />
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h" />
     <ClInclude Include="..\..\include\DX12Game\GameCamera.h" />
@@ -303,6 +305,11 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\Random.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\PostPass.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

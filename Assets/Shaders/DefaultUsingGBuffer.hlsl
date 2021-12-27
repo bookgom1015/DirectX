@@ -31,9 +31,14 @@ static const float2 gTexCoords[6] = {
 };
 
 struct VertexOut {
-	float4 PosH		: SV_POSITION; 
-	float3 PosV		: POSITION;
-	float2 TexC		: TEXCOORD;
+	float4 PosH				: SV_POSITION; 
+	float3 PosV				: POSITION;
+	float2 TexC				: TEXCOORD;
+};
+
+struct PixelOut {
+	float4 MainPassMap1		: SV_TARGET0;
+	float4 MainPassMap2		: SV_TARGET1;
 };
 
 VertexOut VS(uint vid : SV_VertexID) {
@@ -51,7 +56,7 @@ VertexOut VS(uint vid : SV_VertexID) {
 	return vout;
 }
 
-float4 PS(VertexOut pin) : SV_Target{
+PixelOut PS(VertexOut pin) {
 	// Get viewspace normal and z-coord of this pixel.  
 	//float3 n = normalize(gNormalMap.Sample(gsamPointClamp, pin.TexC).xyz);
 	float pz = gDepthMap.Sample(gsamDepthMap, pin.TexC).r;
@@ -95,24 +100,21 @@ float4 PS(VertexOut pin) : SV_Target{
 	float3 toEyeW = normalize(gEyePosW - posW.xyz);
 	float4 directLight = ComputeLighting(gLights, mat, posW.xyz, normalW, toEyeW, shadowFactor);
 	
-	float4 litColor = ambient + directLight;	
+	PixelOut pout = (PixelOut)0.0f;
+
+	pout.MainPassMap1 = ambient + directLight;	
 
 	// Add in specular reflections.
 	float3 r = reflect(-toEyeW, normalW);
 	float3 lookup = BoxCubeMapLookup(posW.xyz, r, gCubeMapCenter, gCubeMapExtents);
 
-	float4 reflectionSample = gSsrMap.Sample(gsamLinearWrap, pin.TexC);
-
-	float4 reflectionColor = gEffectEnabled & SSR_ENABLED ?
-		reflectionSample.a * reflectionSample + (1.0f - reflectionSample.a) * gBlurCubeMap.Sample(gsamLinearWrap, lookup) : (float4)1.0f;
-
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, normalW, r);
-	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
+	pout.MainPassMap2 = float4(shininess * fresnelFactor, 0.0f);
 	
 	// Common convention to take alpha from diffuse albedo.
-	litColor.a = diffuseAlbedo.a;
-	
-	return litColor;
+	pout.MainPassMap1.a = diffuseAlbedo.a;	
+
+	return pout;
 }
 
 #endif

@@ -138,7 +138,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) {
 	return vout;
 }
 
-PixelOut PS(VertexOut pin) : SV_Target {
+PixelOut PS(VertexOut pin) {
 	// Fetch the material data.
 	MaterialData matData = gMaterialData[pin.MatIndex];
 
