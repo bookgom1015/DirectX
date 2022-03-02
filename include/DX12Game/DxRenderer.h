@@ -271,16 +271,21 @@ private:
 	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
 	GameResult DrawSceneToShadowMap(UINT inTid = 0);
+
 	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
 	GameResult DrawSceneToGBuffer(UINT inTid = 0);
+
 	void DrawDebugSkeleton(ID3D12GraphicsCommandList* outCmdList);
 	void DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
 	void DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList);
+
 	void DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList);
 	void DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList);
 	void DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+
 	void DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+
 	GameResult DrawSceneToRenderTarget();
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;

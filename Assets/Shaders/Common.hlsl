@@ -130,8 +130,6 @@ cbuffer cbPass : register(b1) {
 
 cbuffer cbRootConstants : register(b2) {
 	uint	gMaxInstanceCount;
-	float	gCubeMapCenter;
-	float	gCubeMapExtents;
 	uint	gEffectEnabled;
 };
 

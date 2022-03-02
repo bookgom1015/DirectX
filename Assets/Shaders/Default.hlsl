@@ -205,10 +205,10 @@ float4 PS(VertexOut pin) : SV_Target{
 
 	// Add in specular reflections.
 	float3 r = reflect(-toEyeW, bumpedNormalW);
-	float3 lookup = BoxCubeMapLookup(pin.PosW, r, gCubeMapCenter, gCubeMapExtents);
-	float4 reflectionColor = gBlurCubeMap.Sample(gsamLinearWrap, lookup);
+	//float3 lookup = BoxCubeMapLookup(pin.PosW, r, gCubeMapCenter, gCubeMapExtents);
+	//float4 reflectionColor = gBlurCubeMap.Sample(gsamLinearWrap, lookup);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);
-	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
+	litColor.rgb += shininess * fresnelFactor;// *reflectionColor.rgb;
 
 	// Common convention to take alpha from diffuse albedo.
 	litColor.a = diffuseAlbedo.a;

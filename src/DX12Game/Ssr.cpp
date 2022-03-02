@@ -114,11 +114,7 @@ void Ssr::ComputeSsr(
 	// Bind the constant buffer for this pass.
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();
 	outCmdList->SetGraphicsRootConstantBufferView(0, ssrCBAddress);
-	outCmdList->SetGraphicsRoot32BitConstant(1, mSsrDistance, 0);
-	outCmdList->SetGraphicsRoot32BitConstant(1, mMaxFadeDistance, 1);
-	outCmdList->SetGraphicsRoot32BitConstant(1, mMinFadeDistance, 2);
-	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &mEdgeFadeLength, 3);
-	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 4);
+	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 
 	// Bind the back buffer map.
 	outCmdList->SetGraphicsRootDescriptorTable(2, mhMainPassMapGpuSrv1);
@@ -176,6 +172,22 @@ UINT Ssr::GetSsrMapHeight() const {
 	return mSsrMapHeight;
 }
 
+UINT Ssr::GetSsrDistance() const {
+	return mSsrDistance;
+}
+
+UINT Ssr::GetMaxFadeDistance() const {
+	return mMaxFadeDistance;
+}
+
+UINT Ssr::GetMinFadeDistance() const {
+	return mMinFadeDistance;
+}
+
+float Ssr::GetEdgeFadeLength() const {
+	return mEdgeFadeLength;
+}
+
 void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur) {
 	ID3D12Resource* output = nullptr;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE inputSrv;
@@ -187,13 +199,13 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur)
 		output = mAmbientMap1.Get();
 		inputSrv = mhAmbientMap0GpuSrv;
 		outputRtv = mhAmbientMap1CpuRtv;
-		outCmdList->SetGraphicsRoot32BitConstant(1, 1, 1);
+		outCmdList->SetGraphicsRoot32BitConstant(1, 1, 0);
 	}
 	else {
 		output = mAmbientMap0.Get();
 		inputSrv = mhAmbientMap1GpuSrv;
 		outputRtv = mhAmbientMap0CpuRtv;
-		outCmdList->SetGraphicsRoot32BitConstant(1, 0, 1);
+		outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 	}
 
 	outCmdList->ResourceBarrier(

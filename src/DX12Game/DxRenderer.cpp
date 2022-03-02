@@ -1707,10 +1707,15 @@ GameResult DxRenderer::UpdateShadowPassCB(const GameTimer& gt, UINT inTid) {
 GameResult DxRenderer::UpdatePostPassCB(const GameTimer& gt, UINT inTid) {
 	PostPassConstants postPassCB;
 
-	postPassCB.mInvView = mMainPassCB.mView;
+	postPassCB.mInvView = mMainPassCB.mInvView;
 	postPassCB.mProj = mMainPassCB.mProj;
 	postPassCB.mInvProj = mMainPassCB.mInvProj;
 	postPassCB.mEyePosW = mMainPassCB.mEyePosW;
+	postPassCB.mCubeMapCenter = 0.0f;
+	postPassCB.mCubeMapExtents = 128.0f;
+
+	auto& currPostPassCB = mCurrFrameResource->mPostPassCB;
+	currPostPassCB.CopyData(0, postPassCB);
 
 	return GameResultOk;
 }
@@ -1774,6 +1779,11 @@ GameResult DxRenderer::UpdateSsrCB(const GameTimer& gt, UINT inTid) {
 	ssrCB.mBlurWeights[4] = mSsrBlurWeights[4];
 
 	ssrCB.mInvRenderTargetSize = XMFLOAT2(1.0f / mSsr.GetSsrMapWidth(), 1.0f / mSsr.GetSsrMapHeight());
+
+	ssrCB.mSsrDistance = mSsr.GetSsrDistance();
+	ssrCB.mMaxFadeDistance = mSsr.GetMaxFadeDistance();
+	ssrCB.mMinFadeDistance = mSsr.GetMinFadeDistance();
+	ssrCB.mEdgeFadeLength = mSsr.GetEdgeFadeLength();
 
 	ssrCB.mBlurRadius = 9;
 
@@ -1959,7 +1969,7 @@ GameResult DxRenderer::BuildRootSignature() {
 		1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL
 	);
 	slotRootParameter[mRootParams.mConstSettingsIndex].InitAsConstants(
-		4, 2, 0, D3D12_SHADER_VISIBILITY_ALL
+		2, 2, 0, D3D12_SHADER_VISIBILITY_ALL
 	);
 	slotRootParameter[mRootParams.mAnimationsMapIndex].InitAsDescriptorTable(
 		1, &texTable2, D3D12_SHADER_VISIBILITY_ALL
@@ -2104,7 +2114,7 @@ GameResult DxRenderer::BuildPostPassRootSignature() {
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstants(4, 1, 0, D3D12_SHADER_VISIBILITY_ALL);
+	slotRootParameter[1].InitAsConstants(1, 1, 0, D3D12_SHADER_VISIBILITY_ALL);
 	slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
@@ -2165,7 +2175,7 @@ GameResult DxRenderer::BuildSsrRootSignature() {
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsConstantBufferView(0);
-	slotRootParameter[1].InitAsConstants(5, 1);
+	slotRootParameter[1].InitAsConstants(1, 1);
 	slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[4].InitAsDescriptorTable(1, &texTable2, D3D12_SHADER_VISIBILITY_PIXEL);
@@ -3352,16 +3362,9 @@ void DxRenderer::BindRootConstants(ID3D12GraphicsCommandList* outCmdList) {
 
 	outCmdList->SetGraphicsRoot32BitConstants(
 		mRootParams.mConstSettingsIndex,
-		static_cast<UINT>(mRootConstants.size()),
-		mRootConstants.data(),
-		1
-	);
-
-	outCmdList->SetGraphicsRoot32BitConstants(
-		mRootParams.mConstSettingsIndex,
 		1,
 		&mEffectEnabled,
-		3
+		1
 	);
 }
 
@@ -3827,9 +3830,7 @@ void DxRenderer::DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList) {
 	auto postPassCBAddress = mCurrFrameResource->mPostPassCB.Resource()->GetGPUVirtualAddress();
 	outCmdList->SetGraphicsRootConstantBufferView(0, postPassCBAddress);
 
-	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &MaxInstanceCount, 0);
-	outCmdList->SetGraphicsRoot32BitConstants(1, static_cast<UINT>(mRootConstants.size()), mRootConstants.data(), 1);
-	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &mEffectEnabled, 3);
+	outCmdList->SetGraphicsRoot32BitConstants(1, 1, &mEffectEnabled, 0);
 
 	outCmdList->SetGraphicsRootDescriptorTable(2, GetGpuSrv(mDescHeapIdx.mCubeMapIndex));
 

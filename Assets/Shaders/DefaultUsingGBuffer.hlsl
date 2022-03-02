@@ -5,18 +5,8 @@
 #ifndef __DEFAULT_HLSL__
 #define __DEFAULT_HLSL__
 
-// Defaults for number of lights.
-#ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 3
-#endif
-
-#ifndef NUM_POINT_LIGHTS
-#define NUM_POINT_LIGHTS 0
-#endif
-
-#ifndef NUM_SPOT_LIGHTS
-#define NUM_SPOT_LIGHTS 0
-#endif
+// Include definitions
+#include "Definitions.hlsl"
 
 // Include common HLSL code.
 #include "Common.hlsl"
@@ -106,7 +96,6 @@ PixelOut PS(VertexOut pin) {
 
 	// Add in specular reflections.
 	float3 r = reflect(-toEyeW, normalW);
-	float3 lookup = BoxCubeMapLookup(posW.xyz, r, gCubeMapCenter, gCubeMapExtents);
 
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, normalW, r);
 	pout.MainPassMap2 = float4(shininess * fresnelFactor, 0.0f);

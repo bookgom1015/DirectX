@@ -47,6 +47,11 @@ public:
 	UINT GetSsrMapWidth() const;
 	UINT GetSsrMapHeight() const;
 
+	UINT GetSsrDistance() const;
+	UINT GetMaxFadeDistance() const;
+	UINT GetMinFadeDistance() const;
+	float GetEdgeFadeLength() const;
+
 private:
 	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
 	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);

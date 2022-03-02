@@ -1,17 +1,23 @@
 #ifndef __POSTPASS_HLSL__
+#define __POSTPASS_HLSL__
+
+// Include definitions
+#include "Definitions.hlsl"
 
 cbuffer cbPostPass : register(b0) {
 	float4x4	gInvView;
 	float4x4	gProj;
 	float4x4	gInvProj;
 	float3		gEyePosW;
+	float		gCubeMapCenter;
+	float		gCubeMapExtents;
+	float		gConstantPad0;
+	float		gConstantPad1;
+	float		gConstantPad2;
 };
 
 cbuffer cbRootConstants : register(b1) {
-	uint	gMaxInstanceCount;
-	float	gCubeMapCenter;
-	float	gCubeMapExtents;
-	uint	gEffectEnabled;
+	uint		gEffectEnabled;
 };
 
 // Nonnumeric values cannot be added to a cbuffer.
@@ -129,9 +135,10 @@ float4 PS(VertexOut pin) : SV_Target{
 	float4 mainPassSample1 = gMainPassMap1.Sample(gsamLinearClamp, pin.TexC);
 	float4 mainPassSample2 = gMainPassMap2.Sample(gsamLinearClamp, pin.TexC);
 
-	float3 reflectionColor = mainPassSample2.rgb * (reflectionSample.a * reflectionSample.rgb + (1.0f - reflectionSample.a) * cubeMapSample);
+	float3 reflectionColor = (gEffectEnabled & SSR_ENABLED) ? 
+		(reflectionSample.a * reflectionSample.rgb + (1.0f - reflectionSample.a) * cubeMapSample) : cubeMapSample;
 
-	return mainPassSample1 + float4(reflectionColor, 0.0f);
+	return mainPassSample1 + float4(mainPassSample2.rgb * reflectionColor, 0.0f);
 }
 
 #endif // __POSTPASS_HLSL__

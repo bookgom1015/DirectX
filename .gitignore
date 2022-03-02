@@ -1,4 +1,16 @@
 # : comments
 
-# no object files
+# ignore object files
 *.obj
+
+# ignore batch files
+.bat
+
+# ignore all files in bin/
+bin/
+
+# no need to include libararies
+lib/
+
+# ignore pdf files
+.pdf

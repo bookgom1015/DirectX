@@ -8,15 +8,15 @@ cbuffer cbSsr : register(b0) {
 	// For SsrBlur.hlsl
 	float4		gBlurWeights[5];
 	float2		gInvRenderTargetSize;
+	float		gEdgeFadeLength;
+	uint		gSsrDistance;
+	uint		gMaxFadeDistance;
+	uint		gMinFadeDistance;
 	int			gBlurRadius;
-	int			mConstantPad0;
+	int			gConstantPad0;
 };
 
 cbuffer cbRootConstants : register(b1) {
-	uint	gSsrDistance;
-	uint	gMaxFadeDistance;
-	uint	gMinFadeDistance;
-	float	gEdgeFadeLength;
 	bool	gHorizontalBlur;
 };
 

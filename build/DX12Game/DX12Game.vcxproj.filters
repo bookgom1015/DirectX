@@ -410,5 +410,8 @@
     <None Include="..\..\Assets\Shaders\PostPass.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\Definitions.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
   </ItemGroup>
 </Project>

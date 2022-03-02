@@ -114,6 +114,11 @@ struct PostPassConstants {
 	DirectX::XMFLOAT4X4	mProj;
 	DirectX::XMFLOAT4X4	mInvProj;
 	DirectX::XMFLOAT3	mEyePosW;
+	float				mCubeMapCenter;
+	float				mCubeMapExtents;
+	float				mConstantPad0;
+	float				mConstantPad1;
+	float				mConstantPad2;
 };
 
 struct SsrConstants {
@@ -123,6 +128,10 @@ struct SsrConstants {
 	// For SsrBlur.hlsl
 	DirectX::XMFLOAT4	mBlurWeights[5];
 	DirectX::XMFLOAT2	mInvRenderTargetSize;
+	float				mEdgeFadeLength;
+	UINT				mSsrDistance;
+	UINT				mMaxFadeDistance;
+	UINT				mMinFadeDistance;
 	int					mBlurRadius;
 	int					mConstantPad0;
 };
