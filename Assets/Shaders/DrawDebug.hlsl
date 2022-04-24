@@ -55,7 +55,7 @@ float4 PS(VertexOut pin) : SV_Target{
 	else if (pin.InstID == 3)
 		return float4(gSsrMap.Sample(gsamLinearWrap, pin.TexC).rgb, 1.0f);
 	else if (pin.InstID == 4)
-		return float4(gSsaoMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
+		return float4(gBloomMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	else
 		return float4(0.0f, 0.0f, 0.0f, 1.0f);
 }

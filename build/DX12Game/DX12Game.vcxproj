@@ -71,9 +71,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(Platform)\$(ProjectName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -81,11 +83,11 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VK_SDK_PATH)include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(VK_SDK_PATH)Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
@@ -135,13 +137,13 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VK_SDK_PATH)include;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glm;C:\Users\bookg\Documents\Visual Studio 2017\Libraries\glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(VK_SDK_PATH)Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(VULKAN_SDK)\Lib;$(SolutionDir)lib\$(Configuration);$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(FBX_SDK_PATH)lib\vs2017\$(Platform)\$(Configuration);$(FMOD_CORE_PATH)lib\$(Platform);$(FMOD_PATH)lib\$(Platform)</AdditionalLibraryDirectories>
       <HeapReserveSize>
       </HeapReserveSize>
       <StackReserveSize>
@@ -155,13 +157,16 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\Bloom.cpp" />
     <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\PerfAnalyzer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GBuffer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\MainPass.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\RootSignatureManager.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Ssr.cpp" />
@@ -171,9 +176,11 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\VkLowRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\VkRenderer.cpp" />
     <ClInclude Include="..\..\include\DX12Game\AnimationsMap.h" />
+    <ClInclude Include="..\..\include\DX12Game\Bloom.h" />
     <ClInclude Include="..\..\include\DX12Game\BlurHelper.h" />
     <ClInclude Include="..\..\include\DX12Game\ContainerUtil.h" />
     <ClInclude Include="..\..\include\DX12Game\D3D12Util.h" />
+    <ClInclude Include="..\..\include\DX12Game\PerfAnalyzer.h" />
     <ClInclude Include="..\..\include\DX12Game\GameResult.h" />
     <ClInclude Include="..\..\include\DX12Game\GameUploadBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\GBuffer.h" />
@@ -207,6 +214,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\Ssao.cpp" />
     <ClInclude Include="..\..\include\DX12Game\GameCore.h" />
     <ClInclude Include="..\..\include\DX12Game\GameTimer.h" />
+    <ClInclude Include="..\..\include\DX12Game\RootSignatureManager.h" />
     <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h" />
     <ClInclude Include="..\..\include\DX12Game\SkinnedData.h" />
     <ClInclude Include="..\..\include\DX12Game\Ssr.h" />
@@ -315,6 +323,11 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\Definitions.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\Bloom.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

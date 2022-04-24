@@ -12,11 +12,13 @@
 #include "DX12Game/FrameResource.h"
 #include "DX12Game/GameCamera.h"
 #include "DX12Game/DxLowRenderer.h"
+#include "DX12Game/RootSignatureManager.h"
 #include "DX12Game/ShadowMap.h"
 #include "DX12Game/Ssao.h"
 #include "DX12Game/GBuffer.h"
 #include "DX12Game/Ssr.h"
 #include "DX12Game/MainPass.h"
+#include "DX12Game/Bloom.h"
 
 class Mesh;
 class Animation;
@@ -88,18 +90,6 @@ private:
 		RenderItem& operator=(RenderItem&& rhs) = delete;
 	};
 
-	struct RootParameterIndices {
-		UINT mObjectCBIndex;
-		UINT mPassCBIndex;
-		UINT mInstIdxBufferIndex;
-		UINT mInstBufferIndex;
-		UINT mMatBufferIndex;
-		UINT mMiscTextureMapIndex;
-		UINT mTextureMapIndex;
-		UINT mConstSettingsIndex;
-		UINT mAnimationsMapIndex;
-	};
-
 	struct DescriptorHeapIndices {
 		UINT mCubeMapIndex;
 		UINT mBlurCubeMapIndex;
@@ -112,6 +102,7 @@ private:
 		UINT mShadowMapIndex;
 		UINT mSsaoAmbientMapIndex;
 		UINT mSsrMapIndex;
+		UINT mBloomMapIndex;
 		UINT mAnimationsMapIndex;
 		UINT mSsaoAdditionalMapIndex;
 		UINT mSsrAdditionalMapIndex;
@@ -126,6 +117,7 @@ private:
 		UINT mNullTexSrvIndex7;
 		UINT mNullTexSrvIndex8;
 		UINT mNullTexSrvIndex9;
+		UINT mNullTexSrvIndex10;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -244,10 +236,6 @@ private:
 	/// Update functions
 
 	GameResult LoadBasicTextures();
-	GameResult BuildRootSignature();
-	GameResult BuildSsaoRootSignature();
-	GameResult BuildPostPassRootSignature();
-	GameResult BuildSsrRootSignature();
 
 	void BuildDescriptorHeapIndices(UINT inOffset);
 	void BuildNullShaderResourceViews();
@@ -280,11 +268,10 @@ private:
 	void DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
 	void DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList);
 
-	void DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList);
-	void DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList);
-	void DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList);
-
-	void DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList);
+	GameResult DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
 
 	GameResult DrawSceneToRenderTarget();
 
@@ -299,11 +286,6 @@ private:
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
-
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mPostPassRootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsrRootSignature = nullptr;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
 
@@ -350,10 +332,12 @@ private:
 	AnimationsMap mAnimsMap;
 	Ssr mSsr;
 	MainPass mMainPass;
+	Bloom mBloom;
+
+	RootSignatureManager mRSManager;
 
 	DescriptorHeapIndices mDescHeapIdx;
 	LightingVariables mLightingVars;
-	RootParameterIndices mRootParams;
 
 	DirectX::BoundingFrustum mCamFrustum;
 	DirectX::BoundingSphere mSceneBounds;
@@ -382,16 +366,6 @@ private:
 
 	std::vector<UINT> mNumInstances;
 	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
-
-	std::vector<float> mDxRenderUpdateTimers;
-	std::vector<float> mWaitTimers;
-	std::vector<float> mUpdateObjTimers;
-
-	std::vector<float> mDxDrawTimers;
-
-	std::vector<UINT> mUpdateAccums;
-
-	std::vector<UINT> mDrawAccums;
 #endif
 
 	bool bDrawDebugSkeletonsEnabled = true;

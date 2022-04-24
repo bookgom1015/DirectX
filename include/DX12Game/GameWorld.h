@@ -6,6 +6,7 @@
 #endif
 
 #include "DX12Game/SoundEvent.h"
+#include "DX12Game/PerfAnalyzer.h"
 
 class Renderer;
 // Forward declarations.
@@ -79,7 +80,6 @@ private:
 
 	GameResult InitMainWindow();
 	GameResult OnResize();
-	void CalculateFrameStats();
 
 	///
 	// Call-back functions for mouse state.
@@ -128,6 +128,8 @@ private:
 
 	GameTimer mTimer;
 	GameTimer::LimitFrameRate mLimitFrameRate;
+
+	PerfAnalyzer mPerfAnalyzer;
 
 #ifdef MT_World
 	std::vector<std::thread> mThreads;

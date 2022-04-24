@@ -110,6 +110,8 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	if (!mInputSystem->Initialize(mhMainWnd))
 		ReturnGameResult(S_FALSE, L"Failed to initialize InputSystem");
 
+	mPerfAnalyzer.Initialize(mRenderer.get(), mNumProcessors);
+
 	mLimitFrameRate = GameTimer::LimitFrameRate::ELimitFrameRateNone;
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
@@ -423,15 +425,22 @@ GameResult GameWorld::GameLoop() {
 		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
 			mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
 				while (mGameState != GameState::ETerminated) {
-					inBarrier.Wait();				
+					mPerfAnalyzer.WholeLoopBeginTime(inTid);
+					inBarrier.Wait();
 	
 					if (!mAppPaused)
 						ProcessInput(mTimer, inTid);
 
+					mPerfAnalyzer.UpdateBeginTime(inTid);
 					BreakIfFailed(UpdateGame(mTimer, inTid));
+					mPerfAnalyzer.UpdateEndTime(inTid);
 
+					mPerfAnalyzer.DrawBeginTime(inTid);
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, inTid));
+					mPerfAnalyzer.DrawEndTime(inTid);
+
+					mPerfAnalyzer.WholeLoopEndTime(inTid);
 				}
 
 				mGameState = GameState::ETerminated;
@@ -455,6 +464,7 @@ GameResult GameWorld::GameLoop() {
 				elapsedTime = endTime - beginTime;
 	
 				if (elapsedTime > mTimer.GetLimitFrameRate()) {
+					mPerfAnalyzer.WholeLoopBeginTime(0);
 					barrier.Wait();
 
 					if (mGameState == GameState::ETerminated)
@@ -463,13 +473,20 @@ GameResult GameWorld::GameLoop() {
 					beginTime = endTime;
 	
 					if (!mAppPaused) {
-						CalculateFrameStats();
+						//CalculateFrameStats();
 						ProcessInput(mTimer, 0);
 					}
-					BreakIfFailed(UpdateGame(mTimer, 0));
 
+					mPerfAnalyzer.UpdateBeginTime(0);
+					BreakIfFailed(UpdateGame(mTimer, 0));
+					mPerfAnalyzer.UpdateEndTime(0);
+
+					mPerfAnalyzer.DrawBeginTime(0);
 					if (!mAppPaused)
 						BreakIfFailed(Draw(mTimer, 0));
+					mPerfAnalyzer.DrawEndTime(0);
+
+					mPerfAnalyzer.WholeLoopEndTime(0);
 				}
 			}
 		}	
@@ -880,42 +897,6 @@ GameResult GameWorld::OnResize() {
 		CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
 
 	return GameResult(S_OK);
-}
-
-void GameWorld::CalculateFrameStats() {
-	// Code computes the average frames per second, and also 
-	// the average time it takes to render one frame
-	// These stats are appended to the window caption bar
-	static int frameCnt = 0;
-	static float timeElapsed = 0.0f;
-
-	frameCnt++;
-
-	// Compute averages over one second period
-	if (mTimer.TotalTime() - timeElapsed >= 0.05f) {
-		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
-		float mspf = 1000.0f / fps;
-
-		mRenderer->AddOutputText(
-			"TEXT_FPS",
-			L"fps: " + std::to_wstring(fps),
-			static_cast<float>(mClientWidth * 0.01f),
-			static_cast<float>(mClientHeight * 0.01f),
-			16.0f
-		);
-
-		mRenderer->AddOutputText(
-			"TEXT_MSPF",
-			L"mspf: " + std::to_wstring(mspf),
-			static_cast<float>(mClientWidth * 0.01f),
-			static_cast<float>(mClientHeight * 0.05f),
-			16.0f	
-		);
-
-		// Reset for next average
-		frameCnt = 0;
-		timeElapsed += 1.0f;
-	}
 }
 
 void GameWorld::OnMouseDown(WPARAM inBtnState, int inX, int inY) {}

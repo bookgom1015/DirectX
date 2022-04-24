@@ -50,7 +50,70 @@ void GBuffer::BuildDescriptors(
 	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
 	mRtvDescriptorSize = inRtvDescriptorSize;
 
-	BuildGBuffer(inDepthStencilBuffer);
+	RebuildDescriptors(inDepthStencilBuffer);
+}
+
+void GBuffer::RebuildDescriptors(ID3D12Resource* inDepthStencilBuffer) {
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Texture2D.PlaneSlice = 0;
+
+	//
+	// Creates shader resource view for diffuse map.
+	//
+	srvDesc.Format = mDiffuseMapFormat;
+
+	md3dDevice->CreateShaderResourceView(mDiffuseMap.Get(), &srvDesc, mhDiffuseMapCpuSrv);
+
+	//
+	// Creates render target view for diffuse map.
+	//
+	rtvDesc.Format = mDiffuseMapFormat;
+
+	md3dDevice->CreateRenderTargetView(mDiffuseMap.Get(), &rtvDesc, mhDiffuseMapCpuRtv);
+
+	//
+	// Create shader resource view for normal map.
+	//
+	srvDesc.Format = mNormalMapFormat;
+
+	md3dDevice->CreateShaderResourceView(mNormalMap.Get(), &srvDesc, mhNormalMapCpuSrv);
+
+	//
+	// Create render target view for normal map.
+	//
+	rtvDesc.Format = mNormalMapFormat;
+
+	md3dDevice->CreateRenderTargetView(mNormalMap.Get(), &rtvDesc, mhNormalMapCpuRtv);
+
+	//
+	// Create shader resource view for depth map.
+	//
+	srvDesc.Format = mDepthMapFormat;
+
+	md3dDevice->CreateShaderResourceView(inDepthStencilBuffer, &srvDesc, mhDepthMapCpuSrv);
+
+	//
+	// Create shader resource view for normal map.
+	//
+	srvDesc.Format = mSpecularMapFormat;
+
+	md3dDevice->CreateShaderResourceView(mSpecularMap.Get(), &srvDesc, mhSpecularMapCpuSrv);
+
+	//
+	// Create render target view for normal map.
+	//
+	rtvDesc.Format = mSpecularMapFormat;
+
+	md3dDevice->CreateRenderTargetView(mSpecularMap.Get(), &rtvDesc, mhSpecularMapCpuRtv);
 }
 
 GameResult GBuffer::OnResize(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer) {
@@ -58,8 +121,6 @@ GameResult GBuffer::OnResize(UINT inClientWidth, UINT inClientHeight, ID3D12Reso
 	mClientHeight = inClientHeight;
 
 	CheckGameResult(BuildResources());
-
-	BuildGBuffer(inDepthStencilBuffer);
 
 	return GameResult(S_OK);
 }
@@ -194,67 +255,4 @@ GameResult GBuffer::BuildResources() {
 	);
 
 	return GameResult(S_OK);
-}
-
-void GBuffer::BuildGBuffer(ID3D12Resource* inDepthStencilBuffer) {
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	srvDesc.Texture2D.MipLevels = 1;
-
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	rtvDesc.Texture2D.MipSlice = 0;
-	rtvDesc.Texture2D.PlaneSlice = 0;
-
-	//
-	// Creates shader resource view for diffuse map.
-	//
-	srvDesc.Format = mDiffuseMapFormat;
-
-	md3dDevice->CreateShaderResourceView(mDiffuseMap.Get(), &srvDesc, mhDiffuseMapCpuSrv);
-
-	//
-	// Creates render target view for diffuse map.
-	//
-	rtvDesc.Format = mDiffuseMapFormat;
-
-	md3dDevice->CreateRenderTargetView(mDiffuseMap.Get(), &rtvDesc, mhDiffuseMapCpuRtv);
-
-	//
-	// Create shader resource view for normal map.
-	//
-	srvDesc.Format = mNormalMapFormat;
-
-	md3dDevice->CreateShaderResourceView(mNormalMap.Get(), &srvDesc, mhNormalMapCpuSrv);
-
-	//
-	// Create render target view for normal map.
-	//
-	rtvDesc.Format = mNormalMapFormat;
-
-	md3dDevice->CreateRenderTargetView(mNormalMap.Get(), &rtvDesc, mhNormalMapCpuRtv);
-
-	//
-	// Create shader resource view for depth map.
-	//
-	srvDesc.Format = mDepthMapFormat;
-
-	md3dDevice->CreateShaderResourceView(inDepthStencilBuffer, &srvDesc, mhDepthMapCpuSrv);
-
-	//
-	// Create shader resource view for normal map.
-	//
-	srvDesc.Format = mSpecularMapFormat;
-
-	md3dDevice->CreateShaderResourceView(mSpecularMap.Get(), &srvDesc, mhSpecularMapCpuSrv);
-
-	//
-	// Create render target view for normal map.
-	//
-	rtvDesc.Format = mSpecularMapFormat;
-
-	md3dDevice->CreateRenderTargetView(mSpecularMap.Get(), &rtvDesc, mhSpecularMapCpuRtv);
 }

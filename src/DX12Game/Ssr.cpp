@@ -42,7 +42,7 @@ GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
 }
 
 void Ssr::BuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv1,
+	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
 	CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
@@ -51,6 +51,9 @@ void Ssr::BuildDescriptors(
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
 	UINT inCbvSrvUavDescriptorSize,
 	UINT inRtvDescriptorSize) {
+
+	mhMainPassMapGpuSrv = hMainPassMapGpuSrv;
+	mhNormalMapGpuSrv = hNormalMapGpuSrv;
 
 	mhAmbientMap0CpuSrv = hAmbientMapCpuSrv;
 	mhAmbientMap0GpuSrv = hAmbientMapGpuSrv;
@@ -64,16 +67,10 @@ void Ssr::BuildDescriptors(
 	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
 
 	//  Create the descriptors
-	RebuildDescriptors(hMainPassMapGpuSrv1, hNormalMapGpuSrv);
+	RebuildDescriptors();
 }
 
-void Ssr::RebuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv1,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv) {
-
-	mhMainPassMapGpuSrv1 = hMainPassMapGpuSrv1;
-	mhNormalMapGpuSrv = hNormalMapGpuSrv;
-
+void Ssr::RebuildDescriptors() {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -96,14 +93,19 @@ void Ssr::ComputeSsr(
 		ID3D12GraphicsCommandList*	outCmdList,
 		const FrameResource*		inCurrFrame,
 		int							inBlurCount) {
+	outCmdList->SetPipelineState(mSsrPso);
+
 	outCmdList->RSSetViewports(1, &mViewport);
 	outCmdList->RSSetScissorRects(1, &mScissorRect);
 
 	// We compute the initial SSAO to AmbientMap0.
 
 	// Change to RENDER_TARGET.
-	outCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.Get(),
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	outCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		mAmbientMap0.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	));
 
 	float clearValue[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	outCmdList->ClearRenderTargetView(mhAmbientMap0CpuRtv, clearValue, 0, nullptr);
@@ -117,12 +119,10 @@ void Ssr::ComputeSsr(
 	outCmdList->SetGraphicsRoot32BitConstant(1, 0, 0);
 
 	// Bind the back buffer map.
-	outCmdList->SetGraphicsRootDescriptorTable(2, mhMainPassMapGpuSrv1);
+	outCmdList->SetGraphicsRootDescriptorTable(2, mhMainPassMapGpuSrv);
 
 	// Bind the normal and depth maps.
 	outCmdList->SetGraphicsRootDescriptorTable(3, mhNormalMapGpuSrv);
-
-	outCmdList->SetPipelineState(mSsrPso);
 
 	// Draw fullscreen quad.
 	outCmdList->IASetVertexBuffers(0, 0, nullptr);
@@ -136,7 +136,7 @@ void Ssr::ComputeSsr(
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			mAmbientMap0.Get(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_GENERIC_READ
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		)
 	);
 
@@ -212,7 +212,7 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur)
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		)
 	);
@@ -236,7 +236,7 @@ void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur)
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output,
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_GENERIC_READ
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		)
 	);
 }
@@ -267,7 +267,7 @@ GameResult Ssr::BuildResources() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&optClear,
 		IID_PPV_ARGS(&mAmbientMap0)
 	));
@@ -276,7 +276,7 @@ GameResult Ssr::BuildResources() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&optClear,
 		IID_PPV_ARGS(&mAmbientMap1)
 	));

@@ -112,6 +112,18 @@
     <Filter Include="Header Files\Util\Mesh">
       <UniqueIdentifier>{d9b8518c-e6e0-44e8-816e-fcc53210f9c7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Util\Render">
+      <UniqueIdentifier>{b414213a-9f82-457c-a352-968d2dbc0dea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Util\Render">
+      <UniqueIdentifier>{26daea8c-8aeb-4910-b842-5f8a389aef6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Debug">
+      <UniqueIdentifier>{a85cbe05-9ed7-4d2b-b2cb-0330afa994f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Debug">
+      <UniqueIdentifier>{ccc8d265-f1e8-4125-a987-bae32c8635d2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\DX12Game\GameWorld.cpp">
@@ -218,6 +230,15 @@
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\MainPass.cpp">
       <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\Bloom.cpp">
+      <Filter>Source Files\Util\Shading</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\RootSignatureManager.cpp">
+      <Filter>Source Files\Util\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\PerfAnalyzer.cpp">
+      <Filter>Source Files\Debug</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -344,6 +365,15 @@
     <ClInclude Include="..\..\include\DX12Game\MainPass.h">
       <Filter>Header Files\Util\Shading</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\Bloom.h">
+      <Filter>Header Files\Util\Shading</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\RootSignatureManager.h">
+      <Filter>Header Files\Util\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\PerfAnalyzer.h">
+      <Filter>Header Files\Debug</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -401,17 +431,28 @@
     <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
-    <None Include="..\..\Assets\Shaders\SsrCommon.hlsl" />
     <None Include="..\..\Assets\Shaders\Ssr.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
-    <None Include="..\..\Assets\Shaders\SsrBlur.hlsl" />
-    <None Include="..\..\Assets\Shaders\Random.hlsl" />
     <None Include="..\..\Assets\Shaders\PostPass.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
     <None Include="..\..\Assets\Shaders\Definitions.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\SsrCommon.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\SsrBlur.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\Random.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\..\Assets\Shaders\Bloom.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

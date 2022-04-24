@@ -52,7 +52,6 @@ void Ssao::BuildDescriptors(
 }
 
 void Ssao::RebuildDescriptors(CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv) {
-
 	mhNormalMapGpuSrv = hNormalMapGpuSrv;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -103,10 +102,9 @@ GameResult Ssao::OnResize(UINT inNewWidth, UINT inNewHeight) {
 }
 
 void Ssao::ComputeSsao(
-	ID3D12GraphicsCommandList* outCmdList,
-	const FrameResource* inCurrFrame,
-	int inBlurCount) {
-
+		ID3D12GraphicsCommandList* outCmdList,
+		const FrameResource* inCurrFrame,
+		int inBlurCount) {
 	outCmdList->SetPipelineState(mSsaoPso);
 
 	outCmdList->RSSetViewports(1, &mViewport);
@@ -119,7 +117,7 @@ void Ssao::ComputeSsao(
 		1, 
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			mAmbientMap0.Get(),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		)
 	);
@@ -153,7 +151,7 @@ void Ssao::ComputeSsao(
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			mAmbientMap0.Get(), 
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_GENERIC_READ
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		)
 	);
 	
@@ -216,7 +214,7 @@ void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output, 
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		)
 	);
@@ -244,7 +242,7 @@ void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			output, 
 			D3D12_RESOURCE_STATE_RENDER_TARGET, 
-			D3D12_RESOURCE_STATE_GENERIC_READ
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		)
 	);
 }
@@ -276,7 +274,7 @@ GameResult Ssao::BuildResources() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&optClear,
 		IID_PPV_ARGS(&mAmbientMap0)
 	));
@@ -285,7 +283,7 @@ GameResult Ssao::BuildResources() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&optClear,
 		IID_PPV_ARGS(&mAmbientMap1)
 	));
@@ -359,7 +357,7 @@ GameResult Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* outCmdList)
 		1, 
 		&CD3DX12_RESOURCE_BARRIER::Transition(
 			mRandomVectorMap.Get(),
-			D3D12_RESOURCE_STATE_GENERIC_READ, 
+			D3D12_RESOURCE_STATE_GENERIC_READ,
 			D3D12_RESOURCE_STATE_COPY_DEST
 		)
 	);

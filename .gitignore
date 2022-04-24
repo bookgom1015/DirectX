@@ -1,7 +1,8 @@
 # : comments
 
 # ignore object files
-*.obj
+obj/
+build/**/obj/
 
 # ignore batch files
 .bat
@@ -14,3 +15,13 @@ lib/
 
 # ignore pdf files
 .pdf
+
+# ignore asset files
+Assets/
+
+# ignore temporary key files
+build/**/*.pfx
+
+# ignore manuals and devlog
+devlog/
+manuals/

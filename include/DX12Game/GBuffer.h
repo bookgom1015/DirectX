@@ -35,6 +35,8 @@ public:
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
 
+	void RebuildDescriptors(ID3D12Resource* inDepthStencilBuffer);
+
 	GameResult OnResize(UINT inClientWidth, UINT inClientHeight, ID3D12Resource* inDepthStencilBuffer);
 
 	ID3D12Resource* GetDiffuseMap();
@@ -58,7 +60,6 @@ public:
 
 private:
 	GameResult BuildResources();
-	void BuildGBuffer(ID3D12Resource* inDepthStencilBuffer);
 
 public:
 	static const UINT NumRenderTargets = 3;

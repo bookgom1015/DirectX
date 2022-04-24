@@ -22,6 +22,8 @@ public:
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
 
+	void RebuildDescriptors();
+
 	GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
 
 	ID3D12Resource* GetMainPassMap1();
@@ -37,15 +39,20 @@ private:
 		UINT inClientWidth,
 		UINT inClientHeight);
 
-	void BuildMainPass();
-
 public:
 	static const UINT NumRenderTargets = 2;
 
 private:
 	ID3D12Device* md3dDevice;
+	
+	///
+	// Save the results of the main pass in two maps.
+	// The reason is to defer the calculation of the addition of ambient and reflected light to the post pass.
+	///
 
+	//* The map in which to store the specular light.
 	Microsoft::WRL::ComPtr<ID3D12Resource> mMainPassMap1;
+	//* The map in which to store ambient and direct light. It also stores alpha values.
 	Microsoft::WRL::ComPtr<ID3D12Resource> mMainPassMap2;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhMainPassMapCpuSrv1;	

@@ -27,13 +27,35 @@ void MainPass::BuildDescriptors(
 	mhMainPassMapGpuSrv2 = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
 	mhMainPassMapCpuRtv2 = hCpuRtv.Offset(1, inRtvDescriptorSize);
 
-	BuildMainPass();
+	RebuildDescriptors();
+}
+
+void MainPass::RebuildDescriptors() {
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = mMainPassMapFormat;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Format = mMainPassMapFormat;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Texture2D.PlaneSlice = 0;
+
+	// Creates shader resource view for main pass maps.
+	md3dDevice->CreateShaderResourceView(mMainPassMap1.Get(), &srvDesc, mhMainPassMapCpuSrv1);
+	md3dDevice->CreateShaderResourceView(mMainPassMap2.Get(), &srvDesc, mhMainPassMapCpuSrv2);
+
+	// Create render target view for main pass maps.
+	md3dDevice->CreateRenderTargetView(mMainPassMap1.Get(), &rtvDesc, mhMainPassMapCpuRtv1);
+	md3dDevice->CreateRenderTargetView(mMainPassMap2.Get(), &rtvDesc, mhMainPassMapCpuRtv2);
 }
 
 GameResult MainPass::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	CheckGameResult(BuildResources(inClientWidth, inClientHeight));
-
-	BuildMainPass();
 
 	return GameResultOk;
 }
@@ -79,7 +101,7 @@ GameResult MainPass::BuildResources(
 	rscDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	//
-	// Creates resource for diffuse map.
+	// Creates resource for main pass map.
 	//
 	float diffuseClearColor[] = { 0.0, 0.0f, 0.0f, 1.0f };
 	CD3DX12_CLEAR_VALUE optClear(mMainPassMapFormat, diffuseClearColor);
@@ -107,28 +129,4 @@ GameResult MainPass::BuildResources(
 	);
 
 	return GameResultOk;
-}
-
-void MainPass::BuildMainPass() {
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Format = mMainPassMapFormat;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-	srvDesc.Texture2D.MipLevels = 1;
-
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	rtvDesc.Format = mMainPassMapFormat;
-	rtvDesc.Texture2D.MipSlice = 0;
-	rtvDesc.Texture2D.PlaneSlice = 0;
-
-	// Creates shader resource view for back buffer map.
-	md3dDevice->CreateShaderResourceView(mMainPassMap1.Get(), &srvDesc, mhMainPassMapCpuSrv1);
-	md3dDevice->CreateShaderResourceView(mMainPassMap2.Get(), &srvDesc, mhMainPassMapCpuSrv2);
-
-	// Create render target view for normal map.
-	md3dDevice->CreateRenderTargetView(mMainPassMap1.Get(), &rtvDesc, mhMainPassMapCpuRtv1);
-	md3dDevice->CreateRenderTargetView(mMainPassMap2.Get(), &rtvDesc, mhMainPassMapCpuRtv2);
 }

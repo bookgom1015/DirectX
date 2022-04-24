@@ -305,7 +305,7 @@ GameResult DxLowRenderer::OnResize() {
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE, 
 		&depthStencilDesc, 
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
+		D3D12_RESOURCE_STATE_COMMON,
 		&optClear,
 		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
 	));
@@ -315,7 +315,7 @@ GameResult DxLowRenderer::OnResize() {
 
 	// Transition the resource from its initial state to be used as a depth buffer.
 	mCommandLists[0]->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_READ));
 
 	// Execute the resize commands.
 #ifdef MT_World

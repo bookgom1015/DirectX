@@ -21,7 +21,7 @@ public:
 	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
 	void BuildDescriptors(
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv1,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
@@ -31,9 +31,7 @@ public:
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize);
 
-	void RebuildDescriptors(
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMap1GpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv);
+	void RebuildDescriptors();
 
 	void ComputeSsr(
 		ID3D12GraphicsCommandList* outCmdList,
@@ -80,7 +78,7 @@ private:
 	ID3D12PipelineState* mSsrPso = nullptr;
 	ID3D12PipelineState* mBlurPso = nullptr;
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhMainPassMapGpuSrv1;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhMainPassMapGpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAmbientMap0;

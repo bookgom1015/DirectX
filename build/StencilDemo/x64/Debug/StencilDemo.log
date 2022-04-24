@@ -1,9 +1,0 @@
-﻿  FrameResource.cpp
-  StencilApp.cpp
-  GameTimer.cpp
-  GeometryGenerator.cpp
-  MathHelper.cpp
-  d3dApp.cpp
-  d3dUtil.cpp
-  Generating Code...
-  StencilDemo.vcxproj -> F:\SynologyDrive\Visual Studio Project\Window Projects\DirectX\bin\x64\StencilDemo\Debug\StencilDemo.exe
