@@ -32,6 +32,8 @@ Texture2D				gSpecularMap				: register(t7);
 Texture2D				gShadowMap					: register(t8);
 Texture2D				gSsaoMap					: register(t9);
 Texture2D				gSsrMap						: register(t10);
+Texture2D				gBloomMap					: register(t11);
+Texture2D				gBloomBlurMap				: register(t12);
 
 SamplerState			gsamPointWrap				: register(s0);
 SamplerState			gsamPointClamp				: register(s1);
@@ -138,7 +140,22 @@ float4 PS(VertexOut pin) : SV_Target{
 	float3 reflectionColor = (gEffectEnabled & SSR_ENABLED) ? 
 		(reflectionSample.a * reflectionSample.rgb + (1.0f - reflectionSample.a) * cubeMapSample) : cubeMapSample;
 
-	return mainPassSample1 + float4(mainPassSample2.rgb * reflectionColor, 0.0f);
+	float4 outColor = mainPassSample1 + float4(mainPassSample2.rgb * reflectionColor, 0.0f);
+	float4 bloomColor = gBloomMap.Sample(gsamLinearClamp, pin.TexC);
+	float4 bloomBlurColor = gBloomBlurMap.Sample(gsamLinearClamp, pin.TexC);
+
+	if (gEffectEnabled & BLOOM_ENABLED) {
+		float4 bloom = pow(pow(abs(bloomBlurColor), 2.2f) + pow(abs(bloomColor), 2.2f), 1.0f / 2.2f);
+
+		outColor = pow(abs(outColor), 2.2f);
+		bloom = pow(abs(bloom), 2.2f);
+
+		outColor += bloom;
+
+		return pow(abs(outColor), 1.0f / 2.2f);
+	}
+	
+	return outColor;
 }
 
 #endif // __POSTPASS_HLSL__

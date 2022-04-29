@@ -13,6 +13,7 @@ public:
 		ID3D12Device* inDevice,
 		UINT inClientWidth, 
 		UINT inClientHeight,
+		DXGI_FORMAT inAmbientMapFormat,
 		UINT inDistance,
 		UINT inMaxFadeDistance,
 		UINT inMinFadeDistance,
@@ -45,6 +46,8 @@ public:
 	UINT GetSsrMapWidth() const;
 	UINT GetSsrMapHeight() const;
 
+	DXGI_FORMAT GetAmbientMapFormat() const;
+
 	UINT GetSsrDistance() const;
 	UINT GetMaxFadeDistance() const;
 	UINT GetMinFadeDistance() const;
@@ -57,8 +60,6 @@ private:
 	GameResult BuildResources();
 
 public:
-	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-
 	static const UINT NumRenderTargets = 2;
 
 private:
@@ -67,6 +68,8 @@ private:
 
 	UINT mSsrMapWidth = 0;
 	UINT mSsrMapHeight = 0;
+
+	DXGI_FORMAT mAmbientMapFormat;
 
 	UINT mSsrDistance = 0;
 	UINT mMaxFadeDistance = 0;

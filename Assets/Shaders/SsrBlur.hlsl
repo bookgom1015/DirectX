@@ -1,9 +1,6 @@
 #ifndef _SSRBLUR_HLSL_
 #define _SSRBLUR_HLSL_
 
-#ifndef __SSR_HLSL__
-#define __SSR_HLSL__
-
 #include "SsrCommon.hlsl"
 
 struct VertexOut {
@@ -20,12 +17,6 @@ VertexOut VS(uint vid : SV_VertexID) {
 	vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
 
 	return vout;
-}
-
-float NdcDepthToViewDepth(float z_ndc) {
-	// z_ndc = A + B/viewZ, where gProj[2,2]=A and gProj[3,2]=B.
-	float viewZ = gProj[3][2] / (z_ndc - gProj[2][2]);
-	return viewZ;
 }
 
 float4 PS(VertexOut pin) : SV_Target{
@@ -66,7 +57,5 @@ float4 PS(VertexOut pin) : SV_Target{
 	// Compensate for discarded samples by making total weights sum to 1.
 	return color / totalWeight;
 }
-
-#endif // __SSR_HLSL__
 
 #endif // _SSRBLUR_HLSL_

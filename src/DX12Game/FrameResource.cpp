@@ -191,6 +191,7 @@ GameResult FrameResource::Initialize(UINT inNumThreads) {
 	mSsaoCB.Initialize(mDevice, 1, true);
 	mPostPassCB.Initialize(mDevice, 1, true);
 	mSsrCB.Initialize(mDevice, 1, true);
+	mBloomCB.Initialize(mDevice, 1, true);
 	mMaterialBuffer.Initialize(mDevice, mMaterialCount, false);
 	mInstanceIdxBuffer.Initialize(mDevice, mObjectCount * mMaxInstanceCount, false);
 	mInstanceDataBuffer.Initialize(mDevice, mObjectCount * mMaxInstanceCount, false);

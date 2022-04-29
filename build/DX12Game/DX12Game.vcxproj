@@ -163,10 +163,12 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClCompile Include="..\..\src\DX12Game\GBuffer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\MainPass.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\PsoManager.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Renderer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
     <ClCompile Include="..\..\src\DX12Game\GameTimer.cpp" />
     <ClCompile Include="..\..\src\DX12Game\RootSignatureManager.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkeletalMeshComponent.cpp" />
     <ClCompile Include="..\..\src\DX12Game\SkinnedData.cpp" />
     <ClCompile Include="..\..\src\DX12Game\Ssr.cpp" />
@@ -186,6 +188,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClInclude Include="..\..\include\DX12Game\GBuffer.h" />
     <ClInclude Include="..\..\include\DX12Game\LowRenderer.h" />
     <ClInclude Include="..\..\include\DX12Game\MainPass.h" />
+    <ClInclude Include="..\..\include\DX12Game\PsoManager.h" />
     <ClInclude Include="..\..\include\DX12Game\Renderer.h" />
     <ClInclude Include="..\..\include\DX12Game\FbxImporter.h" />
     <ClInclude Include="..\..\include\DX12Game\GameCamera.h" />
@@ -215,6 +218,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
     <ClInclude Include="..\..\include\DX12Game\GameCore.h" />
     <ClInclude Include="..\..\include\DX12Game\GameTimer.h" />
     <ClInclude Include="..\..\include\DX12Game\RootSignatureManager.h" />
+    <ClInclude Include="..\..\include\DX12Game\ShaderManager.h" />
     <ClInclude Include="..\..\include\DX12Game\SkeletalMeshComponent.h" />
     <ClInclude Include="..\..\include\DX12Game\SkinnedData.h" />
     <ClInclude Include="..\..\include\DX12Game\Ssr.h" />
@@ -328,6 +332,14 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\Bloom.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\BloomBlur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="..\..\Assets\Shaders\BloomCommon.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace BlurHelper {
-	static const int MaxBlurRadius = 9;
+	static const int MaxBlurRadius = 17;
 
 	float* CalcGaussWeights(float inSigma) {
 		float twoSigma2 = 2.0f * inSigma * inSigma;

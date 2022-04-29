@@ -9,13 +9,19 @@ using namespace DirectX::PackedVector;
 using namespace Microsoft::WRL;
 
 GameResult Ssao::Initialize(
-	ID3D12Device* inDevice,
-	ID3D12GraphicsCommandList* outCmdList,
-	UINT inSsaoMapWidth, UINT inSsaoMapHeight) {
-
+		ID3D12Device* inDevice,
+		ID3D12GraphicsCommandList* outCmdList,
+		UINT inSsaoMapWidth, 
+		UINT inSsaoMapHeight,
+		DXGI_FORMAT inAmbientMapFormat, 
+		DXGI_FORMAT inNormalMapFormat) {
 	md3dDevice = inDevice;
+
 	mSsaoMapWidth = inSsaoMapWidth;
 	mSsaoMapHeight = inSsaoMapHeight;
+
+	mAmbientMapFormat = inAmbientMapFormat;
+	mNormalMapFormat = inNormalMapFormat;
 
 	CheckGameResult(OnResize(mSsaoMapWidth, mSsaoMapHeight));
 
@@ -26,15 +32,14 @@ GameResult Ssao::Initialize(
 }
 
 void Ssao::BuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hAdditionalMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
-	UINT inCbvSrvUavDescriptorSize,
-	UINT inRtvDescriptorSize) {
-
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAdditionalMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
+		UINT inCbvSrvUavDescriptorSize,
+		UINT inRtvDescriptorSize) {
 	mhAmbientMap0CpuSrv = hAmbientMapCpuSrv;
 	mhAmbientMap0GpuSrv = hAmbientMapGpuSrv;
 
@@ -62,13 +67,13 @@ void Ssao::RebuildDescriptors(CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv) {
 	srvDesc.Texture2D.MipLevels = 1;
 	md3dDevice->CreateShaderResourceView(mRandomVectorMap.Get(), &srvDesc, mhRandomVectorMapCpuSrv);
 
-	srvDesc.Format = Ssao::AmbientMapFormat;
+	srvDesc.Format = mAmbientMapFormat;
 	md3dDevice->CreateShaderResourceView(mAmbientMap0.Get(), &srvDesc, mhAmbientMap0CpuSrv);
 	md3dDevice->CreateShaderResourceView(mAmbientMap1.Get(), &srvDesc, mhAmbientMap1CpuSrv);
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	rtvDesc.Format = Ssao::AmbientMapFormat;
+	rtvDesc.Format = mAmbientMapFormat;
 	rtvDesc.Texture2D.MipSlice = 0;
 	rtvDesc.Texture2D.PlaneSlice = 0;
 	md3dDevice->CreateRenderTargetView(mAmbientMap0.Get(), &rtvDesc, mhAmbientMap0CpuRtv);
@@ -178,6 +183,14 @@ CD3DX12_GPU_DESCRIPTOR_HANDLE Ssao::GetAmbientMapSrv() const {
 	return mhAmbientMap0GpuSrv;
 }
 
+DXGI_FORMAT Ssao::GetAmbientMapFormat() const {
+	return mAmbientMapFormat;
+}
+
+DXGI_FORMAT Ssao::GetNormalMapFormat() const {
+	return mNormalMapFormat;
+}
+
 void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
 	outCmdList->SetPipelineState(mBlurPso);
 
@@ -261,14 +274,14 @@ GameResult Ssao::BuildResources() {
 	texDesc.Height = mSsaoMapHeight;
 	texDesc.DepthOrArraySize = 1;
 	texDesc.MipLevels = 1;
-	texDesc.Format = Ssao::AmbientMapFormat;
+	texDesc.Format = mAmbientMapFormat;
 	texDesc.SampleDesc.Count = 1;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	CD3DX12_CLEAR_VALUE optClear(AmbientMapFormat, ambientClearColor);
+	CD3DX12_CLEAR_VALUE optClear(mAmbientMapFormat, ambientClearColor);
 
 	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

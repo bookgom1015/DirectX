@@ -19,7 +19,13 @@ private:
 	Ssao& operator=(Ssao&& inRVal) = delete;
 
 public:
-	GameResult Initialize(ID3D12Device* inDevice, ID3D12GraphicsCommandList* outCmdList, UINT inSsaoMapidth, UINT inSsaoMapHeight);
+	GameResult Initialize(
+		ID3D12Device* inDevice,
+		ID3D12GraphicsCommandList* outCmdList,
+		UINT inSsaoMapidth, 
+		UINT inSsaoMapHeight,
+		DXGI_FORMAT inAmbientMapFormat,
+		DXGI_FORMAT inNormalMapFormat);
 
 	void BuildDescriptors(
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
@@ -60,6 +66,9 @@ public:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetAmbientMapSrv() const;
 
+	DXGI_FORMAT GetAmbientMapFormat() const;
+	DXGI_FORMAT GetNormalMapFormat() const;
+
 private:
 	///<summary>
 	/// Blurs the ambient map to smooth out the noise caused by only taking a
@@ -75,9 +84,6 @@ private:
 	void BuildOffsetVectors();
 
 public:
-	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
-	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-
 	static const UINT NumRenderTargets = 2;
 
 private:
@@ -85,6 +91,9 @@ private:
 
 	UINT mSsaoMapWidth;
 	UINT mSsaoMapHeight;
+
+	DXGI_FORMAT mAmbientMapFormat;
+	DXGI_FORMAT mNormalMapFormat;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSig;
 

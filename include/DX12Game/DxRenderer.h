@@ -8,6 +8,8 @@
 #include <SpriteFont.h>
 
 #include "DX12Game/Renderer.h"
+#include "DX12Game/PsoManager.h"
+#include "DX12Game/ShaderManager.h"
 #include "DX12Game/AnimationsMap.h"
 #include "DX12Game/FrameResource.h"
 #include "DX12Game/GameCamera.h"
@@ -48,7 +50,8 @@ private:
 
 	enum EffectEnabled : UINT {
 		ESsao		= 1 << 0,
-		ESsr		= 1 << 1
+		ESsr		= 1 << 1,
+		EBloom		= 1 << 2
 	};
 
 	// Lightweight structure stores parameters to draw a shape.  This will
@@ -103,21 +106,11 @@ private:
 		UINT mSsaoAmbientMapIndex;
 		UINT mSsrMapIndex;
 		UINT mBloomMapIndex;
+		UINT mBloomBlurMapIndex;
 		UINT mAnimationsMapIndex;
 		UINT mSsaoAdditionalMapIndex;
 		UINT mSsrAdditionalMapIndex;
-		UINT mNullCubeSrvIndex1;
-		UINT mNullCubeSrvIndex2;
-		UINT mNullTexSrvIndex1;
-		UINT mNullTexSrvIndex2;
-		UINT mNullTexSrvIndex3;
-		UINT mNullTexSrvIndex4;
-		UINT mNullTexSrvIndex5;
-		UINT mNullTexSrvIndex6;
-		UINT mNullTexSrvIndex7;
-		UINT mNullTexSrvIndex8;
-		UINT mNullTexSrvIndex9;
-		UINT mNullTexSrvIndex10;
+		UINT mBloomAdditionalMapIndex;
 		UINT mDefaultFontIndex;
 		UINT mCurrSrvHeapIndex;
 	};
@@ -189,6 +182,9 @@ public:
 	bool GetSsrEnabled() const;
 	void SetSsrEnabled(bool bState);
 
+	bool GetBloomEnabled() const;
+	void SetBloomEnabled(bool bState);
+
 	bool GetDrawDebugSkeletonsEnabled() const;
 	void SetDrawDebugSkeletonsEnabled(bool bState);
 
@@ -233,12 +229,12 @@ private:
 	GameResult UpdatePostPassCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsaoCB(const GameTimer& gt, UINT inTid = 0);
 	GameResult UpdateSsrCB(const GameTimer& gt, UINT inTid = 0);
+	GameResult UpdateBloomCB(const GameTimer& gt, UINT inTid = 0);
 	/// Update functions
 
 	GameResult LoadBasicTextures();
 
 	void BuildDescriptorHeapIndices(UINT inOffset);
-	void BuildNullShaderResourceViews();
 	void BuildDescriptorsForEachHelperClass();
 
 	GameResult BuildDescriptorHeaps();
@@ -295,12 +291,12 @@ private:
 	std::unordered_map<std::string, Material*> mMaterialRefs;
 
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
-
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> mSkinnedInputLayout;
+
+	PsoManager mPsoManager;
+	ShaderManager mShaderManager;
 
 	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
@@ -355,10 +351,11 @@ private:
 
 	const UINT MaxInstanceCount = 128;
 	std::array<float, 2> mRootConstants;
-	UINT mEffectEnabled = EffectEnabled::ESsao | EffectEnabled::ESsr;
+	UINT mEffectEnabled;
 
-	std::vector<DirectX::XMFLOAT4> mBlurWeights;
-	std::vector<DirectX::XMFLOAT4> mSsrBlurWeights;
+	std::vector<DirectX::XMFLOAT4> mBlurWeights5;
+	std::vector<DirectX::XMFLOAT4> mBlurWeights9;
+	std::vector<DirectX::XMFLOAT4> mBlurWeights17;
 
 #ifdef MT_World
 	CVBarrier* mCVBarrier;

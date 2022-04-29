@@ -1,16 +1,17 @@
 #include "DX12Game/Ssr.h"
 
 GameResult Ssr::Initialize(
-	ID3D12Device*	inDevice,
-	UINT			inSsrMapWidth, 
-	UINT			inSsrMapHeight,
-	UINT			inDistance,
-	UINT			inMaxFadeDistance,
-	UINT			inMinFadeDistance,
-	float			inEdgeFadeLength) {
-
+		ID3D12Device*	inDevice,
+		UINT			inSsrMapWidth, 
+		UINT			inSsrMapHeight,
+		DXGI_FORMAT		inAmbientMapFormat,
+		UINT			inDistance,
+		UINT			inMaxFadeDistance,
+		UINT			inMinFadeDistance,
+		float			inEdgeFadeLength) {
 	md3dDevice = inDevice;
 	mSsrDistance = inDistance;
+	mAmbientMapFormat = inAmbientMapFormat;
 	mMaxFadeDistance = inMaxFadeDistance;
 	mMinFadeDistance = inMinFadeDistance;
 	mEdgeFadeLength = inEdgeFadeLength;
@@ -28,12 +29,12 @@ GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
 		// We render to ambient map at half the resolution.
 		mViewport.TopLeftX = 0.0f;
 		mViewport.TopLeftY = 0.0f;
-		mViewport.Width = static_cast<float>(mSsrMapWidth);
-		mViewport.Height = static_cast<float>(mSsrMapHeight);
+		mViewport.Width = static_cast<float>(inNewWidth);
+		mViewport.Height = static_cast<float>(inNewHeight);
 		mViewport.MinDepth = 0.0f;
 		mViewport.MaxDepth = 1.0f;
 
-		mScissorRect = { 0, 0, static_cast<int>(mSsrMapWidth), static_cast<int>(mSsrMapHeight) };
+		mScissorRect = { 0, 0, static_cast<int>(inNewWidth), static_cast<int>(inNewHeight) };
 
 		CheckGameResult(BuildResources());
 	}
@@ -42,16 +43,15 @@ GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
 }
 
 void Ssr::BuildDescriptors(
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
-	CD3DX12_GPU_DESCRIPTOR_HANDLE hAdditionalMapGpuSrv,
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
-	UINT inCbvSrvUavDescriptorSize,
-	UINT inRtvDescriptorSize) {
-
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAmbientMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAdditionalMapCpuSrv,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE hAdditionalMapGpuSrv,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
+		UINT inCbvSrvUavDescriptorSize,
+		UINT inRtvDescriptorSize) {
 	mhMainPassMapGpuSrv = hMainPassMapGpuSrv;
 	mhNormalMapGpuSrv = hNormalMapGpuSrv;
 
@@ -74,7 +74,7 @@ void Ssr::RebuildDescriptors() {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Format = Ssr::AmbientMapFormat;
+	srvDesc.Format = mAmbientMapFormat;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 	md3dDevice->CreateShaderResourceView(mAmbientMap0.Get(), &srvDesc, mhAmbientMap0CpuSrv);
@@ -82,7 +82,7 @@ void Ssr::RebuildDescriptors() {
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	rtvDesc.Format = Ssr::AmbientMapFormat;
+	rtvDesc.Format = mAmbientMapFormat;
 	rtvDesc.Texture2D.MipSlice = 0;
 	rtvDesc.Texture2D.PlaneSlice = 0;
 	md3dDevice->CreateRenderTargetView(mAmbientMap0.Get(), &rtvDesc, mhAmbientMap0CpuRtv);
@@ -172,6 +172,10 @@ UINT Ssr::GetSsrMapHeight() const {
 	return mSsrMapHeight;
 }
 
+DXGI_FORMAT Ssr::GetAmbientMapFormat() const {
+	return mAmbientMapFormat;
+}
+
 UINT Ssr::GetSsrDistance() const {
 	return mSsrDistance;
 }
@@ -254,14 +258,14 @@ GameResult Ssr::BuildResources() {
 	texDesc.Height = mSsrMapHeight;
 	texDesc.DepthOrArraySize = 1;
 	texDesc.MipLevels = 1;
-	texDesc.Format = Ssr::AmbientMapFormat;
+	texDesc.Format = mAmbientMapFormat;
 	texDesc.SampleDesc.Count = 1;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
 	float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	CD3DX12_CLEAR_VALUE optClear(Ssr::AmbientMapFormat, ambientClearColor);
+	CD3DX12_CLEAR_VALUE optClear(mAmbientMapFormat, ambientClearColor);
 
 	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

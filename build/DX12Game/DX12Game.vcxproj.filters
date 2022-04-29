@@ -240,6 +240,12 @@
     <ClCompile Include="..\..\src\DX12Game\PerfAnalyzer.cpp">
       <Filter>Source Files\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\PsoManager.cpp">
+      <Filter>Source Files\Util\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp">
+      <Filter>Source Files\Util\Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\DX12Game\GameWorld.h">
@@ -374,6 +380,12 @@
     <ClInclude Include="..\..\include\DX12Game\PerfAnalyzer.h">
       <Filter>Header Files\Debug</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\PsoManager.h">
+      <Filter>Header Files\Util\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\DX12Game\ShaderManager.h">
+      <Filter>Header Files\Util\Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -449,9 +461,13 @@
     <None Include="..\..\Assets\Shaders\Random.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
+    <None Include="..\..\Assets\Shaders\Bloom.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\Bloom.hlsl">
+    <FxCompile Include="..\..\Assets\Shaders\BloomCommon.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </FxCompile>
+    <FxCompile Include="..\..\Assets\Shaders\BloomBlur.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </FxCompile>
   </ItemGroup>

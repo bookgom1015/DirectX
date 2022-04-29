@@ -47,9 +47,6 @@ void GBuffer::BuildDescriptors(
 	mhSpecularMapGpuSrv = hGpuSrv.Offset(1, inCbvSrvUavDescriptorSize);
 	mhSpecularMapCpuRtv = hCpuRtv.Offset(1, inRtvDescriptorSize);
 
-	mCbvSrvUavDescriptorSize = inCbvSrvUavDescriptorSize;
-	mRtvDescriptorSize = inRtvDescriptorSize;
-
 	RebuildDescriptors(inDepthStencilBuffer);
 }
 

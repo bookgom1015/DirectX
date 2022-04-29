@@ -136,6 +136,13 @@ struct SsrConstants {
 	int					mConstantPad0;
 };
 
+struct BloomConstants {
+	DirectX::XMFLOAT4	mBlurWeights[9];
+	DirectX::XMFLOAT2	mInvRenderTargetSize;
+	int					mBlurRadius;
+	int					mConstantPad0;
+};
+
 struct MaterialData {
 	DirectX::XMFLOAT4 mDiffuseAlbedo;
 	DirectX::XMFLOAT3 mFresnelR0;
@@ -225,6 +232,7 @@ public:
 	GameUploadBuffer<SsaoConstants> mSsaoCB;
 	GameUploadBuffer<PostPassConstants> mPostPassCB;
 	GameUploadBuffer<SsrConstants> mSsrCB;
+	GameUploadBuffer<BloomConstants> mBloomCB;
 	GameUploadBuffer<MaterialData> mMaterialBuffer;
 
 	GameUploadBuffer<InstanceIdxData> mInstanceIdxBuffer;

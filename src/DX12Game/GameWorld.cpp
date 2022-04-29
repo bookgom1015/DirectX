@@ -150,7 +150,7 @@ bool GameWorld::LoadData() {
 	monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
 	monkeyActor->SetQuaternion(rotateYPi);
 	std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
-		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 8.0f);
+		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 2.0f);
 		actor->SetQuaternion(rot);
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
@@ -162,8 +162,8 @@ bool GameWorld::LoadData() {
 	monkeyActor->SetQuaternion(rotateYPi);
 	monkeyMeshComp = new MeshComponent(monkeyActor);
 	std::function<void(const GameTimer&, Actor*)> funcTurnCCW = [](const GameTimer& gt, Actor* actor) -> void {
-		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 8.0f);
-		actor->SetPosition(3.0f + cosf(4.0f * gt.TotalTime()), 2.5f + sinf(4.0f * gt.TotalTime()), 0.0f);
+		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(1.0f, 1.0f, 1.0f, 0.0f)), gt.TotalTime() * 2.0f);
+		actor->SetPosition(3.0f + cosf(2.0f * gt.TotalTime()), 2.5f + sinf(2.0f * gt.TotalTime()), 0.0f);
 		actor->SetQuaternion(rot);
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
@@ -173,7 +173,7 @@ bool GameWorld::LoadData() {
 	monkeyActor = new Actor();
 	monkeyActor->SetQuaternion(rotateYPi);
 	std::function<void(const GameTimer&, Actor*)> funcTurnCW = [](const GameTimer& gt, Actor* actor) -> void {
-		actor->SetPosition(-3.0f + -cosf(5.0f * gt.TotalTime()), 2.5f + sinf(5.0f * gt.TotalTime()), 0.0f);
+		actor->SetPosition(-3.0f + -cosf(2.0f * gt.TotalTime()), 2.5f + sinf(2.0f * gt.TotalTime()), 0.0f);
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
 	monkeyMeshComp = new MeshComponent(monkeyActor);
@@ -931,6 +931,11 @@ void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
 			bool state = mRenderer->GetSsrEnabled();
 
 			mRenderer->SetSsrEnabled(!state);
+		}
+		else if (wParam == VK_F3) {
+			bool state = mRenderer->GetBloomEnabled();
+
+			mRenderer->SetBloomEnabled(!state);
 		}
 		else if (wParam == VK_HOME) {
 			bool state = mRenderer->GetDrawDebugSkeletonsEnabled();
