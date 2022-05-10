@@ -4,119 +4,47 @@
 
 class PsoManager {
 public:
+	enum InputLayouts {
+		EBasic,
+		ESkinned,
+		ENone
+	};
+
+public:
 	PsoManager() = default;
 	virtual ~PsoManager() = default;
 
 public:
 	GameResult Initialize(ID3D12Device* inDevice);
 
-	GameResult BuildSkeletonPso(
+	GameResult BuildPso(
+		InputLayouts inType,
+		ID3D12RootSignature* inRootSignature,
+		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
+		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
+		D3D12_RASTERIZER_DESC inRasterizerDesc,
+		D3D12_DEPTH_STENCIL_DESC inDepthStencilDesc,
+		D3D12_BLEND_DESC inBlendDesc,
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE inTopologyType,
+		const std::vector<DXGI_FORMAT>& inRTVFormats,
+		DXGI_FORMAT inDSVFormat,
+		const std::string& inName);
+
+	GameResult BuildPso(
+		InputLayouts inType,
 		ID3D12RootSignature* inRootSignature,
 		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
 		Microsoft::WRL::ComPtr<ID3DBlob>& inGShader,
 		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-	
-	GameResult BuildShadowPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inDSVFormat);
+		D3D12_RASTERIZER_DESC inRasterizerDesc,
+		D3D12_DEPTH_STENCIL_DESC inDepthStencilDesc,
+		D3D12_BLEND_DESC inBlendDesc,
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE inTopologyType,
+		const std::vector<DXGI_FORMAT>& inRTVFormats,
+		DXGI_FORMAT inDSVFormat,
+		const std::string& inName);
 
-	GameResult BuildSkinnedShadowPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inDSVFormat);
-
-	GameResult BuildDebugPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildSsaoPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildSsaoBlurPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildSsrPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildSsrBlurPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildSkyPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat,
-		DXGI_FORMAT inDSVFormat);
-
-	GameResult BuildGBufferPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat1,
-		DXGI_FORMAT inRTVFormat2,
-		DXGI_FORMAT inRTVFormat3,
-		DXGI_FORMAT inDSVFormat);
-
-	GameResult BuildSkinnedGBufferPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat1,
-		DXGI_FORMAT inRTVFormat2,
-		DXGI_FORMAT inRTVFormat3,
-		DXGI_FORMAT inDSVFormat);
-
-	GameResult BuildAlphaBlendingGBufferPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat1,
-		DXGI_FORMAT inRTVFormat2,
-		DXGI_FORMAT inRTVFormat3,
-		DXGI_FORMAT inDSVFormat);
-
-	GameResult BuildMainPassPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat1,
-		DXGI_FORMAT inRTVFormat2);
-
-	GameResult BuildPostPassPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildBloomPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
-
-	GameResult BuildBloomBlurPso(
-		ID3D12RootSignature* inRootSignature,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inVShader,
-		Microsoft::WRL::ComPtr<ID3DBlob>& inPShader,
-		DXGI_FORMAT inRTVFormat);
+	ID3D12PipelineState* GetPsoPtr(const std::string& inName);	
 
 	ID3D12PipelineState* GetSkeletonPsoPtr();
 	ID3D12PipelineState* GetShadowPsoPtr();

@@ -77,7 +77,6 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	
 	CheckGameResult(InitMainWindow());	
 
-#ifdef MT_World	
 	if (!ThreadUtil::Initialize())
 		ReturnGameResult(S_FALSE, L"Failed to initialize ThreadUtil");
 
@@ -90,17 +89,11 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 
 	mCVBarrier = std::make_unique<CVBarrier>(mNumProcessors);
 	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
-#endif 
 
 #ifdef UsingVulkan
-	CheckGameResult(mRenderer->Initialize(mMainGLFWWindow, mClientWidth, mClientHeight, mNumProcessors));
+	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, NULL, mMainGLFWWindow, nullptr, nullptr));
 #else
-	#ifdef MT_World
-		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, 
-			mCVBarrier.get(), mSpinlockBarrier.get(), mNumProcessors));
-	#else
-		CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight, mNumProcessors));
-	#endif
+	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, mhMainWnd, nullptr, mCVBarrier.get(), mSpinlockBarrier.get()));
 #endif
 	
 	if (!mAudioSystem->Initialize())
@@ -342,23 +335,15 @@ bool GameWorld::LoadData() {
 	}
 #endif // UsingVulkan
 
-#ifdef MT_World
 	for (auto& actors : mActors) {
 		for (auto& actor : actors)
 			actor->OnLoadingData();
 	}
-#else
-	for (auto& actor : mActors) {
-		if (!actor->OnLoadingData())
-			return false;
-	}
-#endif
 
 	return true;
 }
 
 void GameWorld::UnloadData() {
-#ifdef MT_World
 	for (auto& actors : mActors) {
 		for (auto actor : actors)
 			actor->OnUnloadingData();
@@ -366,13 +351,6 @@ void GameWorld::UnloadData() {
 		while (!actors.empty())
 			actors.pop_back();
 	}
-#else
-	for (auto& actor : mActors)
-		actor->OnUnloadingData();
-
-	while (!mActors.empty())
-		mActors.pop_back();
-#endif
 }
 
 GameResult GameWorld::RunLoop() {
@@ -400,7 +378,7 @@ GameResult GameWorld::GameLoop() {
 	while (!glfwWindowShouldClose(mMainGLFWWindow)) {
 		glfwPollEvents();
 		if (glfwGetKey(mMainGLFWWindow, GLFW_KEY_ESCAPE))
-			break;;
+			break;
 
 		mTimer.Tick();
 
@@ -410,128 +388,115 @@ GameResult GameWorld::GameLoop() {
 		if (elapsedTime > mTimer.GetLimitFrameRate()) {
 			beginTime = endTime;
 			if (!mAppPaused) {
-				CalculateFrameStats();
-				ProcessInput();
+				ProcessInput(mTimer);
 			}
 			UpdateGame(mTimer);
 			if (!mAppPaused)
 				Draw(mTimer);
 		}
 	}
-#else
-	#ifdef MT_World
-		CVBarrier barrier(mNumProcessors);
-	
-		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
-			mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
-				while (mGameState != GameState::ETerminated) {
-					mPerfAnalyzer.WholeLoopBeginTime(inTid);
-					inBarrier.Wait();
-	
-					if (!mAppPaused)
-						ProcessInput(mTimer, inTid);
+#else // UsingVulkan
+	CVBarrier barrier(mNumProcessors);
 
-					mPerfAnalyzer.UpdateBeginTime(inTid);
-					BreakIfFailed(UpdateGame(mTimer, inTid));
-					mPerfAnalyzer.UpdateEndTime(inTid);
+	for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
+		mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
+			while (mGameState != GameState::ETerminated) {
+				mPerfAnalyzer.WholeLoopBeginTime(inTid);
+				inBarrier.Wait();
 
-					mPerfAnalyzer.DrawBeginTime(inTid);
-					if (!mAppPaused)
-						BreakIfFailed(Draw(mTimer, inTid));
-					mPerfAnalyzer.DrawEndTime(inTid);
+				if (!mAppPaused)
+					ProcessInput(mTimer, inTid);
 
-					mPerfAnalyzer.WholeLoopEndTime(inTid);
-				}
+				mPerfAnalyzer.UpdateBeginTime(inTid);
+				BreakIfFailed(UpdateGame(mTimer, inTid));
+				mPerfAnalyzer.UpdateEndTime(inTid);
 
-				mGameState = GameState::ETerminated;
-				inBarrier.Terminate();
-				mCVBarrier->Terminate();
-				mSpinlockBarrier->Terminate();
+				mPerfAnalyzer.DrawBeginTime(inTid);
+				if (!mAppPaused)
+					BreakIfFailed(Draw(mTimer, inTid));
+				mPerfAnalyzer.DrawEndTime(inTid);
+
+				mPerfAnalyzer.WholeLoopEndTime(inTid);
+			}
+
+			mGameState = GameState::ETerminated;
+			inBarrier.Terminate();
+			mCVBarrier->Terminate();
+			mSpinlockBarrier->Terminate();
 			}, std::ref(msg), i + 1, std::ref(barrier));
+	}
+
+	while (msg.message != WM_QUIT && mGameState != GameState::ETerminated) {
+		// If there are Window messages then process them
+		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
-	#endif // MT_World
-		while (msg.message != WM_QUIT && mGameState != GameState::ETerminated) {
-			// If there are Window messages then process them
-			if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-			// Otherwise, do animation/game stuff
-			else {
-				mTimer.Tick();
+		// Otherwise, do animation/game stuff
+		else {
+			mTimer.Tick();
 	
-				endTime = mTimer.TotalTime();
-				elapsedTime = endTime - beginTime;
+			endTime = mTimer.TotalTime();
+			elapsedTime = endTime - beginTime;
 	
-				if (elapsedTime > mTimer.GetLimitFrameRate()) {
-					mPerfAnalyzer.WholeLoopBeginTime(0);
-					barrier.Wait();
+			if (elapsedTime > mTimer.GetLimitFrameRate()) {
+				mPerfAnalyzer.WholeLoopBeginTime(0);
+				barrier.Wait();
 
-					if (mGameState == GameState::ETerminated)
-						break;
+				if (mGameState == GameState::ETerminated)
+					break;
 
-					beginTime = endTime;
+				beginTime = endTime;
 	
-					if (!mAppPaused) {
-						//CalculateFrameStats();
-						ProcessInput(mTimer, 0);
-					}
-
-					mPerfAnalyzer.UpdateBeginTime(0);
-					BreakIfFailed(UpdateGame(mTimer, 0));
-					mPerfAnalyzer.UpdateEndTime(0);
-
-					mPerfAnalyzer.DrawBeginTime(0);
-					if (!mAppPaused)
-						BreakIfFailed(Draw(mTimer, 0));
-					mPerfAnalyzer.DrawEndTime(0);
-
-					mPerfAnalyzer.WholeLoopEndTime(0);
+				if (!mAppPaused) {
+					//CalculateFrameStats();
+					ProcessInput(mTimer, 0);
 				}
+
+				mPerfAnalyzer.UpdateBeginTime(0);
+				BreakIfFailed(UpdateGame(mTimer, 0));
+				mPerfAnalyzer.UpdateEndTime(0);
+
+				mPerfAnalyzer.DrawBeginTime(0);
+				if (!mAppPaused)
+					BreakIfFailed(Draw(mTimer, 0));
+				mPerfAnalyzer.DrawEndTime(0);
+
+				mPerfAnalyzer.WholeLoopEndTime(0);
 			}
-		}	
-	#ifdef MT_World
-		mGameState = GameState::ETerminated;
-		barrier.Terminate();
-		mCVBarrier->Terminate();
-		mSpinlockBarrier->Terminate();
+		}
+	}	
 	
-		for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i)
-			mThreads[i].join();
-	#endif
-#endif // UsingVulkan
+	mGameState = GameState::ETerminated;
+	barrier.Terminate();
+	mCVBarrier->Terminate();
+	mSpinlockBarrier->Terminate();
+
+	for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i)
+		mThreads[i].join();
+#endif
+
 	return GameResult(static_cast<HRESULT>(msg.wParam));
 }
 
 void GameWorld::AddActor(Actor* inActor) {
-#ifdef MT_World
 	mAddingActorMutex.lock();
 
 	inActor->SetOwnerThreadID(mNextThreadId);
 
 	if (bUpdatingActors[mNextThreadId])
 		mPendingActors[mNextThreadId].push_back(inActor);
-	else 
+	else
 		mActors[mNextThreadId].push_back(inActor);
 
 	++mNextThreadId;
-
-	std::vector<bool> vec;
-
 	if (mNextThreadId >= mThreads.size())
 		mNextThreadId = 0;
 
 	mAddingActorMutex.unlock();
-#else
-	if (bUpdatingActors)
-		mPendingActors.push_back(inActor);
-	else
-		mActors.push_back(inActor);
-#endif
 }
 
 void GameWorld::RemoveActor(Actor* inActor) {
-#ifdef MT_World
 	UINT tid = inActor->GetOwnerThreadID();
 	auto& actors = mActors[tid];
 	auto iter = std::find(actors.begin(), actors.end(), inActor);
@@ -539,13 +504,6 @@ void GameWorld::RemoveActor(Actor* inActor) {
 		std::iter_swap(iter, actors.end() - 1);
 		actors.pop_back();
 	}
-#else
-	auto iter = std::find(mActors.begin(), mActors.end(), inActor);
-	if (iter != mActors.end()) {
-		std::iter_swap(iter, mActors.end() - 1);
-		mActors.pop_back();
-	}
-#endif
 }
 
 Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned, bool bMultiThreading) {
@@ -610,7 +568,7 @@ void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
 		mInputSystem->Update();
 	}
 
-#ifdef MT_World
+#ifndef UsingVulkan
 	mCVBarrier->Wait();
 #endif
 

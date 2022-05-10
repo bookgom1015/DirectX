@@ -181,7 +181,6 @@ PixelOut PS(VertexOut pin) {
 	PixelOut pout = (PixelOut)0.0f;
 	pout.DiffuseMap		= diffuseAlbedo;
 	pout.NormalMap		= float4(bumpedNormalW, normalMapSample.a);
-	pout.SpecularMap	= float4(fresnelR0, roughness);
-	
+	pout.SpecularMap	= float4(fresnelR0, roughness);	
 	return pout;
 }

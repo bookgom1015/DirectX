@@ -1,8 +1,24 @@
 #include "DX12Game/VkRenderer.h"
 
-VkRenderer::VkRenderer()
-	: VkLowRenderer() {
+VkVertexInputBindingDescription VkRenderer::Vertex::GetBindingDescription() {
+	VkVertexInputBindingDescription bindingDescription = {};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(Vertex);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	return bindingDescription;
+}
 
+std::array<VkVertexInputAttributeDescription, 2> VkRenderer::Vertex::GetAttributeDescriptions() {
+	std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
+	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].location = 0;
+	attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	attributeDescriptions[0].offset = offsetof(Vertex, mPos);
+	attributeDescriptions[1].binding = 0;
+	attributeDescriptions[1].location = 1;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[1].offset = offsetof(Vertex, mColor);
+	return attributeDescriptions;
 }
 
 VkRenderer::~VkRenderer() {
@@ -10,14 +26,23 @@ VkRenderer::~VkRenderer() {
 		CleanUp();
 }
 
-GameResult VkRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
-	CheckGameResult(VkLowRenderer::Initialize(inMainWnd, inClientWidth, inClientHeight));
+GameResult VkRenderer::Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads,
+		HWND hMainWnd,
+		GLFWwindow* inMainWnd,
+		CVBarrier* inCV,
+		SpinlockBarrier* inSpinlock) {
+	CheckGameResult(VkLowRenderer::Initialize(inClientWidth, inClientHeight, inNumThreads, inMainWnd));
 
 	CheckGameResult(CreateGraphicsPipeline());
+	CheckGameResult(CreateVertexBuffer());
+	CheckGameResult(CreateIndexBuffer());
 	CheckGameResult(CreateCommandBuffers());
 	CheckGameResult(CreateSyncObjects());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::CleanUp() {
@@ -29,6 +54,12 @@ void VkRenderer::CleanUp() {
 		vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
 	}
 
+	vkDestroyBuffer(mDevice, mIndexBuffer, nullptr);
+	vkFreeMemory(mDevice, mIndexBufferMemory, nullptr);
+
+	vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
+	vkFreeMemory(mDevice, mVertexBufferMemory, nullptr);
+
 	VkLowRenderer::CleanUp();
 
 	bIsCleaned = true;
@@ -37,7 +68,7 @@ void VkRenderer::CleanUp() {
 GameResult VkRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
@@ -100,13 +131,13 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 
 	mCurrentFrame = (mCurrentFrame + 1) % mSwapChainImageCount;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	CheckGameResult(VkLowRenderer::OnResize(inClientWidth, inClientHeight));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateGraphicsPipeline() {
@@ -139,12 +170,14 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 		vertShaderStageInfo, fragShaderStageInfo
 	};
 
+	auto bindingDescription = Vertex::GetBindingDescription();
+	auto attributeDescriptioins = Vertex::GetAttributeDescriptions();
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<std::uint32_t>(attributeDescriptioins.size());
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptioins.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -251,7 +284,174 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 	vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
 	vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+namespace {
+	GameResult FindMemoryType(VkPhysicalDevice inPhysicalDevice, std::uint32_t inTypeFilter, VkMemoryPropertyFlags inProperties, std::uint32_t& outIndex) {
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(inPhysicalDevice, &memProperties);
+
+		for (std::uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+			if ((inTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & inProperties) == inProperties) {
+				outIndex = i;
+				return GameResultOk;
+			}
+		}
+
+		ReturnGameResult(S_FALSE, L"Failed to find suitable memory type");
+	}
+
+	GameResult CreateBuffer(
+			VkPhysicalDevice inPhysicalDevice, 
+			VkDevice inDevice, 
+			VkDeviceSize inSize, 
+			VkBufferUsageFlags inUsage, 
+			VkMemoryPropertyFlags inProperties, 
+			VkBuffer& outBuffer,
+			VkDeviceMemory& outBufferMemory) {
+		VkBufferCreateInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.size = inSize;
+		bufferInfo.usage = inUsage;
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		bufferInfo.flags = 0;
+
+		if (vkCreateBuffer(inDevice, &bufferInfo, nullptr, &outBuffer) != VK_SUCCESS)
+			ReturnGameResult(S_FALSE, L"Failed to create vertex buffer");
+
+		VkMemoryRequirements memRequirements;
+		vkGetBufferMemoryRequirements(inDevice, outBuffer, &memRequirements);
+
+		VkMemoryAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		CheckGameResult(FindMemoryType(
+			inPhysicalDevice,
+			memRequirements.memoryTypeBits,
+			inProperties,
+			allocInfo.memoryTypeIndex));
+
+		if (vkAllocateMemory(inDevice, &allocInfo, nullptr, &outBufferMemory) != VK_SUCCESS)
+			ReturnGameResult(S_FALSE, L"Failed to allocate vertex buffer memory");
+
+		vkBindBufferMemory(inDevice, outBuffer, outBufferMemory, 0);
+
+		return GameResultOk;
+	}
+
+	void CopyBuffer(
+			VkDevice inDevice, 
+			VkQueue mQueue,
+			VkCommandPool inCommandPool, 
+			VkBuffer inSrcBuffer, 
+			VkBuffer inDstBuffer, 
+			VkDeviceSize inSize) {
+		VkCommandBufferAllocateInfo allocInfo = {};		
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandPool = inCommandPool;
+		allocInfo.commandBufferCount = 1;
+
+		VkCommandBuffer commandBuffer;
+		vkAllocateCommandBuffers(inDevice, &allocInfo, &commandBuffer);
+
+		VkCommandBufferBeginInfo beginInfo = {};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+		VkBufferCopy copyRegion = {};
+		copyRegion.srcOffset = 0;
+		copyRegion.dstOffset = 0;
+		copyRegion.size = inSize;
+		vkCmdCopyBuffer(commandBuffer, inSrcBuffer, inDstBuffer, 1, &copyRegion);
+
+		vkEndCommandBuffer(commandBuffer);
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+
+		vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(mQueue);
+
+		vkFreeCommandBuffers(inDevice, inCommandPool, 1, &commandBuffer);
+	}
+}
+
+GameResult VkRenderer::CreateVertexBuffer() {
+	VkDeviceSize bufferSize = sizeof(mVertices[0]) * mVertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CheckGameResult(CreateBuffer(
+		mPhysicalDevice,
+		mDevice,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory));
+
+	void* data;
+	vkMapMemory(mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	std::memcpy(data, mVertices.data(), static_cast<size_t>(bufferSize));
+	vkUnmapMemory(mDevice, stagingBufferMemory);
+
+	CheckGameResult(CreateBuffer(
+		mPhysicalDevice,
+		mDevice,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		mVertexBuffer,
+		mVertexBufferMemory));
+
+	CopyBuffer(mDevice, mGraphicsQueue, mCommandPool, stagingBuffer, mVertexBuffer, bufferSize);
+
+	vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+	vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+
+	return GameResultOk;
+}
+
+GameResult VkRenderer::CreateIndexBuffer() {
+	VkDeviceSize bufferSize = sizeof(mIndices[0]) * mIndices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CheckGameResult(CreateBuffer(
+		mPhysicalDevice,
+		mDevice,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer,
+		stagingBufferMemory));
+
+	void* data;
+	vkMapMemory(mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+	std::memcpy(data, mIndices.data(), bufferSize);
+	vkUnmapMemory(mDevice, stagingBufferMemory);
+
+	CheckGameResult(CreateBuffer(
+		mPhysicalDevice,
+		mDevice,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		mIndexBuffer,
+		mIndexBufferMemory));
+
+	CopyBuffer(mDevice, mGraphicsQueue, mCommandPool, stagingBuffer, mIndexBuffer, bufferSize);
+
+	vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+	vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateCommandBuffers() {
@@ -290,7 +490,14 @@ GameResult VkRenderer::CreateCommandBuffers() {
 
 		vkCmdBindPipeline(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
-		vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+		VkBuffer vertexBuffers[] = { mVertexBuffer };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(mCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+		vkCmdBindIndexBuffer(mCommandBuffers[i], mIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+		//vkCmdDraw(mCommandBuffers[i], static_cast<std::uint32_t>(mVertices.size()), 1, 0, 0);
+		vkCmdDrawIndexed(mCommandBuffers[i], static_cast<std::uint32_t>(mIndices.size()), 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(mCommandBuffers[i]);
 
@@ -298,7 +505,7 @@ GameResult VkRenderer::CreateCommandBuffers() {
 			ReturnGameResult(S_FALSE, L"Failed to record command buffer");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkRenderer::CreateSyncObjects() {
@@ -321,7 +528,7 @@ GameResult VkRenderer::CreateSyncObjects() {
 			ReturnGameResult(S_FALSE, L"Failed to create synchronization object(s) for a frame");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::UpdateWorldTransform(const std::string& inRenderItemName,
@@ -345,7 +552,7 @@ void VkRenderer::SetSkeletonVisible(const std::string& inRenderItemName, bool in
 GameResult VkRenderer::AddGeometry(const Mesh* inMesh) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) {
@@ -355,7 +562,7 @@ void VkRenderer::AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh
 GameResult VkRenderer::AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 UINT VkRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
@@ -366,5 +573,5 @@ UINT VkRenderer::AddAnimations(const std::string& inClipName, const Animation& i
 GameResult VkRenderer::UpdateAnimationsMap() {
 
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }

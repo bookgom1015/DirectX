@@ -10,6 +10,13 @@ const size_t gNumBones = 512;
 
 class Renderer {
 protected:
+	enum EffectEnabled : UINT {
+		ESsao	= 1 << 0,
+		ESsr	= 1 << 1,
+		EBloom	= 1 << 2
+	};
+
+protected:
 	Renderer() = default;
 
 public:
@@ -22,6 +29,20 @@ private:
 	Renderer& operator=(Renderer&& inRVal) = delete;
 
 public:
+	virtual GameResult Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads = 1,
+		HWND hMainWnd = NULL,
+		GLFWwindow* inMainWnd = nullptr,
+		CVBarrier* inCV = nullptr,
+		SpinlockBarrier* inSpinlock = nullptr) = 0;
+
+	virtual void CleanUp() = 0;
+	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) = 0;
+	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) = 0;
+	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) = 0;
+
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName, 
 				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) = 0;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
@@ -46,11 +67,30 @@ public:
 
 	bool IsValid() const;
 
+	bool GetSsaoEnabled() const;
+	void SetSsaoEnabled(bool bState);
+
+	bool GetSsrEnabled() const;
+	void SetSsrEnabled(bool bState);
+
+	bool GetBloomEnabled() const;
+	void SetBloomEnabled(bool bState);
+
+	bool GetDrawDebugSkeletonsEnabled() const;
+	void SetDrawDebugSkeletonsEnabled(bool bState);
+
+	bool GetDrawDebugWindowsEnabled() const;
+	void SetDrawDebugWindowsEnabled(bool bState);
+
 protected:
 	bool bIsValid = false;
 
 	GameCamera* mMainCamera = nullptr;
 
-	std::unordered_map<std::string /* Name id */,
-		std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector4>> mOutputTexts;
+	std::unordered_map<std::string /* Name id */, std::pair<std::wstring /* Output text */, DirectX::SimpleMath::Vector4>> mOutputTexts;
+
+	UINT mEffectEnabled;
+
+	bool bDrawDebugSkeletonsEnabled = true;
+	bool bDrawDeubgWindowsEnabled = true;
 };

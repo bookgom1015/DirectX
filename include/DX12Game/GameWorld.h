@@ -99,16 +99,13 @@ private:
 	bool bIsCleaned = false;
 	bool bFinishedInit = false;
 
-#ifdef UsingVulkan
-	GLFWwindow* mMainGLFWWindow;
-
-	std::unique_ptr<VkRenderer> mRenderer = nullptr;
-#else
-	std::unique_ptr<DxRenderer> mRenderer = nullptr;
-#endif
+	std::unique_ptr<Renderer> mRenderer = nullptr;
 	std::unique_ptr<AudioSystem> mAudioSystem = nullptr;
 	std::unique_ptr<InputSystem> mInputSystem = nullptr;
 
+#ifdef UsingVulkan
+	GLFWwindow* mMainGLFWWindow;
+#endif
 	HINSTANCE mhInst = nullptr;		// Application instance handle
 	HWND mhMainWnd = nullptr;		// Main window handle
 	bool mAppPaused = false;		// Is the application paused?
@@ -130,26 +127,20 @@ private:
 	GameTimer::LimitFrameRate mLimitFrameRate;
 
 	PerfAnalyzer mPerfAnalyzer;
+	
+	UINT mNumProcessors = 1;
 
-#ifdef MT_World
 	std::vector<std::thread> mThreads;
+	UINT mNextThreadId = 0;
+
 	std::vector<std::vector<Actor*>> mActors;
 	std::vector<std::vector<Actor*>> mPendingActors;
-
 	std::vector<bool> bUpdatingActors;
-	UINT mNextThreadId = 0;
 
 	std::mutex mAddingActorMutex;
 
-	UINT mNumProcessors = 1;
-
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;
-#else
-	GVector<Actor*> mActors;
-	GVector<Actor*> mPendingActors;
-	bool bUpdatingActors = false;
-#endif
 
 	std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 

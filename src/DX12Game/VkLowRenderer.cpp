@@ -52,14 +52,15 @@ VkLowRenderer::~VkLowRenderer() {
 		CleanUp();
 }
 
-GameResult VkLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
-	mMainWindow = inMainWnd;
+GameResult VkLowRenderer::Initialize(UINT inClientWidth, UINT inClientHeight, UINT inNumThreads, GLFWwindow* inMainWnd) {
 	mClientWidth = inClientWidth;
 	mClientHeight = inClientHeight;
+	mNumThreads = inNumThreads;
+	mMainWindow = inMainWnd;
 
 	CheckGameResult(InitVulkan());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkLowRenderer::CleanUp() {
@@ -90,9 +91,7 @@ void VkLowRenderer::CleanUp() {
 }
 
 GameResult VkLowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
-
-
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL VkLowRenderer::DebugCallback(
@@ -115,7 +114,7 @@ GameResult VkLowRenderer::CreateShaderModule(const std::vector<char>& inCode, Vk
 	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &outModule) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create shader module");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<char>& outData) {
@@ -137,14 +136,7 @@ GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<ch
 
 	file.close();
 
-	return GameResult(S_OK);
-}
-
-GameResult VkLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
-	// Do nothing.
-	// This is for D3D12.
-
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::InitVulkan() {
@@ -159,7 +151,7 @@ GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(CreateFramebuffers());
 	CheckGameResult(CreateCommandPool());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 std::vector<const char*> VkLowRenderer::GetRequiredExtensions() {
@@ -212,7 +204,7 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 		ReturnGameResult(S_FALSE, wsstream.str());
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateInstance() {
@@ -223,7 +215,7 @@ GameResult VkLowRenderer::CreateInstance() {
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "VkGame";
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "No Engine";
+	appInfo.pEngineName = "Game Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
@@ -283,12 +275,12 @@ GameResult VkLowRenderer::CreateInstance() {
 	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create instance");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::SetUpDebugMessenger() {
 	if (!EnableValidationLayers)
-		return GameResult(S_OK);
+		return GameResultOk;
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
 	PopulateDebugMessengerCreateInfo(createInfo);
@@ -296,7 +288,7 @@ GameResult VkLowRenderer::SetUpDebugMessenger() {
 	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create debug messenger");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void VkLowRenderer::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& inCreateInfo) {
@@ -318,7 +310,7 @@ GameResult VkLowRenderer::CreateSurface() {
 	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr, &mSurface) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create window surface");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::PickPhysicalDevice() {
@@ -342,7 +334,7 @@ GameResult VkLowRenderer::PickPhysicalDevice() {
 	else
 		ReturnGameResult(S_FALSE, L"Failed to find a suitable GPU");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 bool VkLowRenderer::IsDeviceSuitable(VkPhysicalDevice inDevice) {
@@ -518,7 +510,7 @@ GameResult VkLowRenderer::CreateLogicalDevice() {
 	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
 	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 VkSurfaceFormatKHR VkLowRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats) {
@@ -614,7 +606,7 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	mSwapChainImageFormat = surfaceFormat.format;
 	mSwapChainExtent = extent;
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateImageViews() {
@@ -640,7 +632,7 @@ GameResult VkLowRenderer::CreateImageViews() {
 			ReturnGameResult(S_FALSE, L"Failed to create image view");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateRenderPass() {
@@ -677,14 +669,13 @@ GameResult VkLowRenderer::CreateRenderPass() {
 	renderPassInfo.pAttachments = &colorAttachment;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
-
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create render pass");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateFramebuffers() {
@@ -708,7 +699,7 @@ GameResult VkLowRenderer::CreateFramebuffers() {
 			ReturnGameResult(S_FALSE, L"Failed to create framebuffer");
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateCommandPool() {
@@ -722,5 +713,5 @@ GameResult VkLowRenderer::CreateCommandPool() {
 	if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
 		ReturnGameResult(S_FALSE, L"Failed to create command pool");
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }

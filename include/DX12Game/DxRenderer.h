@@ -48,12 +48,6 @@ private:
 		Sphere
 	};
 
-	enum EffectEnabled : UINT {
-		ESsao		= 1 << 0,
-		ESsr		= 1 << 1,
-		EBloom		= 1 << 2
-	};
-
 	// Lightweight structure stores parameters to draw a shape.  This will
 	//  vary from app-to-app.
 	struct RenderItem {
@@ -152,10 +146,15 @@ private:
 	DxRenderer& operator=(DxRenderer&& rhs) = delete;
 
 public:
-	virtual GameResult Initialize(HWND hMainWnd, 
-				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
-	GameResult Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, 
-				CVBarrier* inCV, SpinlockBarrier* inSpinlock, UINT inNumThreads = 1);
+	virtual GameResult Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads = 1,
+		HWND hMainWnd = NULL,
+		GLFWwindow* inMainWnd = nullptr,
+		CVBarrier* inCV = nullptr,
+		SpinlockBarrier* inSpinlock = nullptr) override;
+
 	virtual void CleanUp() override;
 	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
@@ -175,21 +174,6 @@ public:
 
 	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
-
-	bool GetSsaoEnabled() const;
-	void SetSsaoEnabled(bool bState);
-
-	bool GetSsrEnabled() const;
-	void SetSsrEnabled(bool bState);
-
-	bool GetBloomEnabled() const;
-	void SetBloomEnabled(bool bState);
-
-	bool GetDrawDebugSkeletonsEnabled() const;
-	void SetDrawDebugSkeletonsEnabled(bool bState);
-
-	bool GetDrawDebugWindowsEnabled() const;
-	void SetDrawDebugWindowsEnabled(bool bState);
 
 protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
@@ -238,7 +222,7 @@ private:
 	void BuildDescriptorsForEachHelperClass();
 
 	GameResult BuildDescriptorHeaps();
-	GameResult BuildShadersAndInputLayout();
+	GameResult BuildShaders();
 	GameResult BuildBasicGeometry();
 	GameResult BuildBasicRenderItems();
 	GameResult BuildBasicMaterials();
@@ -351,20 +335,14 @@ private:
 
 	const UINT MaxInstanceCount = 128;
 	std::array<float, 2> mRootConstants;
-	UINT mEffectEnabled;
 
 	std::vector<DirectX::XMFLOAT4> mBlurWeights5;
 	std::vector<DirectX::XMFLOAT4> mBlurWeights9;
 	std::vector<DirectX::XMFLOAT4> mBlurWeights17;
 
-#ifdef MT_World
 	CVBarrier* mCVBarrier;
 	SpinlockBarrier* mSpinlockBarrier;
 
 	std::vector<UINT> mNumInstances;
 	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
-#endif
-
-	bool bDrawDebugSkeletonsEnabled = true;
-	bool bDrawDeubgWindowsEnabled = true;
 };

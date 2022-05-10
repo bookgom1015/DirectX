@@ -27,3 +27,52 @@ void Renderer::SetMainCamerea(GameCamera* inCamera) {
 bool Renderer::IsValid() const {
 	return bIsValid;
 }
+
+bool Renderer::GetSsaoEnabled() const {
+	return (mEffectEnabled & EffectEnabled::ESsao) == EffectEnabled::ESsao;
+}
+
+void Renderer::SetSsaoEnabled(bool bState) {
+	if (bState)
+		mEffectEnabled |= EffectEnabled::ESsao;
+	else
+		mEffectEnabled &= ~EffectEnabled::ESsao;
+}
+
+bool Renderer::GetSsrEnabled() const {
+	return (mEffectEnabled & EffectEnabled::ESsr) == EffectEnabled::ESsr;
+}
+
+void Renderer::SetSsrEnabled(bool bState) {
+	if (bState)
+		mEffectEnabled |= EffectEnabled::ESsr;
+	else
+		mEffectEnabled &= ~EffectEnabled::ESsr;
+}
+
+bool Renderer::GetBloomEnabled() const {
+	return (mEffectEnabled & EffectEnabled::EBloom) == EffectEnabled::EBloom;
+}
+
+void Renderer::SetBloomEnabled(bool bState) {
+	if (bState)
+		mEffectEnabled |= EffectEnabled::EBloom;
+	else
+		mEffectEnabled &= ~EffectEnabled::EBloom;
+}
+
+bool Renderer::GetDrawDebugSkeletonsEnabled() const {
+	return bDrawDebugSkeletonsEnabled;
+}
+
+void Renderer::SetDrawDebugSkeletonsEnabled(bool bState) {
+	bDrawDebugSkeletonsEnabled = bState;
+}
+
+bool Renderer::GetDrawDebugWindowsEnabled() const {
+	return bDrawDeubgWindowsEnabled;
+}
+
+void Renderer::SetDrawDebugWindowsEnabled(bool bState) {
+	bDrawDeubgWindowsEnabled = bState;
+}

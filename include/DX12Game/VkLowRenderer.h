@@ -2,7 +2,7 @@
 
 #include "DX12Game/LowRenderer.h"
 
-class VkLowRenderer : public LowRenderer {
+class VkLowRenderer {
 private:
 	struct QueueFamilyIndices {
 		std::optional<std::uint32_t> mGraphicsFamily;
@@ -34,11 +34,15 @@ public:
 	virtual ~VkLowRenderer();
 
 public:
-	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
-		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
-	virtual void CleanUp() override;
+	GameResult Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads = 1,
+		GLFWwindow* inMainWnd = nullptr);
 
-	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
+	void CleanUp();
+
+	GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -51,9 +55,6 @@ protected:
 	GameResult ReadFile(const std::string& inFileName, std::vector<char>& outData);
 
 private:
-	virtual GameResult Initialize(HWND hMainWnd, 
-		UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
-
 	GameResult InitVulkan();
 
 	std::vector<const char*> GetRequiredExtensions();
@@ -121,6 +122,11 @@ protected:
 
 	VkCommandPool mCommandPool;
 	std::vector<VkCommandBuffer> mCommandBuffers;
+
+	UINT mClientWidth = 0;
+	UINT mClientHeight = 0;
+
+	UINT mNumThreads;
 
 private:
 	bool bIsCleaned = false;

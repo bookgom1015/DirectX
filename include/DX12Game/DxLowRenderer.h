@@ -2,9 +2,9 @@
 
 #include "DX12Game/LowRenderer.h"
 
-class DxLowRenderer : public LowRenderer {
+class DxLowRenderer {
 protected:
-	DxLowRenderer();
+	DxLowRenderer() = default;
 
 public:
 	virtual ~DxLowRenderer();
@@ -16,12 +16,18 @@ private:
 	DxLowRenderer& operator=(DxLowRenderer&& rhs) = delete;
 
 protected:
-	virtual GameResult Initialize(HWND hMainWnd, 
-				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
-	virtual void CleanUp() override;
-	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
+	GameResult Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads = 1,
+		HWND hMainWnd = NULL);
+
+	void CleanUp();
+	GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
 
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps();
+
+	float AspectRatio() const;
 
 	GameResult FlushCommandQueue();
 	GameResult ExecuteCommandLists();
@@ -35,9 +41,6 @@ protected:
 	ID3D12GraphicsCommandList* GetCommandList(UINT inIdx = 0) const;
 
 private:
-	virtual GameResult Initialize(GLFWwindow* inMainWnd, 
-				UINT inClientWidth, UINT inClientHeight, UINT inNumThreads = 1) override;
-
 	GameResult InitDirect3D();
 	GameResult CreateCommandObjects();
 	GameResult CreateSwapChain();
@@ -80,6 +83,12 @@ protected:
 	D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
 	DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+protected:
+	UINT mClientWidth = 0;
+	UINT mClientHeight = 0;
+
+	UINT mNumThreads;
 
 private:
 	bool bIsCleaned = false;

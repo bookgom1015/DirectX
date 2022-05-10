@@ -4,26 +4,23 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-DxLowRenderer::DxLowRenderer()
-	: LowRenderer() {}
-
 DxLowRenderer::~DxLowRenderer() {
 	if (!bIsCleaned)
 		CleanUp();
 }
 
-GameResult DxLowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
-	mhMainWnd = hMainWnd;
+GameResult DxLowRenderer::Initialize(UINT inClientWidth, UINT inClientHeight, UINT inNumThreads, HWND hMainWnd) {
 	mClientWidth = inClientWidth;
 	mClientHeight = inClientHeight;
 	mNumThreads = inNumThreads;
+	mhMainWnd = hMainWnd;
 
 	CheckGameResult(InitDirect3D());
 
 	// Do the initial resize case.
 	CheckGameResult(OnResize());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxLowRenderer::CleanUp() {
@@ -39,7 +36,7 @@ GameResult DxLowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 
 	CheckGameResult(OnResize());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxLowRenderer::CreateRtvAndDsvDescriptorHeaps() {
@@ -57,7 +54,11 @@ GameResult DxLowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	dsvHeapDesc.NodeMask = 0;
 	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 
-	return GameResult(S_OK);
+	return GameResultOk;
+}
+
+float DxLowRenderer::AspectRatio() const {
+	return static_cast<float>(mClientWidth / mClientHeight);
 }
 
 GameResult DxLowRenderer::FlushCommandQueue() {
@@ -81,7 +82,7 @@ GameResult DxLowRenderer::FlushCommandQueue() {
 		CloseHandle(eventHandle);
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxLowRenderer::ExecuteCommandLists() {
@@ -92,7 +93,7 @@ GameResult DxLowRenderer::ExecuteCommandLists() {
 	}
 	mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdLists.size()), cmdLists.data());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 ID3D12Resource* DxLowRenderer::CurrentBackBuffer() const {
@@ -117,13 +118,6 @@ const std::vector<ComPtr<ID3D12GraphicsCommandList>>& DxLowRenderer::GetCommandL
 
 ID3D12GraphicsCommandList* DxLowRenderer::GetCommandList(UINT inIdx) const {
 	return mCommandLists[inIdx].Get();
-}
-
-GameResult DxLowRenderer::Initialize(GLFWwindow* inMainWnd, UINT inClientWidth, UINT inClientHeight, UINT inNumThreads) {
-	// Do nothing.
-	// This is for Vulkan.
-
-	return GameResult(S_OK);
 }
 
 
@@ -180,7 +174,7 @@ GameResult DxLowRenderer::InitDirect3D() {
 	CheckGameResult(CreateSwapChain());
 	CheckGameResult(CreateRtvAndDsvDescriptorHeaps());
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxLowRenderer::CreateCommandObjects() {
@@ -215,7 +209,7 @@ GameResult DxLowRenderer::CreateCommandObjects() {
 		mCommandLists[i]->Close();
 	}
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxLowRenderer::CreateSwapChain() {
@@ -242,7 +236,7 @@ GameResult DxLowRenderer::CreateSwapChain() {
 	// Note: Swap chain uses queue to perfrom flush.
 	ReturnIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 GameResult DxLowRenderer::OnResize() {
@@ -250,15 +244,11 @@ GameResult DxLowRenderer::OnResize() {
 		ReturnGameResult(S_FALSE, L"ID3D12Device does not exist");
 	if (!mSwapChain)
 		ReturnGameResult(S_FALSE, L"IDXGISwapChain does not exist");
-#ifdef MT_World
+
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		if (!mCommandAllocators[i])
 			ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator(idx: " + std::to_wstring(i) + L" does not exist");
 	}
-#else
-	if (!mDirectCmdListAlloc)
-		ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator does not exist");
-#endif
 
 	// Flush before changing any resources.
 	FlushCommandQueue();
@@ -318,13 +308,7 @@ GameResult DxLowRenderer::OnResize() {
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_READ));
 
 	// Execute the resize commands.
-#ifdef MT_World
 	ExecuteCommandLists();
-#else
-	ReturnIfFailed(mCommandList->Close());
-	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-#endif
 
 	// Wait until resize is complete.
 	CheckGameResult(FlushCommandQueue());
@@ -339,7 +323,7 @@ GameResult DxLowRenderer::OnResize() {
 
 	mScissorRect = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
 
-	return GameResult(S_OK);
+	return GameResultOk;
 }
 
 void DxLowRenderer::LogAdapters() {

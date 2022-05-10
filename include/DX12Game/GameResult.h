@@ -85,17 +85,13 @@ public:
 #endif
 
 #ifndef SyncHost
-	#ifdef MT_World
-		#define SyncHost(__pBarrier)										\
-				{																	\
-					if (__pBarrier != nullptr)										\
-						__pBarrier->Wait();											\
-					else															\
-						ReturnGameResult(S_FALSE, L#__pBarrier L" is nullptr");		\
-				}
-		#else
-		// Do nothing.
-	#endif
+	#define SyncHost(__pBarrier)										\
+	{																	\
+		if (__pBarrier != nullptr)										\
+			__pBarrier->Wait();											\
+		else															\
+			ReturnGameResult(S_FALSE, L#__pBarrier L" is nullptr");		\
+	}
 #endif
 
 static GameResult __STATIC_GAMERESULT_OK(S_OK);
