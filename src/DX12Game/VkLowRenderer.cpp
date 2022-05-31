@@ -1,5 +1,7 @@
 #include "DX12Game/VkLowRenderer.h"
 
+#ifdef UsingVulkan
+
 #include <map>
 #include <set>
 #include <fstream>
@@ -41,10 +43,21 @@ namespace {
 		if (func != nullptr)
 			func(instance, debugMessenger, pAllocator);
 	}
-}
 
-VkLowRenderer::VkLowRenderer() {
+	VkSampleCountFlagBits GetMaxUsableSampleCount(VkPhysicalDevice inPhysicalDevice) {
+		VkPhysicalDeviceProperties physicalDeviceProperties;
+		vkGetPhysicalDeviceProperties(inPhysicalDevice, &physicalDeviceProperties);
 
+		VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+		if (counts & VK_SAMPLE_COUNT_64_BIT) return VK_SAMPLE_COUNT_64_BIT;
+		if (counts & VK_SAMPLE_COUNT_32_BIT) return VK_SAMPLE_COUNT_32_BIT;
+		if (counts & VK_SAMPLE_COUNT_16_BIT) return VK_SAMPLE_COUNT_16_BIT;
+		if (counts & VK_SAMPLE_COUNT_8_BIT) return VK_SAMPLE_COUNT_8_BIT;
+		if (counts & VK_SAMPLE_COUNT_4_BIT) return VK_SAMPLE_COUNT_4_BIT;
+		if (counts & VK_SAMPLE_COUNT_2_BIT) return VK_SAMPLE_COUNT_2_BIT;
+
+		return VK_SAMPLE_COUNT_1_BIT;
+	}
 }
 
 VkLowRenderer::~VkLowRenderer() {
@@ -64,20 +77,6 @@ GameResult VkLowRenderer::Initialize(UINT inClientWidth, UINT inClientHeight, UI
 }
 
 void VkLowRenderer::CleanUp() {
-	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-
-	for (auto framebuffer : mSwapChainFramebuffers)
-		vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
-
-	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
-	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-
-	for (auto imageView : mSwapChainImageViews)
-		vkDestroyImageView(mDevice, imageView, nullptr);
-
-	vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
-
 	vkDestroyDevice(mDevice, nullptr);
 
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
@@ -95,9 +94,9 @@ GameResult VkLowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL VkLowRenderer::DebugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType,
+		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData) {
 
 	Logln("[Validation layer]", pCallbackData->pMessage);
@@ -139,6 +138,47 @@ GameResult VkLowRenderer::ReadFile(const std::string& inFileName, std::vector<ch
 	return GameResultOk;
 }
 
+VkLowRenderer::QueueFamilyIndices VkLowRenderer::FindQueueFamilies(VkPhysicalDevice inDevice) {
+	QueueFamilyIndices indices;
+
+	std::uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(inDevice, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(inDevice, &queueFamilyCount, queueFamilies.data());
+
+	std::uint32_t i = 0;
+	for (const auto& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			indices.mGraphicsFamily = i;
+
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(inDevice, i, mSurface, &presentSupport);
+
+		if (presentSupport)
+			indices.mPresentFamily = i;
+
+		if (indices.IsComplete())
+			break;
+
+		++i;
+	}
+
+	return indices;
+}
+
+GameResult VkLowRenderer::RecreateSwapChain() {
+	CheckGameResult(CreateSwapChain());
+
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::CleanUpSwapChain() {
+	vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+
+	return GameResultOk;
+}
+
 GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(CreateInstance());
 	CheckGameResult(SetUpDebugMessenger());
@@ -146,10 +186,6 @@ GameResult VkLowRenderer::InitVulkan() {
 	CheckGameResult(PickPhysicalDevice());
 	CheckGameResult(CreateLogicalDevice());
 	CheckGameResult(CreateSwapChain());
-	CheckGameResult(CreateImageViews());
-	CheckGameResult(CreateRenderPass());
-	CheckGameResult(CreateFramebuffers());
-	CheckGameResult(CreateCommandPool());
 
 	return GameResultOk;
 }
@@ -194,99 +230,15 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 			status = false;
 		}
 	}
-	
+
 	if (!status) {
 		std::wstringstream wsstream;
-		
+
 		for (const auto& layerName : unsupportedLayer)
 			wsstream << layerName << L" is not supported" << std::endl;
 
 		ReturnGameResult(S_FALSE, wsstream.str());
 	}
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::CreateInstance() {
-	if (EnableValidationLayers)
-		CheckGameResult(CheckValidationLayersSupport());
-
-	VkApplicationInfo appInfo = {};
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "VkGame";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "Game Engine";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_0;
-
-	VkInstanceCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
-
-	std::uint32_t availableExtensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
-
-	std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
-	vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
-
-	auto requiredExtensions = GetRequiredExtensions();
-	std::vector<const char*> missingExtensions;
-
-	for (const auto& requiredExt : requiredExtensions) {
-		bool supported = false;
-
-		for (const auto& availableExt : availableExtensions) {
-			if (std::strcmp(requiredExt, availableExt.extensionName) == 0) {
-				supported = true;
-				break;
-			}
-		}
-
-		if (!supported)
-			missingExtensions.push_back(requiredExt);
-	}
-
-	WLogln(L"[VkLowRenderer] Unsupported extensions:")
-	if (missingExtensions.size() > 0) {
-		for (const auto& missingExt : missingExtensions)
-			Logln("                    ", missingExt);
-		ReturnGameResult(S_FALSE, L"that extensions are not supported");
-	}
-	else {
-		Logln("                    None");
-	}
-
-	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(requiredExtensions.size());
-	createInfo.ppEnabledExtensionNames = requiredExtensions.data();
-
-	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
-	if (EnableValidationLayers) {
-		createInfo.enabledLayerCount = static_cast<std::uint32_t>(ValidationLayers.size());
-		createInfo.ppEnabledLayerNames = ValidationLayers.data();
-		
-		PopulateDebugMessengerCreateInfo(debugCreateInfo);
-		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-	}
-	else {
-		createInfo.enabledLayerCount = 0;
-		createInfo.pNext = nullptr;
-	}
-
-	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create instance");
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::SetUpDebugMessenger() {
-	if (!EnableValidationLayers)
-		return GameResultOk;
-
-	VkDebugUtilsMessengerCreateInfoEXT createInfo;
-	PopulateDebugMessengerCreateInfo(createInfo);
-
-	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create debug messenger");
 
 	return GameResultOk;
 }
@@ -306,37 +258,6 @@ void VkLowRenderer::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreate
 	inCreateInfo.pUserData = nullptr;
 }
 
-GameResult VkLowRenderer::CreateSurface() {
-	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr, &mSurface) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create window surface");
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::PickPhysicalDevice() {
-	std::uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
-	if (deviceCount == 0)
-		ReturnGameResult(S_FALSE, L"Failed to find GPUs with Vulkan support");
-
-	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
-
-	std::multimap<int, VkPhysicalDevice> candidates;
-
-	for (const auto& device : devices) {
-		int score = RateDeviceSuitability(device);
-		candidates.insert(std::make_pair(score, device));
-	}
-
-	if (candidates.rbegin()->first > 0)
-		mPhysicalDevice = candidates.rbegin()->second;
-	else
-		ReturnGameResult(S_FALSE, L"Failed to find a suitable GPU");
-
-	return GameResultOk;
-}
-
 bool VkLowRenderer::IsDeviceSuitable(VkPhysicalDevice inDevice) {
 	QueueFamilyIndices indices = FindQueueFamilies(inDevice);
 
@@ -349,7 +270,11 @@ bool VkLowRenderer::IsDeviceSuitable(VkPhysicalDevice inDevice) {
 		swapChainAdequate = !swapChainSupport.mFormats.empty() && !swapChainSupport.mPresentModes.empty();
 	}
 
-	return indices.IsComplete() && extensionsSupported && swapChainAdequate;
+	VkPhysicalDeviceFeatures supportedFeatures;
+	vkGetPhysicalDeviceFeatures(inDevice, &supportedFeatures);
+
+
+	return indices.IsComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 }
 
 bool VkLowRenderer::CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice) {
@@ -365,28 +290,6 @@ bool VkLowRenderer::CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice) {
 		requiredExtensions.erase(extension.extensionName);
 
 	return requiredExtensions.empty();
-}
-
-VkLowRenderer::SwapChainSupportDetails VkLowRenderer::QuerySwapChainSupport(VkPhysicalDevice inDevice) {
-	SwapChainSupportDetails details;
-
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(inDevice, mSurface, &details.mCapabilities);
-
-	std::uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, nullptr);
-	if (formatCount != 0) {
-		details.mFormats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, details.mFormats.data());
-	}
-
-	std::uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, nullptr);
-	if (presentModeCount != 0) {
-		details.mPresentModes.resize(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, details.mPresentModes.data());
-	}
-
-	return details;
 }
 
 int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
@@ -438,79 +341,26 @@ int VkLowRenderer::RateDeviceSuitability(VkPhysicalDevice inDevice) {
 	return score;
 }
 
-VkLowRenderer::QueueFamilyIndices VkLowRenderer::FindQueueFamilies(VkPhysicalDevice inDevice) {
-	QueueFamilyIndices indices;
+VkLowRenderer::SwapChainSupportDetails VkLowRenderer::QuerySwapChainSupport(VkPhysicalDevice inDevice) {
+	SwapChainSupportDetails details;
 
-	std::uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(inDevice, &queueFamilyCount, nullptr);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(inDevice, mSurface, &details.mCapabilities);
 
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(inDevice, &queueFamilyCount, queueFamilies.data());
-
-	std::uint32_t i = 0;
-	for (const auto& queueFamily : queueFamilies) {
-		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			indices.mGraphicsFamily = i;
-
-		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(inDevice, i, mSurface, &presentSupport);
-
-		if (presentSupport)
-			indices.mPresentFamily = i;
-
-		if (indices.IsComplete())
-			break;
-
-		++i;
+	std::uint32_t formatCount;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, nullptr);
+	if (formatCount != 0) {
+		details.mFormats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(inDevice, mSurface, &formatCount, details.mFormats.data());
 	}
 
-	return indices;
-}
-
-GameResult VkLowRenderer::CreateLogicalDevice() {
-	QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
-
-	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::set<std::uint32_t> uniqueQueueFamilies = {
-		indices.GetGraphicsFamilyIndex(),
-		indices.GetPresentFamilyIndex()
-	};
-
-	float queuePriority = 1.0f;
-	for (std::uint32_t queueFamily : uniqueQueueFamilies) {
-		VkDeviceQueueCreateInfo queueCreateInfo = {}; 
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO; 
-		queueCreateInfo.queueFamilyIndex = queueFamily; 
-		queueCreateInfo.queueCount = 1;
-		queueCreateInfo.pQueuePriorities = &queuePriority; 
-		queueCreateInfos.push_back(queueCreateInfo);
+	std::uint32_t presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, nullptr);
+	if (presentModeCount != 0) {
+		details.mPresentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(inDevice, mSurface, &presentModeCount, details.mPresentModes.data());
 	}
 
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-
-	VkDeviceCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-	createInfo.queueCreateInfoCount = static_cast<std::uint32_t>(queueCreateInfos.size());
-	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(DeviceExtensions.size());
-	createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
-
-	if (EnableValidationLayers) {
-		createInfo.enabledLayerCount = static_cast<std::uint32_t>(ValidationLayers.size());
-		createInfo.ppEnabledLayerNames = ValidationLayers.data();
-	}
-	else {
-		createInfo.enabledLayerCount = 0;
-	}
-
-	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create logical device");
-
-	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
-	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
-
-	return GameResultOk;
+	return details;
 }
 
 VkSurfaceFormatKHR VkLowRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats) {
@@ -537,7 +387,10 @@ VkExtent2D VkLowRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCap
 		return inCapabilities.currentExtent;
 	}
 	else {
-		VkExtent2D actualExtent = { mClientWidth, mClientHeight };
+		int width, height;
+		glfwGetFramebufferSize(mMainWindow, &width, &height);
+
+		VkExtent2D actualExtent = { static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height) };
 
 		actualExtent.width = std::max(inCapabilities.minImageExtent.width,
 			std::min(inCapabilities.maxImageExtent.width, actualExtent.width));
@@ -549,6 +402,173 @@ VkExtent2D VkLowRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCap
 	}
 }
 
+GameResult VkLowRenderer::CreateInstance() {
+	if (EnableValidationLayers)
+		CheckGameResult(CheckValidationLayersSupport());
+
+	VkApplicationInfo appInfo = {};
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = "VkGame";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pEngineName = "Game Engine";
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_0;
+
+	VkInstanceCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pApplicationInfo = &appInfo;
+
+	std::uint32_t availableExtensionCount = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
+	vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
+
+	auto requiredExtensions = GetRequiredExtensions();
+	std::vector<const char*> missingExtensions;
+
+	for (const auto& requiredExt : requiredExtensions) {
+		bool supported = false;
+
+		for (const auto& availableExt : availableExtensions) {
+			if (std::strcmp(requiredExt, availableExt.extensionName) == 0) {
+				supported = true;
+				break;
+			}
+		}
+
+		if (!supported)
+			missingExtensions.push_back(requiredExt);
+	}
+
+	WLogln(L"[VkLowRenderer] Unsupported extensions:")
+		if (missingExtensions.size() > 0) {
+			for (const auto& missingExt : missingExtensions)
+				Logln("                    ", missingExt);
+			ReturnGameResult(S_FALSE, L"that extensions are not supported");
+		}
+		else {
+			Logln("                    None");
+		}
+
+	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(requiredExtensions.size());
+	createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+
+	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+	if (EnableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<std::uint32_t>(ValidationLayers.size());
+		createInfo.ppEnabledLayerNames = ValidationLayers.data();
+
+		PopulateDebugMessengerCreateInfo(debugCreateInfo);
+		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+		createInfo.pNext = nullptr;
+	}
+
+	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create instance");
+
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::SetUpDebugMessenger() {
+	if (!EnableValidationLayers)
+		return GameResultOk;
+
+	VkDebugUtilsMessengerCreateInfoEXT createInfo;
+	PopulateDebugMessengerCreateInfo(createInfo);
+
+	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create debug messenger");
+
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::CreateSurface() {
+	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr, &mSurface) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create window surface");
+
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::PickPhysicalDevice() {
+	std::uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
+	if (deviceCount == 0)
+		ReturnGameResult(S_FALSE, L"Failed to find GPUs with Vulkan support");
+
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
+
+	std::multimap<int, VkPhysicalDevice> candidates;
+
+	for (const auto& device : devices) {
+		int score = RateDeviceSuitability(device);
+		candidates.insert(std::make_pair(score, device));
+	}
+
+	if (candidates.rbegin()->first > 0) {
+		auto physicalDevice = candidates.rbegin()->second;
+		mPhysicalDevice = physicalDevice;
+		mMsaaSamples = GetMaxUsableSampleCount(physicalDevice);
+		WLogln(L"[VkLowRenderer] Mutil Sample Counts: ", std::to_wstring(mMsaaSamples));
+	}
+	else
+		ReturnGameResult(S_FALSE, L"Failed to find a suitable GPU");
+
+	return GameResultOk;
+}
+
+GameResult VkLowRenderer::CreateLogicalDevice() {
+	QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
+
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	std::set<std::uint32_t> uniqueQueueFamilies = {
+		indices.GetGraphicsFamilyIndex(),
+		indices.GetPresentFamilyIndex()
+	};
+
+	float queuePriority = 1.0f;
+	for (std::uint32_t queueFamily : uniqueQueueFamilies) {
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
+
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
+
+	VkDeviceCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	createInfo.pQueueCreateInfos = queueCreateInfos.data();
+	createInfo.queueCreateInfoCount = static_cast<std::uint32_t>(queueCreateInfos.size());
+	createInfo.pEnabledFeatures = &deviceFeatures;
+	createInfo.enabledExtensionCount = static_cast<std::uint32_t>(DeviceExtensions.size());
+	createInfo.ppEnabledExtensionNames = DeviceExtensions.data();
+
+	if (EnableValidationLayers) {
+		createInfo.enabledLayerCount = static_cast<std::uint32_t>(ValidationLayers.size());
+		createInfo.ppEnabledLayerNames = ValidationLayers.data();
+	}
+	else {
+		createInfo.enabledLayerCount = 0;
+	}
+
+	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
+		ReturnGameResult(S_FALSE, L"Failed to create logical device");
+
+	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
+	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
+
+	return GameResultOk;
+}
+
 GameResult VkLowRenderer::CreateSwapChain() {
 	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(mPhysicalDevice);
 
@@ -556,12 +576,12 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.mPresentModes);
 	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.mCapabilities);
 
-	std::uint32_t imageCount = mSwapChainImageCount;
+	std::uint32_t imageCount = SwapChainImageCount;
 
 	if (imageCount < swapChainSupport.mCapabilities.minImageCount)
 		imageCount = swapChainSupport.mCapabilities.minImageCount;
 	else if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
-			 imageCount > swapChainSupport.mCapabilities.maxImageCount)
+		imageCount > swapChainSupport.mCapabilities.maxImageCount)
 		imageCount = swapChainSupport.mCapabilities.maxImageCount;
 
 	VkSwapchainCreateInfoKHR createInfo = {};
@@ -609,109 +629,4 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	return GameResultOk;
 }
 
-GameResult VkLowRenderer::CreateImageViews() {
-	mSwapChainImageViews.resize(mSwapChainImages.size());
-
-	for (size_t i = 0, end = mSwapChainImages.size(); i < end; ++i) {
-		VkImageViewCreateInfo createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		createInfo.image = mSwapChainImages[i];
-		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.format = mSwapChainImageFormat;
-		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		createInfo.subresourceRange.baseMipLevel = 0;
-		createInfo.subresourceRange.levelCount = 1;
-		createInfo.subresourceRange.baseArrayLayer = 0;
-		createInfo.subresourceRange.layerCount = 1;
-
-		if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapChainImageViews[i]) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create image view");
-	}
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::CreateRenderPass() {
-	VkAttachmentDescription colorAttachment = {};
-	colorAttachment.format = mSwapChainImageFormat;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	VkAttachmentReference colorAttachmentRef = {};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-
-	VkSubpassDependency dependency = {};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-	VkRenderPassCreateInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 1;
-	renderPassInfo.pAttachments = &colorAttachment;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
-
-	if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create render pass");
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::CreateFramebuffers() {
-	mSwapChainFramebuffers.resize(mSwapChainImageViews.size());
-
-	for (size_t i = 0, end = mSwapChainImageViews.size(); i < end; ++i) {
-		VkImageView attachments[] = {
-			mSwapChainImageViews[i]
-		};
-
-		VkFramebufferCreateInfo framebufferInfo = {};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = mRenderPass;
-		framebufferInfo.attachmentCount = 1;
-		framebufferInfo.pAttachments = attachments;
-		framebufferInfo.width = mSwapChainExtent.width;
-		framebufferInfo.height = mSwapChainExtent.height;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapChainFramebuffers[i]) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create framebuffer");
-	}
-
-	return GameResultOk;
-}
-
-GameResult VkLowRenderer::CreateCommandPool() {
-	QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
-
-	VkCommandPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.queueFamilyIndex = indices.GetGraphicsFamilyIndex();
-	poolInfo.flags = 0;
-
-	if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create command pool");
-
-	return GameResultOk;
-}
+#endif // UsingVulkan

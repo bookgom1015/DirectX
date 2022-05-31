@@ -43,6 +43,7 @@ GameResult Ssr::OnResize(UINT inNewWidth, UINT inNewHeight) {
 }
 
 void Ssr::BuildDescriptors(
+		D3D12_CPU_DESCRIPTOR_HANDLE	  hDsv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
@@ -52,6 +53,8 @@ void Ssr::BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuRtv,
 		UINT inCbvSrvUavDescriptorSize,
 		UINT inRtvDescriptorSize) {
+	mhDsv = hDsv;
+
 	mhMainPassMapGpuSrv = hMainPassMapGpuSrv;
 	mhNormalMapGpuSrv = hNormalMapGpuSrv;
 
@@ -111,7 +114,7 @@ void Ssr::ComputeSsr(
 	outCmdList->ClearRenderTargetView(mhAmbientMap0CpuRtv, clearValue, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	outCmdList->OMSetRenderTargets(1, &mhAmbientMap0CpuRtv, true, nullptr);
+	outCmdList->OMSetRenderTargets(1, &mhAmbientMap0CpuRtv, true, &mhDsv);
 
 	// Bind the constant buffer for this pass.
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();

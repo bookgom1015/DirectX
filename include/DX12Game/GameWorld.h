@@ -44,7 +44,7 @@ private:
 public:
 	GameResult Initialize(INT inWidth = 800, UINT inHeight = 600);
 	void CleanUp();
-	bool LoadData();
+	GameResult LoadData();
 	void UnloadData();
 	GameResult RunLoop();
 	GameResult GameLoop();
@@ -52,8 +52,7 @@ public:
 	void AddActor(Actor* inActor);
 	void RemoveActor(Actor* inActor);
 
-	Mesh* AddMesh(const std::string& inFileName, bool inIsSkeletal = false, 
-		bool inNeedToBeAligned = false, bool bMultiThreading = false);
+	GameResult AddMesh(const std::string& inFileName, Mesh*& outMeshPtr, bool inIsSkeletal = false, bool inNeedToBeAligned = false);
 	void RemoveMesh(const std::string& inFileName);
 
 	//* Returns single-tone for GameWorld.

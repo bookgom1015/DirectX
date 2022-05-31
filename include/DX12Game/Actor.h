@@ -28,7 +28,7 @@ public:
 	void Update(const GameTimer& gt);
 	void UpdateComponents(const GameTimer& gt);
 	void ProcessInput(const InputState& input);
-	virtual bool OnLoadingData();
+	virtual GameResult OnLoadingData();
 	virtual void OnUnloadingData();
 
 	void AddComponent(Component* inComponent);

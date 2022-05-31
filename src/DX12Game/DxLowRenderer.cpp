@@ -1,5 +1,7 @@
 #include "DX12Game/DxLowRenderer.h"
 
+#ifndef UsingVulkan
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -122,7 +124,7 @@ ID3D12GraphicsCommandList* DxLowRenderer::GetCommandList(UINT inIdx) const {
 
 
 GameResult DxLowRenderer::InitDirect3D() {
-#if defined(_DEBUG) 
+#ifdef _DEBUG
 	// Enable the D3D12 debug layer.
 	{
 		ComPtr<ID3D12Debug> debugController;
@@ -293,8 +295,8 @@ GameResult DxLowRenderer::OnResize() {
 	optClear.DepthStencil.Stencil = 0;
 	ReturnIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE, 
-		&depthStencilDesc, 
+		D3D12_HEAP_FLAG_NONE,
+		&depthStencilDesc,
 		D3D12_RESOURCE_STATE_COMMON,
 		&optClear,
 		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
@@ -386,3 +388,5 @@ void DxLowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inF
 		WLogln(text);
 	}
 }
+
+#endif // UsingVulkan

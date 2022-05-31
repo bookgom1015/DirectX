@@ -104,6 +104,7 @@ MaterialData::MaterialData() {
 	mDiffuseMapIndex = 0;
 	mNormalMapIndex = 0;
 	mSpecularMapIndex = -1;
+	mSSSMapIndex = -1;
 	mDispMapIndex = -1;
 }
 

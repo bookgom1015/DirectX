@@ -25,21 +25,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 		GameWorld game(hInstance);
 
 		GameResult result = game.Initialize(1600, 900);
+		if (result.hr != S_OK) return static_cast<int>(result.hr);
+
+		result = game.RunLoop();
 		if (result.hr != S_OK) {
-			WLogln(result.msg.c_str());
+			GameResult reason = game.GetRenderer()->GetDeviceRemovedReason();
+			std::wstringstream wsstream;
+			wsstream << L"Device removed reason code: 0x" << std::hex << reason.hr;
+			WLogln(wsstream.str());
 			return static_cast<int>(result.hr);
 		}
 
-		result = game.RunLoop();
-
 		game.CleanUp();
-
+		WLogln(L"The game has been succeesfully cleaned up");
+		
 		return static_cast<int>(result.hr);
 	}
 	catch (std::exception& e) {
 		std::wstringstream wsstream;
 		wsstream << e.what();
 		WErrln(wsstream.str());
+		WLogln(L"Catched");
 		return -1;
 	}
 }
@@ -91,11 +97,11 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mSpinlockBarrier = std::make_unique<SpinlockBarrier>(mNumProcessors);
 
 #ifdef UsingVulkan
-	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, NULL, mMainGLFWWindow, nullptr, nullptr));
+	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, mMainGLFWWindow, nullptr, nullptr));
 #else
-	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, mhMainWnd, nullptr, mCVBarrier.get(), mSpinlockBarrier.get()));
+	CheckGameResult(mRenderer->Initialize(mClientWidth, mClientHeight, mNumProcessors, mhMainWnd, mCVBarrier.get(), mSpinlockBarrier.get()));
 #endif
-	
+
 	if (!mAudioSystem->Initialize())
 		ReturnGameResult(S_FALSE, L"Failed to initialize AudioSystem");
 	mAudioSystem->SetBusVolume("bus:/", 0.0f);
@@ -109,7 +115,6 @@ GameResult GameWorld::Initialize(INT inWidth /* = 800 */, UINT inHeight /* = 600
 	mTimer.SetLimitFrameRate(mLimitFrameRate);
 
 	bFinishedInit = true;
-
 	return GameResult(S_OK);
 }
 
@@ -130,7 +135,7 @@ void GameWorld::CleanUp() {
 	bIsCleaned = true;
 }
 
-bool GameWorld::LoadData() {
+GameResult GameWorld::LoadData() {
 	mMusicEvent = mAudioSystem->PlayEvent("event:/Over the Waves");
 
 #ifndef UsingVulkan
@@ -148,8 +153,7 @@ bool GameWorld::LoadData() {
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
 	MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
+	CheckGameResult(monkeyMeshComp->LoadMesh("monkey", "monkey.fbx"));
 	
 	monkeyActor = new Actor();
 	monkeyActor->SetQuaternion(rotateYPi);
@@ -160,8 +164,7 @@ bool GameWorld::LoadData() {
 		actor->SetQuaternion(rot);
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCCW));
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
+	CheckGameResult(monkeyMeshComp->LoadMesh("monkey", "monkey.fbx"));
 	
 	monkeyActor = new Actor();
 	monkeyActor->SetQuaternion(rotateYPi);
@@ -170,15 +173,13 @@ bool GameWorld::LoadData() {
 	};
 	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnCW));
 	monkeyMeshComp = new MeshComponent(monkeyActor);
-	if (!monkeyMeshComp->LoadMesh("monkey", "monkey.fbx")) 
-		return false;
+	CheckGameResult(monkeyMeshComp->LoadMesh("monkey", "monkey.fbx"));
 	
 	Actor* leoniActor = new Actor();
 	leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
 	leoniActor->SetQuaternion(rotateYPi);
 	SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
-	if (!leoniMeshComp->LoadMesh("leoni", "leoni.fbx", true))
-		return false;
+	CheckGameResult(leoniMeshComp->LoadMesh("leoni", "leoni.fbx"));
 	leoniMeshComp->SetClipName("Idle");
 	leoniMeshComp->SetSkeleletonVisible(false);
 
@@ -200,8 +201,7 @@ bool GameWorld::LoadData() {
 				XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), 2.0f * MathHelper::RandF() * MathHelper::Pi - MathHelper::Pi));
 	
 			treeMeshComp = new MeshComponent(treeActor);
-			if (!treeMeshComp->LoadMesh("tree", "tree_a.fbx", true))
-				return false;
+			CheckGameResult(treeMeshComp->LoadMesh("tree", "tree_a.fbx"));
 		}
 	}
 
@@ -233,8 +233,7 @@ bool GameWorld::LoadData() {
 			);
 
 			grassoneMeshComp = new MeshComponent(grassoneActor);
-			if (!grassoneMeshComp->LoadMesh("grassone", "grass_variant_1.fbx"))
-				return false;
+			CheckGameResult(grassoneMeshComp->LoadMesh("grassone", "grass_variant_1.fbx"));
 		}
 	}
 
@@ -265,8 +264,7 @@ bool GameWorld::LoadData() {
 			);
 
 			grasstwoMeshComp = new MeshComponent(grasstwoActor);
-			if (!grasstwoMeshComp->LoadMesh("grasstwo", "grass_variant_2.fbx"))
-				return false;
+			CheckGameResult(grasstwoMeshComp->LoadMesh("grasstwo", "grass_variant_2.fbx"));
 		}
 	}
 
@@ -297,8 +295,7 @@ bool GameWorld::LoadData() {
 			);
 
 			grassthreeMeshComp = new MeshComponent(grassthreeActor);
-			if (!grassthreeMeshComp->LoadMesh("grassthree", "grass_variant_3.fbx"))
-				return false;
+			CheckGameResult(grassthreeMeshComp->LoadMesh("grassthree", "grass_variant_3.fbx"));
 		}
 	}
 
@@ -329,8 +326,7 @@ bool GameWorld::LoadData() {
 			);
 
 			grassfourMeshComp = new MeshComponent(grassfourActor);
-			if (!grassfourMeshComp->LoadMesh("grassfour", "grass_variant_4.fbx"))
-				return false;
+			CheckGameResult(grassfourMeshComp->LoadMesh("grassfour", "grass_variant_4.fbx"));
 		}
 	}
 #endif // UsingVulkan
@@ -354,9 +350,7 @@ void GameWorld::UnloadData() {
 }
 
 GameResult GameWorld::RunLoop() {
-	if (!LoadData())
-		return GameResult(S_FALSE, L"LoadData() returned an error code");
-
+	CheckGameResult(LoadData());
 	CheckGameResult(OnResize());
 
 	GameResult result = GameLoop();
@@ -400,23 +394,28 @@ GameResult GameWorld::GameLoop() {
 
 	for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i) {
 		mThreads[i] = std::thread([this](const MSG& inMsg, UINT inTid, ThreadBarrier& inBarrier) -> void {
-			while (mGameState != GameState::ETerminated) {
-				mPerfAnalyzer.WholeLoopBeginTime(inTid);
-				inBarrier.Wait();
+			try {
+				while (mGameState != GameState::ETerminated) {
+					mPerfAnalyzer.WholeLoopBeginTime(inTid);
+					inBarrier.Wait();
 
-				if (!mAppPaused)
-					ProcessInput(mTimer, inTid);
+					if (!mAppPaused)
+						ProcessInput(mTimer, inTid);
 
-				mPerfAnalyzer.UpdateBeginTime(inTid);
-				BreakIfFailed(UpdateGame(mTimer, inTid));
-				mPerfAnalyzer.UpdateEndTime(inTid);
+					mPerfAnalyzer.UpdateBeginTime(inTid);
+					BreakIfFailed(UpdateGame(mTimer, inTid));
+					mPerfAnalyzer.UpdateEndTime(inTid);
 
-				mPerfAnalyzer.DrawBeginTime(inTid);
-				if (!mAppPaused)
-					BreakIfFailed(Draw(mTimer, inTid));
-				mPerfAnalyzer.DrawEndTime(inTid);
+					mPerfAnalyzer.DrawBeginTime(inTid);
+					if (!mAppPaused)
+						BreakIfFailed(Draw(mTimer, inTid));
+					mPerfAnalyzer.DrawEndTime(inTid);
 
-				mPerfAnalyzer.WholeLoopEndTime(inTid);
+					mPerfAnalyzer.WholeLoopEndTime(inTid);
+				}
+			}
+			catch (std::exception& e) {
+				Logln("Thread ", std::to_string(inTid), ": ", e.what());
 			}
 
 			mGameState = GameState::ETerminated;
@@ -426,46 +425,50 @@ GameResult GameWorld::GameLoop() {
 			}, std::ref(msg), i + 1, std::ref(barrier));
 	}
 
-	while (msg.message != WM_QUIT && mGameState != GameState::ETerminated) {
-		// If there are Window messages then process them
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		// Otherwise, do animation/game stuff
-		else {
-			mTimer.Tick();
-	
-			endTime = mTimer.TotalTime();
-			elapsedTime = endTime - beginTime;
-	
-			if (elapsedTime > mTimer.GetLimitFrameRate()) {
-				mPerfAnalyzer.WholeLoopBeginTime(0);
-				barrier.Wait();
+	try {
+		while (msg.message != WM_QUIT && mGameState != GameState::ETerminated) {
+			// If there are Window messages then process them
+			if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+			// Otherwise, do animation/game stuff
+			else {
+				mTimer.Tick();
 
-				if (mGameState == GameState::ETerminated)
-					break;
+				endTime = mTimer.TotalTime();
+				elapsedTime = endTime - beginTime;
 
-				beginTime = endTime;
-	
-				if (!mAppPaused) {
-					//CalculateFrameStats();
-					ProcessInput(mTimer, 0);
+				if (elapsedTime > mTimer.GetLimitFrameRate()) {
+					mPerfAnalyzer.WholeLoopBeginTime(0);
+					barrier.Wait();
+
+					if (mGameState == GameState::ETerminated)
+						break;
+
+					beginTime = endTime;
+
+					if (!mAppPaused) {
+						ProcessInput(mTimer, 0);
+					}
+
+					mPerfAnalyzer.UpdateBeginTime(0);
+					BreakIfFailed(UpdateGame(mTimer, 0));
+					mPerfAnalyzer.UpdateEndTime(0);
+
+					mPerfAnalyzer.DrawBeginTime(0);
+					if (!mAppPaused)
+						BreakIfFailed(Draw(mTimer, 0));
+					mPerfAnalyzer.DrawEndTime(0);
+
+					mPerfAnalyzer.WholeLoopEndTime(0);
 				}
-
-				mPerfAnalyzer.UpdateBeginTime(0);
-				BreakIfFailed(UpdateGame(mTimer, 0));
-				mPerfAnalyzer.UpdateEndTime(0);
-
-				mPerfAnalyzer.DrawBeginTime(0);
-				if (!mAppPaused)
-					BreakIfFailed(Draw(mTimer, 0));
-				mPerfAnalyzer.DrawEndTime(0);
-
-				mPerfAnalyzer.WholeLoopEndTime(0);
 			}
 		}
-	}	
+	}
+	catch (std::exception& e) {
+		Logln("Thread 0: ", e.what());
+	}
 	
 	mGameState = GameState::ETerminated;
 	barrier.Terminate();
@@ -506,21 +509,20 @@ void GameWorld::RemoveActor(Actor* inActor) {
 	}
 }
 
-Mesh* GameWorld::AddMesh(const std::string& inFileName, bool inIsSkeletal, bool inNeedToBeAligned, bool bMultiThreading) {
+GameResult GameWorld::AddMesh(const std::string& inFileName, Mesh*& outMeshPtr, bool inIsSkeletal, bool inNeedToBeAligned) {
 	auto iter = mMeshes.find(inFileName);
-	if (iter != mMeshes.end())
-		return iter->second.get();
-
-	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
-	if (!mesh->Load(inFileName, bMultiThreading)) {
-		WErrln(L"Failed to add mesh");
-		return nullptr;
+	if (iter != mMeshes.end()) {
+		outMeshPtr = iter->second.get();
+		return GameResultOk;
 	}
 
-	auto meshptr = mesh.get();
+	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
+	CheckGameResult(mesh->Load(inFileName));
+
+	outMeshPtr = mesh.get();
 	mMeshes.emplace(inFileName, std::move(mesh));
 
-	return meshptr;	
+	return GameResultOk;
 }
 
 void GameWorld::RemoveMesh(const std::string& fileName) {
@@ -638,6 +640,11 @@ namespace {
 			WLogln(L"[Key callback] Released key: ", std::to_wstring(inKey));
 		}
 	}
+
+	void GLFWResizeCallback(GLFWwindow* inMainWnd, int inWidth, int inHeight) {
+		auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(inMainWnd));
+		renderer->OnResize(inWidth, inHeight);
+	}
 }
 #endif
 
@@ -662,7 +669,10 @@ GameResult GameWorld::InitMainWindow() {
 
 	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
 
+	glfwSetWindowUserPointer(mMainGLFWWindow, GetRenderer());
+
 	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
+	glfwSetFramebufferSizeCallback(mMainGLFWWindow, GLFWResizeCallback);
 #else
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;

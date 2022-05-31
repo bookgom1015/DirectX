@@ -13,7 +13,7 @@ public:
 	virtual ~Mesh() = default;
 
 public:
-	virtual bool Load(const std::string& inFileName, bool bMultiThreading = false);
+	virtual GameResult Load(const std::string& inFileName);
 
 	const std::string& GetMeshName() const;
 	const std::vector<std::string>& GetDrawArgs() const;

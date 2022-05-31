@@ -194,7 +194,7 @@ Mesh::Mesh(bool inIsSkeletal, bool inNeedToBeAligned)
 	mRenderer = GameWorld::GetWorld()->GetRenderer();
 }
 
-bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
+GameResult Mesh::Load(const std::string& inFileName) {
 	size_t extIndex = inFileName.find_last_of('.', inFileName.length());
 	mMeshName = inFileName.substr(0, extIndex);
 
@@ -205,40 +205,25 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		std::stringstream fileNameSstream;
 		fileNameSstream << fileNamePrefix << inFileName;
 
-		if (!importer.LoadDataFromFile(fileNameSstream.str(), bMultiThreading)) {
+		if (!importer.LoadDataFromFile(fileNameSstream.str())) {
 			std::wstring wstr;
 			wstr.assign(inFileName.begin(), inFileName.end());
-			WErrln(L"Failed to load data from file: " + wstr);
-			return false;
+			ReturnGameResult(S_FALSE, L"Failed to load data from file: " + wstr);
 		}
 	}
 	timer.SetEndTime();
 
-	std::thread vertThread;
-	if (mIsSkeletal)
-		vertThread = std::thread(LoadSkinnedVertices, std::ref(importer), std::ref(mSkinnedVertices));
-	else
-		vertThread = std::thread(LoadVertices, std::ref(importer), std::ref(mVertices));
-	
-	std::thread skeletonThread = std::thread(LoadSkeletons, std::ref(importer), std::ref(mSkinnedData.mSkeleton));
-	std::thread idxThread = std::thread(LoadIndices, std::ref(importer), std::ref(mIndices));
-	std::thread drawArgThread = std::thread(LoadDrawArgs, std::ref(importer), mMeshName, std::ref(mDrawArgs));
-	std::thread subsetThread = std::thread(LoadSubsets, std::ref(importer), std::ref(mSubsets));
-	std::thread animationThread = std::thread(LoadAnimations, std::ref(importer), std::ref(mSkinnedData.mAnimations));
-	std::thread materialThread = std::thread(LoadMaterials, std::ref(importer), 
-		mMeshName, std::ref(mMaterials), std::ref(mRenderer));
+	LoadSkinnedVertices(std::ref(importer), std::ref(mSkinnedVertices));
+	LoadVertices(std::ref(importer), std::ref(mVertices));
 
-	skeletonThread.join();
-	
-	std::thread genSkelDataThread = std::thread(&Mesh::GenerateSkeletonData, this);
+	LoadSkeletons(std::ref(importer), std::ref(mSkinnedData.mSkeleton));
+	LoadIndices(std::ref(importer), std::ref(mIndices));
+	LoadDrawArgs(std::ref(importer), mMeshName, std::ref(mDrawArgs));
+	LoadSubsets(std::ref(importer), std::ref(mSubsets));
+	LoadAnimations(std::ref(importer), std::ref(mSkinnedData.mAnimations));
+	LoadMaterials(std::ref(importer), mMeshName, std::ref(mMaterials), std::ref(mRenderer));
 
-	vertThread.join();
-	idxThread.join();
-	drawArgThread.join();
-	subsetThread.join();
-	animationThread.join();
-	materialThread.join();
-	genSkelDataThread.join();
+	GenerateSkeletonData();
 
 	Logln("Mesh Name: ", mMeshName);
 	Logln("  Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds");
@@ -260,7 +245,7 @@ bool Mesh::Load(const std::string& inFileName, bool bMultiThreading) {
 		mRenderer->UpdateAnimationsMap();
 	}
 
-	return true;
+	return GameResultOk;
 }
 
 const std::string& Mesh::GetMeshName() const {

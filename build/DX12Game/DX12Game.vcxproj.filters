@@ -186,9 +186,6 @@
     <ClCompile Include="..\..\src\DX12Game\AnimationsMap.cpp">
       <Filter>Source Files\Util\Shading</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\LowRenderer.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\Renderer.cpp">
       <Filter>Source Files\Render</Filter>
     </ClCompile>
@@ -316,9 +313,6 @@
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\ShadowMap.h">
       <Filter>Header Files\Util\Shading</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\DX12Game\LowRenderer.h">
-      <Filter>Header Files\Render</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\DX12Game\Renderer.h">
       <Filter>Header Files\Render</Filter>
@@ -462,13 +456,7 @@
       <Filter>Shader Files\Dx</Filter>
     </None>
     <None Include="..\..\Assets\Shaders\Bloom.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\..\Assets\Shaders\BloomCommon.hlsl">
-      <Filter>Shader Files\Dx</Filter>
-    </FxCompile>
-    <FxCompile Include="..\..\Assets\Shaders\BloomBlur.hlsl">
-      <Filter>Shader Files\Dx</Filter>
-    </FxCompile>
+    <None Include="..\..\Assets\Shaders\BloomBlur.hlsl" />
+    <None Include="..\..\Assets\Shaders\BloomCommon.hlsl" />
   </ItemGroup>
 </Project>

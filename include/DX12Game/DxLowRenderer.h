@@ -1,6 +1,8 @@
 #pragma once
 
-#include "DX12Game/LowRenderer.h"
+#include "DX12Game/GameCore.h"
+
+#ifndef UsingVulkan
 
 class DxLowRenderer {
 protected:
@@ -93,3 +95,5 @@ protected:
 private:
 	bool bIsCleaned = false;
 };
+
+#endif // UsingVulkan

@@ -45,11 +45,11 @@ struct MaterialData {
 	uint		DiffuseMapIndex;
 	uint		NormalMapIndex;
 	int			SpecularMapIndex;
+	int			SSSMapIndex;
 	int			DispMapIndex;
 	int			AlphaMapIndex;
 	uint		MatPad0;
 	uint		MatPad1;
-	uint		MatPad2;
 };
 
 TextureCube				gCubeMap					: register(t0);

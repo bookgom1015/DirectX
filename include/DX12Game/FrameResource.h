@@ -154,11 +154,11 @@ struct MaterialData {
 	UINT mDiffuseMapIndex;
 	UINT mNormalMapIndex;
 	INT mSpecularMapIndex;
+	INT mSSSMapIndex;
 	INT mDispMapIndex;
 	INT mAlphaMapIndex;
 	UINT mMatPad0;
 	UINT mMatPad1;
-	UINT mMatPad2;
 
 public:
 	MaterialData();

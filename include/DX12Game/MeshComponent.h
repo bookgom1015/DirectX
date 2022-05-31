@@ -15,7 +15,7 @@ public:
 	//* Called when world transform changes.
 	virtual void OnUpdateWorldTransform() override;
 
-	virtual bool LoadMesh(const std::string& inMeshName, const std::string& inFileName, bool bMultiThreading = false);
+	virtual GameResult LoadMesh(const std::string& inMeshName, const std::string& inFileName);
 
 	//* Set visibility for the mesh for this component.
 	virtual void SetVisible(bool inStatus);

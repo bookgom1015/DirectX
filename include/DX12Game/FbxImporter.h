@@ -4,10 +4,12 @@
 
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
+
 #define FBXSDK_SHARED
 #include <fbxsdk.h>
 #include <unordered_map>
 #include <vector>
+
 #define NOMINMAX
 #include <Windows.h>
 
@@ -33,6 +35,19 @@ public:
 public:
 	friend bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs);
 };
+
+namespace std {
+	template<> struct hash<DxFbxVertex> {
+		size_t operator()(DxFbxVertex const& vertex) const {
+			size_t pos = static_cast<size_t>(vertex.mPos.x + vertex.mPos.y + vertex.mPos.z);
+			size_t normal = static_cast<size_t>(vertex.mNormal.x + vertex.mNormal.y + vertex.mNormal.z);
+			size_t texC = static_cast<size_t>(vertex.mTexC.x + vertex.mTexC.y);
+			size_t tan = static_cast<size_t>(vertex.mTangentU.x + vertex.mTangentU.y + vertex.mTangentU.z);
+
+			return ((pos ^ normal) << 1) ^ ((texC ^ tan) << 2);
+		}
+	};
+}
 
 struct DxFbxMaterial {
 public:
@@ -130,7 +145,7 @@ private:
 	DxFbxImporter& operator=(DxFbxImporter&& rhs) = delete;
 
 public:
-	bool LoadDataFromFile(const std::string& inFileName, bool bMultiThreading = false);
+	bool LoadDataFromFile(const std::string& inFileName);
 
 	const std::vector<DxFbxVertex>& GetVertices() const;
 	const std::vector<std::uint32_t>& GetIndices() const;
@@ -194,6 +209,7 @@ private:
 	fbxsdk::FbxIOSettings* mFbxIos;
 	fbxsdk::FbxScene* mFbxScene;
 
+	std::unordered_map<DxFbxVertex, std::uint32_t> mUniqueVertices;
 	std::vector<DxFbxVertex> mVertices;
 	std::vector<std::uint32_t> mIndices;
 

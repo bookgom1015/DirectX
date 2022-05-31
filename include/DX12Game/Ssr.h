@@ -22,6 +22,7 @@ public:
 	GameResult OnResize(UINT inNewWidth, UINT inNewHeight);
 
 	void BuildDescriptors(
+		D3D12_CPU_DESCRIPTOR_HANDLE   hDsv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hMainPassMapGpuSrv,
 		CD3DX12_GPU_DESCRIPTOR_HANDLE hNormalMapGpuSrv,
 		CD3DX12_CPU_DESCRIPTOR_HANDLE hAmbientMapCpuSrv,
@@ -86,6 +87,8 @@ private:
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAmbientMap0;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mAmbientMap1;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE  mhDsv;
 
 	// Need two for ping-ponging during blur.
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuSrv;

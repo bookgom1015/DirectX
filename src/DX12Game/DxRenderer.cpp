@@ -1,5 +1,7 @@
 #include "DX12Game/DxRenderer.h"
 
+#ifndef UsingVulkan
+
 #include "DX12Game/GameWorld.h"
 #include "DX12Game/GameCamera.h"
 #include "DX12Game/Mesh.h"
@@ -13,10 +15,6 @@ using namespace DirectX;
 using namespace DirectX::PackedVector;
 
 namespace {
-	const std::wstring TextureFileNamePrefix = L"./../../../../Assets/Textures/";
-	const std::wstring ShaderFileNamePrefix = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
-	const std::wstring FontFileNamePrefix = L"./../../../../Assets/Fonts/";
-	
 	const float DefaultFontSize = 32;
 	const float InvDefaultFontSize = 1.0f / DefaultFontSize;
 
@@ -45,13 +43,12 @@ DxRenderer::~DxRenderer() {
 }
 
 GameResult DxRenderer::Initialize(
-		UINT inClientWidth, 
-		UINT inClientHeight, 
-		UINT inNumThreads, 
-		HWND hMainWnd, 
-		GLFWwindow* inMainWnd,	
-		CVBarrier* inCV, 
-		SpinlockBarrier* inSpinlock) {
+	UINT inClientWidth,
+	UINT inClientHeight,
+	UINT inNumThreads,
+	HWND hMainWnd,
+	CVBarrier* inCV,
+	SpinlockBarrier* inSpinlock) {
 	CheckGameResult(DxLowRenderer::Initialize(inClientWidth, inClientHeight, inNumThreads, hMainWnd));
 
 	mCVBarrier = inCV;
@@ -59,9 +56,10 @@ GameResult DxRenderer::Initialize(
 
 	mNumInstances.resize(mNumThreads);
 	mEachUpdateFunctions.resize(mNumThreads);
-
-	if (mNumThreads > 1) {
+	
+	{
 		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
 
 		UpdateFunc postPassCB = &DxRenderer::UpdatePostPassCB;
 		mEachUpdateFunctions[i++].push_back(postPassCB);
@@ -83,14 +81,14 @@ GameResult DxRenderer::Initialize(
 		mEachUpdateFunctions[i++].push_back(bloomCB);
 		if (i >= mNumThreads) i = 0;
 	}
-
+	
 	// Reset the command list to prep for initialization commands.
 	for (UINT i = 0; i < mNumThreads; ++i)
 		ReturnIfFailed(mCommandLists[i]->Reset(mCommandAllocators[i].Get(), nullptr));
-
+	
 	CheckGameResult(mPsoManager.Initialize(md3dDevice.Get()));
 	CheckGameResult(mShaderManager.Initialize(L".\\..\\..\\..\\..\\Assets\\Shaders\\"));
-
+	
 	CheckGameResult(
 		mGBuffer.Initialize(
 			md3dDevice.Get(),
@@ -102,19 +100,18 @@ GameResult DxRenderer::Initialize(
 			DXGI_FORMAT_R8G8B8A8_UNORM
 		)
 	);
-
+	
 	CheckGameResult(mShadowMap.Initialize(md3dDevice.Get(), 8096, 8096));
 	CheckGameResult(mAnimsMap.Initialize(md3dDevice.Get()));
 	CheckGameResult(mSsr.Initialize(md3dDevice.Get(), mClientWidth / 4, mClientHeight / 4, DXGI_FORMAT_R8G8B8A8_UNORM, 32, 16, 1, 0.3f));
 	CheckGameResult(mMainPass.Initialize(md3dDevice.Get(), mClientWidth, mClientHeight, mBackBufferFormat));
 	CheckGameResult(mBloom.Initialize(md3dDevice.Get(), mClientWidth / 16, mClientHeight / 16, mBackBufferFormat));
-
+	
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
 	CheckGameResult(mSsao.Initialize(md3dDevice.Get(), cmdList, mClientWidth / 2, mClientHeight / 2, DXGI_FORMAT_R16_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT));
 
 	CheckGameResult(mRSManager.Initialize(md3dDevice.Get()));
-
 	CheckGameResult(LoadBasicTextures());
 	CheckGameResult(mRSManager.BuildRootSignatures());
 	CheckGameResult(BuildDescriptorHeaps());
@@ -124,7 +121,7 @@ GameResult DxRenderer::Initialize(
 	CheckGameResult(BuildBasicRenderItems());
 	CheckGameResult(BuildFrameResources());
 	CheckGameResult(BuildPSOs());
-
+	
 	mSsao.SetPSOs(mPsoManager.GetPsoPtr("ssao"), mPsoManager.GetPsoPtr("ssaoBlur"));
 	mSsr.SetPSOs(mPsoManager.GetPsoPtr("ssr"), mPsoManager.GetPsoPtr("ssrBlur"));
 	mBloom.SetPSOs(mPsoManager.GetPsoPtr("bloom"), mPsoManager.GetPsoPtr("bloomBlur"));
@@ -145,7 +142,7 @@ GameResult DxRenderer::Initialize(
 	mDefaultFont = std::make_unique<SpriteFont>(
 		md3dDevice.Get(),
 		resourceUpload,
-		(FontFileNamePrefix + L"D2Coding.spritefont").c_str(),
+		(FontFilePathW + L"D2Coding.spritefont").c_str(),
 		GetCpuSrv(mDescHeapIdx.mDefaultFontIndex),
 		GetGpuSrv(mDescHeapIdx.mDefaultFontIndex)
 		);
@@ -163,50 +160,63 @@ GameResult DxRenderer::Initialize(
 	//
 	// Set blur weights.
 	//
+	auto blurWeights2_5 = BlurHelper::CalcGaussWeights(2.5f);
+	if (blurWeights2_5 == nullptr) return GameResultFalse;
+	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[0]));
+	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[4]));
+	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[8]));
+	delete[] blurWeights2_5;
+
+	auto blurWeights4_5 = BlurHelper::CalcGaussWeights(4.5f);
+	if (blurWeights4_5 == nullptr) return GameResultFalse;
+	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[0]));
+	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[4]));
+	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[8]));
+	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[12]));
+	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[16]));
+	delete[] blurWeights4_5;
+
+	auto blurWeights8_5 = BlurHelper::CalcGaussWeights(8.5f);
+	if (blurWeights8_5 == nullptr) return GameResultFalse;
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[0]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[4]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[8]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[12]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[16]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[20]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[24]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[28]));
+	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[32]));
+	delete[] blurWeights8_5;
+
+	mPreRenderingPasses.resize(mNumThreads);
+	mMainRenderingPasses.resize(mNumThreads);
+	mPostRenderingPasses.resize(mNumThreads);
+
 	{
-		auto blurWeights = BlurHelper::CalcGaussWeights(2.5f);
-		if (blurWeights == nullptr) return GameResultFalse;
+		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
 
-		mBlurWeights5.push_back(XMFLOAT4(&blurWeights[0]));
-		mBlurWeights5.push_back(XMFLOAT4(&blurWeights[4]));
-		mBlurWeights5.push_back(XMFLOAT4(&blurWeights[8]));
-
-		delete[] blurWeights;
+		mPreRenderingPasses[i++].push_back(&DxRenderer::DrawSsao);
+		if (i >= mNumThreads) i = 0;
 	}
-
-	//
-	// Set blur weigths for ssr.
-	//
 	{
-		auto blurWeights = BlurHelper::CalcGaussWeights(4.5f);
-		if (blurWeights == nullptr) return GameResultFalse;
+		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
 
-		mBlurWeights9.push_back(XMFLOAT4(&blurWeights[0]));
-		mBlurWeights9.push_back(XMFLOAT4(&blurWeights[4]));
-		mBlurWeights9.push_back(XMFLOAT4(&blurWeights[8]));
-		mBlurWeights9.push_back(XMFLOAT4(&blurWeights[12]));
-		mBlurWeights9.push_back(XMFLOAT4(&blurWeights[16]));
-
-		delete[] blurWeights;
+		mMainRenderingPasses[i++].push_back(&DxRenderer::DrawMainPass);
+		if (i >= mNumThreads) i = 0;
 	}
-
 	{
-		auto blurWeights = BlurHelper::CalcGaussWeights(8.5f);
-		if (blurWeights == nullptr) return GameResultFalse;
+		UINT i = 1;
+		if (i >= mNumThreads) i = 0;
 
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[0]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[4]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[8]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[12]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[16]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[20]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[24]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[28]));
-		mBlurWeights17.push_back(XMFLOAT4(&blurWeights[32]));
+		mPostRenderingPasses[i++].push_back(&DxRenderer::DrawSsr);
+		if (i >= mNumThreads) i = 0;
 
-		delete[] blurWeights;
+		mPostRenderingPasses[i++].push_back(&DxRenderer::DrawBloom);
+		if (i >= mNumThreads) i = 0;
 	}
-	
 
 	// Succeeded initialization.
 	bIsValid = true;
@@ -216,7 +226,7 @@ GameResult DxRenderer::Initialize(
 
 void DxRenderer::CleanUp() {
 	DxLowRenderer::CleanUp();
-	
+
 	bIsCleaned = true;
 }
 
@@ -240,7 +250,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
 
-	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));	
+	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));
 
 	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
 
@@ -253,7 +263,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 
 	for (auto& func : mEachUpdateFunctions[inTid])
 		CheckGameResult(func(*this, std::ref(gt), inTid));
-	
+
 	if (inTid == 0) {
 		std::vector<std::string> textsToRemove;
 		for (auto& text : mOutputTexts) {
@@ -282,16 +292,15 @@ GameResult DxRenderer::Draw(const GameTimer& gt, UINT inTid) {
 
 	SyncHost(mCVBarrier);
 
-	CheckGameResult(DrawSceneToShadowMap(inTid));
+	CheckGameResult(DrawShadowMap(inTid));
 
 	SyncHost(mCVBarrier);
 
-	CheckGameResult(DrawSceneToGBuffer(inTid));
+	CheckGameResult(DrawGBuffer(inTid));
 
 	SyncHost(mCVBarrier);
-
-	if (inTid == 0)
-		CheckGameResult(DrawSceneToRenderTarget());
+	
+	CheckGameResult(DrawSceneToBackBuffer(inTid));
 
 	return GameResultOk;
 }
@@ -302,7 +311,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	if (!mMainCamera)
 		ReturnGameResult(S_FALSE, L"Main camera does not exist")
 
-	CheckGameResult(DxLowRenderer::OnResize(inClientWidth, inClientHeight));
+		CheckGameResult(DxLowRenderer::OnResize(inClientWidth, inClientHeight));
 
 	mMainCamera->SetLens(XM_PI * 0.3f, AspectRatio(), 0.1f, 1000.0f);
 
@@ -326,6 +335,10 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	BoundingFrustum::CreateFromMatrix(mCamFrustum, mMainCamera->GetProj());
 
 	return GameResultOk;
+}
+
+GameResult DxRenderer::GetDeviceRemovedReason() {
+	return GameResult(md3dDevice->GetDeviceRemovedReason());
 }
 
 void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName, const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) {
@@ -358,10 +371,10 @@ void DxRenderer::UpdateWorldTransform(const std::string& inRenderItemName, const
 }
 
 void DxRenderer::UpdateInstanceAnimationData(
-			const std::string&	inRenderItemName,
-			UINT				inAnimClipIdx, 
-			float				inTimePos, 
-			bool				inIsSkeletal) {
+	const std::string&	inRenderItemName,
+	UINT				inAnimClipIdx,
+	float				inTimePos,
+	bool				inIsSkeletal) {
 		{
 			auto iter = mRefRitems.find(inRenderItemName);
 			if (iter != mRefRitems.end()) {
@@ -376,7 +389,6 @@ void DxRenderer::UpdateInstanceAnimationData(
 				}
 			}
 		}
-
 		{
 			std::string name = inRenderItemName + "_skeleton";
 			auto iter = mRefRitems.find(name);
@@ -596,6 +608,7 @@ GameResult DxRenderer::AddMaterials(const std::unordered_map<std::string, Materi
 		material->DiffuseSrvHeapIndex = mDiffuseSrvHeapIndices[materialIn.DiffuseMapFileName];
 		material->NormalSrvHeapIndex = mNormalSrvHeapIndices[materialIn.NormalMapFileName];
 		material->SpecularSrvHeapIndex = mSpecularSrvHeapIndices[materialIn.SpecularMapFileName];
+		material->SSSSrvHeapIndex = -1;
 		material->AlphaSrvHeapIndex = mAlphaSrvHeapIndices[materialIn.AlphaMapFileName];
 
 		material->DiffuseAlbedo = materialIn.DiffuseAlbedo;
@@ -651,14 +664,14 @@ GameResult DxRenderer::UpdateAnimationsMap() {
 
 GameResult DxRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-#ifdef DeferredRendering
 	// Add + 1 for diffuse map, +1 for screen normal map, +1 for specular map, +2 for ambient maps.
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 
-		GBuffer::NumRenderTargets + MainPass::NumRenderTargets + Ssao::NumRenderTargets + Ssr::NumRenderTargets + Bloom::NumRenderTargets;
-#else
-	// Add +1 for screen normal map, +2 for ambient maps.
-	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 3;
-#endif
+	rtvHeapDesc.NumDescriptors = 
+		SwapChainBufferCount +
+		GBuffer::NumRenderTargets + 
+		MainPass::NumRenderTargets + 
+		Ssao::NumRenderTargets + 
+		Ssr::NumRenderTargets + 
+		Bloom::NumRenderTargets;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
@@ -754,7 +767,7 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 		for (size_t i = 0, end = drawArgs.size(); i < end; ++i) {
 			auto ritem = std::make_unique<RenderItem>();
 			ritem->mObjCBIndex = mNumObjCB++;
-
+			
 			ritem->mMat = mMaterialRefs["default"];
 			if (!materials.empty()) {
 				auto iter = materials.find(drawArgs[i]);
@@ -764,7 +777,7 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 						ritem->mMat = matIter->second;
 				}
 			}
-
+			
 			ritem->mInstances.emplace_back(
 				MathHelper::Identity4x4(),
 				MathHelper::Identity4x4(),
@@ -776,13 +789,13 @@ void DxRenderer::AddRenderItem(const std::string& inRenderItemName, const Mesh* 
 			ritem->mIndexCount = ritem->mGeo->DrawArgs[drawArgs[i]].IndexCount;
 			ritem->mStartIndexLocation = ritem->mGeo->DrawArgs[drawArgs[i]].StartIndexLocation;
 			ritem->mBaseVertexLocation = ritem->mGeo->DrawArgs[drawArgs[i]].BaseVertexLocation;
-			ritem->mBoundType = BoundType::AABB;
+			ritem->mBoundType = BoundTypes::EAABB;
 			ritem->mBoundingUnion.mAABB = ritem->mGeo->DrawArgs[drawArgs[i]].AABB;
 
 			if (inMesh->GetIsSkeletal())
-				mRitemLayer[RenderLayer::SkinnedOpaque].push_back(ritem.get());
+				mRitemLayer[RenderLayers::ESkinnedOpaque].push_back(ritem.get());
 			else
-				mRitemLayer[RenderLayer::Opaque].push_back(ritem.get());
+				mRitemLayer[RenderLayers::EOpaque].push_back(ritem.get());
 
 			mMeshToRitem[inMesh].push_back(ritem.get());
 			mRefRitems[inRenderItemName].push_back(ritem.get());
@@ -886,7 +899,7 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 		md3dDevice.Get(),
 		cmdList,
 		vertices.data(),
-		vbByteSize, 
+		vbByteSize,
 		geo->VertexBufferUploader,
 		geo->VertexBufferGPU)
 	);
@@ -896,7 +909,7 @@ GameResult DxRenderer::LoadDataFromSkeletalMesh(const Mesh* mesh, MeshGeometry* 
 		cmdList,
 		indices.data(),
 		ibByteSize,
-		geo->IndexBufferUploader, 
+		geo->IndexBufferUploader,
 		geo->IndexBufferGPU)
 	);
 
@@ -942,13 +955,13 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-		
+
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
 		cmdList,
-		vertices.data(), 
+		vertices.data(),
 		vbByteSize,
 		geo->VertexBufferUploader,
 		geo->VertexBufferGPU)
@@ -957,9 +970,9 @@ GameResult DxRenderer::AddSkeletonGeometry(const Mesh* inMesh) {
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
 		cmdList,
-		indices.data(), 
-		ibByteSize, 
-		geo->IndexBufferUploader, 
+		indices.data(),
+		ibByteSize,
+		geo->IndexBufferUploader,
 		geo->IndexBufferGPU)
 	);
 
@@ -1019,7 +1032,7 @@ GameResult DxRenderer::AddSkeletonRenderItem(const std::string& inRenderItemName
 		ritem->mStartIndexLocation = ritem->mGeo->DrawArgs["skeleton"].StartIndexLocation;
 		ritem->mBaseVertexLocation = ritem->mGeo->DrawArgs["skeleton"].BaseVertexLocation;
 
-		mRitemLayer[RenderLayer::Skeleton].push_back(ritem.get());
+		mRitemLayer[RenderLayers::ESkeleton].push_back(ritem.get());
 
 		std::string name = inRenderItemName + "_skeleton";
 		mMeshToSkeletonRitem[inMesh].push_back(ritem.get());
@@ -1053,14 +1066,14 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 		texMap->Name = material.DiffuseMapFileName;
 
 		std::wstringstream wsstream;
-		wsstream << TextureFileNamePrefix << material.DiffuseMapFileName.c_str();
+		wsstream << TextureFilePathW << material.DiffuseMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
 		HRESULT status = DirectX::CreateDDSTextureFromFile12(
 			md3dDevice.Get(),
 			cmdList,
 			texMap->Filename.c_str(),
-			texMap->Resource, 
+			texMap->Resource,
 			texMap->UploadHeap
 		);
 
@@ -1089,7 +1102,7 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 		texMap->Name = material.NormalMapFileName;
 
 		std::wstringstream wsstream;
-		wsstream << TextureFileNamePrefix << material.NormalMapFileName.c_str();
+		wsstream << TextureFilePathW << material.NormalMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
 		HRESULT status = DirectX::CreateDDSTextureFromFile12(
@@ -1124,7 +1137,7 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 		texMap->Name = material.SpecularMapFileName;
 
 		std::wstringstream wsstream;
-		wsstream << TextureFileNamePrefix << material.SpecularMapFileName.c_str();
+		wsstream << TextureFilePathW << material.SpecularMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
 		HRESULT status = DirectX::CreateDDSTextureFromFile12(
@@ -1159,7 +1172,7 @@ GameResult DxRenderer::AddTextures(const std::unordered_map<std::string, Materia
 		texMap->Name = material.AlphaMapFileName;
 
 		std::wstringstream wsstream;
-		wsstream << TextureFileNamePrefix << material.AlphaMapFileName.c_str();
+		wsstream << TextureFilePathW << material.AlphaMapFileName.c_str();
 		texMap->Filename = wsstream.str();
 
 		HRESULT status = CreateDDSTextureFromFile12(
@@ -1242,7 +1255,7 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 			continue;
 
 		auto nestedIter = std::find(
-			mBuiltNormalTexDescriptors.cbegin(), mBuiltNormalTexDescriptors.cend(),	material.NormalMapFileName);
+			mBuiltNormalTexDescriptors.cbegin(), mBuiltNormalTexDescriptors.cend(), material.NormalMapFileName);
 		if (nestedIter != mBuiltNormalTexDescriptors.cend())
 			continue;
 
@@ -1270,7 +1283,7 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 			continue;
 
 		auto nestedIter = std::find(
-			mBuiltSpecularTexDescriptors.cbegin(), mBuiltSpecularTexDescriptors.cend(),	material.SpecularMapFileName);
+			mBuiltSpecularTexDescriptors.cbegin(), mBuiltSpecularTexDescriptors.cend(), material.SpecularMapFileName);
 		if (nestedIter != mBuiltSpecularTexDescriptors.cend())
 			continue;
 
@@ -1334,14 +1347,13 @@ GameResult DxRenderer::AddDescriptors(const std::unordered_map<std::string, Mate
 ///
 // Update helper classes
 ///
-bool DxRenderer::IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
-		const BoundingFrustum& inFrustum, UINT inTid) {
+bool DxRenderer::IsContained(BoundTypes inType, const RenderItem::BoundingStruct& inBound, const BoundingFrustum& inFrustum, UINT inTid) {
 
-	if (inType == BoundType::AABB)
+	if (inType == BoundTypes::EAABB)
 		return (inFrustum.Contains(inBound.mAABB) != DirectX::DISJOINT);
-	else if (inType == BoundType::OBB)
+	else if (inType == BoundTypes::EOBB)
 		return (inFrustum.Contains(inBound.mOBB) != DirectX::DISJOINT);
-	else if (inType == BoundType::Sphere)
+	else if (inType == BoundTypes::ESphere)
 		return (inFrustum.Contains(inBound.mSphere) != DirectX::DISJOINT);
 	else
 		return false;
@@ -1439,7 +1451,7 @@ GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UI
 
 		currObjectCB.CopyData(ritem->mObjCBIndex, objConstants);
 	}
-	
+
 	SyncHost(mSpinlockBarrier);
 
 	if (inTid == 0) {
@@ -1466,11 +1478,11 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 	UINT numMaterials = static_cast<UINT>(mMaterials.size());
 	UINT eachNumMaterials = numMaterials / mNumThreads;
 	UINT remaining = numMaterials % mNumThreads;
-	
+
 	UINT begin = inTid * eachNumMaterials + (inTid < remaining ? inTid : remaining);
 	UINT end = begin + eachNumMaterials + (inTid < remaining ? 1 : 0);
-	
-	for (UINT i = begin; i < end; ++i) {	
+
+	for (UINT i = begin; i < end; ++i) {
 		Material* mat = mMaterials[i].get();
 
 		// Only update the cbuffer data if the constants have changed.  If the cbuffer
@@ -1486,6 +1498,7 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 			matData.mDiffuseMapIndex = mat->DiffuseSrvHeapIndex;
 			matData.mNormalMapIndex = mat->NormalSrvHeapIndex;
 			matData.mSpecularMapIndex = mat->SpecularSrvHeapIndex;
+			matData.mSSSMapIndex = mat->SSSSrvHeapIndex;
 			matData.mAlphaMapIndex = mat->AlphaSrvHeapIndex;
 
 			currMaterialBuffer.CopyData(mat->MatCBIndex, matData);
@@ -1514,7 +1527,7 @@ GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 
 	// Only the first "main" light casts a shadow.
 	XMVECTOR lightDir = XMLoadFloat3(&mLightingVars.mBaseLightDirections[0]);
-	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir + 
+	XMVECTOR lightPos = -2.0f * mSceneBounds.Radius * lightDir +
 		XMVectorSet(camPos.x + dirf.x, 0.0f, camPos.z + dirf.z, 0.0f);
 	XMVECTOR targetPos = XMLoadFloat3(&mSceneBounds.Center);
 	XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
@@ -1662,10 +1675,10 @@ GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 
 	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
 	XMMATRIX T(
-		0.5f,  0.0f, 0.0f, 0.0f,
+		0.5f, 0.0f, 0.0f, 0.0f,
 		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f,  0.0f, 1.0f, 0.0f,
-		0.5f,  0.5f, 0.0f, 1.0f
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f
 	);
 
 	ssaoCB.mView = mMainPassCB.mView;
@@ -1701,7 +1714,7 @@ GameResult DxRenderer::UpdateSsrCB(const GameTimer& gt, UINT inTid) {
 	ssrCB.mProj = mMainPassCB.mProj;
 	ssrCB.mInvProj = mMainPassCB.mInvProj;
 	ssrCB.mViewProj = mMainPassCB.mViewProj;
-	
+
 	ssrCB.mBlurWeights[0] = mBlurWeights9[0];
 	ssrCB.mBlurWeights[1] = mBlurWeights9[1];
 	ssrCB.mBlurWeights[2] = mBlurWeights9[2];
@@ -1757,10 +1770,10 @@ GameResult DxRenderer::LoadBasicTextures() {
 	};
 
 	std::vector<std::wstring> texFileNames = {
-		TextureFileNamePrefix + L"white1x1.dds",
-		TextureFileNamePrefix + L"default_nmap.dds",
-		TextureFileNamePrefix + L"skycube.dds",
-		TextureFileNamePrefix + L"blurskycube.dds"
+		TextureFilePathW + L"white1x1.dds",
+		TextureFilePathW + L"default_nmap.dds",
+		TextureFilePathW + L"skycube.dds",
+		TextureFilePathW + L"blurskycube.dds"
 	};
 
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
@@ -1874,25 +1887,25 @@ namespace {
 }
 
 void DxRenderer::BuildDescriptorHeapIndices(UINT inOffset) {
-	mDescHeapIdx.mCubeMapIndex				= inOffset;;
-	mDescHeapIdx.mBlurCubeMapIndex			= mDescHeapIdx.mCubeMapIndex			+ 1;
-	mDescHeapIdx.mMainPassMapIndex1			= mDescHeapIdx.mBlurCubeMapIndex		+ 1;
-	mDescHeapIdx.mMainPassMapIndex2			= mDescHeapIdx.mMainPassMapIndex1		+ 1;
-	mDescHeapIdx.mDiffuseMapIndex			= mDescHeapIdx.mMainPassMapIndex2		+ 1;
-	mDescHeapIdx.mNormalMapIndex			= mDescHeapIdx.mDiffuseMapIndex			+ 1;
-	mDescHeapIdx.mDepthMapIndex				= mDescHeapIdx.mNormalMapIndex			+ 1;
-	mDescHeapIdx.mSpecularMapIndex			= mDescHeapIdx.mDepthMapIndex			+ 1;
-	mDescHeapIdx.mShadowMapIndex			= mDescHeapIdx.mSpecularMapIndex		+ 1;
-	mDescHeapIdx.mSsaoAmbientMapIndex		= mDescHeapIdx.mShadowMapIndex			+ 1;
-	mDescHeapIdx.mSsrMapIndex				= mDescHeapIdx.mSsaoAmbientMapIndex		+ 1;
-	mDescHeapIdx.mBloomMapIndex				= mDescHeapIdx.mSsrMapIndex				+ 1;
-	mDescHeapIdx.mBloomBlurMapIndex			= mDescHeapIdx.mBloomMapIndex			+ 1;
-	mDescHeapIdx.mAnimationsMapIndex		= mDescHeapIdx.mBloomBlurMapIndex		+ 1;
-	mDescHeapIdx.mSsaoAdditionalMapIndex	= mDescHeapIdx.mAnimationsMapIndex		+ 1;
-	mDescHeapIdx.mSsrAdditionalMapIndex		= mDescHeapIdx.mSsaoAdditionalMapIndex	+ 2;	
-	mDescHeapIdx.mBloomAdditionalMapIndex	= mDescHeapIdx.mSsrAdditionalMapIndex	+ 1;
-	mDescHeapIdx.mDefaultFontIndex			= mDescHeapIdx.mBloomAdditionalMapIndex + 1;
-	mDescHeapIdx.mCurrSrvHeapIndex			= mDescHeapIdx.mDefaultFontIndex		+ 1;
+	mDescHeapIdx.mCubeMapIndex = inOffset;;
+	mDescHeapIdx.mBlurCubeMapIndex = mDescHeapIdx.mCubeMapIndex + 1;
+	mDescHeapIdx.mMainPassMapIndex1 = mDescHeapIdx.mBlurCubeMapIndex + 1;
+	mDescHeapIdx.mMainPassMapIndex2 = mDescHeapIdx.mMainPassMapIndex1 + 1;
+	mDescHeapIdx.mDiffuseMapIndex = mDescHeapIdx.mMainPassMapIndex2 + 1;
+	mDescHeapIdx.mNormalMapIndex = mDescHeapIdx.mDiffuseMapIndex + 1;
+	mDescHeapIdx.mDepthMapIndex = mDescHeapIdx.mNormalMapIndex + 1;
+	mDescHeapIdx.mSpecularMapIndex = mDescHeapIdx.mDepthMapIndex + 1;
+	mDescHeapIdx.mShadowMapIndex = mDescHeapIdx.mSpecularMapIndex + 1;
+	mDescHeapIdx.mSsaoAmbientMapIndex = mDescHeapIdx.mShadowMapIndex + 1;
+	mDescHeapIdx.mSsrMapIndex = mDescHeapIdx.mSsaoAmbientMapIndex + 1;
+	mDescHeapIdx.mBloomMapIndex = mDescHeapIdx.mSsrMapIndex + 1;
+	mDescHeapIdx.mBloomBlurMapIndex = mDescHeapIdx.mBloomMapIndex + 1;
+	mDescHeapIdx.mAnimationsMapIndex = mDescHeapIdx.mBloomBlurMapIndex + 1;
+	mDescHeapIdx.mSsaoAdditionalMapIndex = mDescHeapIdx.mAnimationsMapIndex + 1;
+	mDescHeapIdx.mSsrAdditionalMapIndex = mDescHeapIdx.mSsaoAdditionalMapIndex + 2;
+	mDescHeapIdx.mBloomAdditionalMapIndex = mDescHeapIdx.mSsrAdditionalMapIndex + 1;
+	mDescHeapIdx.mDefaultFontIndex = mDescHeapIdx.mBloomAdditionalMapIndex + 1;
+	mDescHeapIdx.mCurrSrvHeapIndex = mDescHeapIdx.mDefaultFontIndex + 1;
 
 	mNumDescriptor = mDescHeapIdx.mCurrSrvHeapIndex;
 }
@@ -1913,7 +1926,7 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		GetGpuSrv(mDescHeapIdx.mShadowMapIndex),
 		GetDsv(1)
 	);
-
+	
 	rtvIndex += GBuffer::NumRenderTargets;
 	mMainPass.BuildDescriptors(
 		GetCpuSrv(mDescHeapIdx.mMainPassMapIndex1),
@@ -1922,7 +1935,7 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		mCbvSrvUavDescriptorSize,
 		mRtvDescriptorSize
 	);
-
+	
 	rtvIndex += MainPass::NumRenderTargets;
 	mSsao.BuildDescriptors(
 		GetGpuSrv(mDescHeapIdx.mNormalMapIndex),
@@ -1934,14 +1947,15 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		mCbvSrvUavDescriptorSize,
 		mRtvDescriptorSize
 	);
-
+	
 	mAnimsMap.BuildDescriptors(
 		GetCpuSrv(mDescHeapIdx.mAnimationsMapIndex),
 		GetGpuSrv(mDescHeapIdx.mAnimationsMapIndex)
 	);
-
+	
 	rtvIndex += Ssao::NumRenderTargets;
 	mSsr.BuildDescriptors(
+		DepthStencilView(),
 		GetGpuSrv(mDescHeapIdx.mMainPassMapIndex1),
 		GetGpuSrv(mDescHeapIdx.mNormalMapIndex),
 		GetCpuSrv(mDescHeapIdx.mSsrMapIndex),
@@ -1952,7 +1966,7 @@ void DxRenderer::BuildDescriptorsForEachHelperClass() {
 		mCbvSrvUavDescriptorSize,
 		mRtvDescriptorSize
 	);
-
+	
 	rtvIndex += Ssr::NumRenderTargets;
 	mBloom.BuildDescriptors(
 		GetCpuSrv(mDescHeapIdx.mBloomMapIndex),
@@ -1975,11 +1989,11 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mCbvSrvUavDescriptorHeap)));
-
+	
 	//
 	// Fill out the heap with actual descriptors.
 	//
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());	
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	std::vector<ComPtr<ID3D12Resource>> tex2DList = {
 		mTextures["defaultDiffuseMap"]->Resource,
@@ -2003,7 +2017,7 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 		// next descriptor
 		hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
 	}
-
+	
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	srvDesc.TextureCube.MipLevels = skyCubeMap->GetDesc().MipLevels;
@@ -2016,10 +2030,10 @@ GameResult DxRenderer::BuildDescriptorHeaps() {
 	srvDesc.TextureCube.MipLevels = blurSkyCubeMap->GetDesc().MipLevels;
 	srvDesc.Format = blurSkyCubeMap->GetDesc().Format;
 	md3dDevice->CreateShaderResourceView(blurSkyCubeMap.Get(), &srvDesc, hDescriptor);
-
-	BuildDescriptorHeapIndices(static_cast<UINT>(tex2DList.size()));
+	
+	BuildDescriptorHeapIndices(static_cast<UINT>(tex2DList.size()));	
 	BuildDescriptorsForEachHelperClass();
-
+	
 	return GameResultOk;
 }
 
@@ -2036,70 +2050,70 @@ GameResult DxRenderer::BuildShaders() {
 	};
 
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Skeleton.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Skeleton.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "skeletonVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, SkinnedDefines, "GS", "gs_5_1", "skeletonGS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, AlphaTestDefines, "PS", "ps_5_1", "skeletonPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Shadows.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Shadows.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "shadowsVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, SkinnedDefines, "VS", "vs_5_1", "skinnedShadowsVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, AlphaTestDefines, "PS", "ps_5_1", "shadowsPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"DrawDebug.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"DrawDebug.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "debugVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "debugPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Ssao.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Ssao.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "ssaoVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "ssaoPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"SsaoBlur.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"SsaoBlur.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "ssaoBlurVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "ssaoBlurPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Sky.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Sky.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "skyVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "skyPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"DrawGBuffer.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"DrawGBuffer.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "gbufferVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, SkinnedDefines, "VS", "vs_5_1", "skinnedGbufferVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, AlphaTestDefines, "PS", "ps_5_1", "gbufferPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"DefaultUsingGBuffer.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"DefaultUsingGBuffer.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "mainPassVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "mainPassPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Ssr.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Ssr.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "ssrVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "ssrPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"SsrBlur.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"SsrBlur.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "ssrBlurVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "ssrBlurPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"PostPass.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"PostPass.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "postPassVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "postPassPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"Bloom.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"Bloom.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "bloomVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "bloomPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFileNamePrefix + L"BloomBlur.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"BloomBlur.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "bloomBlurVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "bloomBlurPS"));
 	}
@@ -2282,7 +2296,7 @@ GameResult DxRenderer::BuildBasicGeometry() {
 
 	ReturnIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-	
+
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
 
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
@@ -2297,12 +2311,12 @@ GameResult DxRenderer::BuildBasicGeometry() {
 	CheckGameResult(D3D12Util::CreateDefaultBuffer(
 		md3dDevice.Get(),
 		cmdList,
-		indices.data(), 
-		ibByteSize, 
-		geo->IndexBufferUploader, 
+		indices.data(),
+		ibByteSize,
+		geo->IndexBufferUploader,
 		geo->IndexBufferGPU)
 	);
-	
+
 	geo->VertexByteStride = static_cast<UINT>(sizeof(Vertex));
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -2374,7 +2388,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	skyRitem->mIndexCount = skyRitem->mGeo->DrawArgs["sphere"].IndexCount;
 	skyRitem->mStartIndexLocation = skyRitem->mGeo->DrawArgs["sphere"].StartIndexLocation;
 	skyRitem->mBaseVertexLocation = skyRitem->mGeo->DrawArgs["sphere"].BaseVertexLocation;
-	skyRitem->mBoundType = BoundType::AABB;
+	skyRitem->mBoundType = BoundTypes::EAABB;
 	skyRitem->mBoundingUnion.mAABB = skyRitem->mGeo->DrawArgs["sphere"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(5000.0f, 5000.0f, 5000.0f));
 	skyRitem->mInstances.emplace_back(
@@ -2383,7 +2397,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 		0.0f,
 		static_cast<UINT>(skyRitem->mMat->MatCBIndex)
 	);
-	mRitemLayer[RenderLayer::Sky].push_back(skyRitem.get());
+	mRitemLayer[RenderLayers::ESky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
 	auto boxRitem = std::make_unique<RenderItem>();
@@ -2394,7 +2408,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	boxRitem->mIndexCount = boxRitem->mGeo->DrawArgs["box"].IndexCount;
 	boxRitem->mStartIndexLocation = boxRitem->mGeo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->mBaseVertexLocation = boxRitem->mGeo->DrawArgs["box"].BaseVertexLocation;
-	boxRitem->mBoundType = BoundType::AABB;
+	boxRitem->mBoundType = BoundTypes::EAABB;
 	boxRitem->mBoundingUnion.mAABB = boxRitem->mGeo->DrawArgs["box"].AABB;
 	XMStoreFloat4x4(&world, XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
 	boxRitem->mInstances.emplace_back(
@@ -2403,7 +2417,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 		0.0f,
 		static_cast<UINT>(boxRitem->mMat->MatCBIndex)
 	);
-	mRitemLayer[RenderLayer::Opaque].push_back(boxRitem.get());
+	mRitemLayer[RenderLayers::EOpaque].push_back(boxRitem.get());
 	mAllRitems.push_back(std::move(boxRitem));
 
 	auto quadRitem = std::make_unique<RenderItem>();
@@ -2414,7 +2428,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	quadRitem->mIndexCount = quadRitem->mGeo->DrawArgs["quad"].IndexCount;
 	quadRitem->mStartIndexLocation = quadRitem->mGeo->DrawArgs["quad"].StartIndexLocation;
 	quadRitem->mBaseVertexLocation = quadRitem->mGeo->DrawArgs["quad"].BaseVertexLocation;
-	quadRitem->mBoundType = BoundType::AABB;
+	quadRitem->mBoundType = BoundTypes::EAABB;
 	quadRitem->mBoundingUnion.mAABB = quadRitem->mGeo->DrawArgs["quad"].AABB;
 	quadRitem->mInstances.emplace_back(
 		MathHelper::Identity4x4(),
@@ -2424,7 +2438,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 		-1,
 		EInstanceRenderState::EID_DrawAlways
 	);
-	mRitemLayer[RenderLayer::Screen].push_back(quadRitem.get());
+	mRitemLayer[RenderLayers::EScreen].push_back(quadRitem.get());
 	mAllRitems.push_back(std::move(quadRitem));
 
 	auto gridRitem = std::make_unique<RenderItem>();
@@ -2435,7 +2449,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 	gridRitem->mIndexCount = gridRitem->mGeo->DrawArgs["grid"].IndexCount;
 	gridRitem->mStartIndexLocation = gridRitem->mGeo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->mBaseVertexLocation = gridRitem->mGeo->DrawArgs["grid"].BaseVertexLocation;
-	gridRitem->mBoundType = BoundType::AABB;
+	gridRitem->mBoundType = BoundTypes::EAABB;
 	gridRitem->mBoundingUnion.mAABB = gridRitem->mGeo->DrawArgs["grid"].AABB;
 	XMStoreFloat4x4(&tex, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->mInstances.emplace_back(
@@ -2444,7 +2458,7 @@ GameResult DxRenderer::BuildBasicRenderItems() {
 		0.0f,
 		static_cast<UINT>(gridRitem->mMat->MatCBIndex)
 	);
-	mRitemLayer[RenderLayer::Opaque].push_back(gridRitem.get());
+	mRitemLayer[RenderLayers::EOpaqueSsr].push_back(gridRitem.get());
 	mAllRitems.push_back(std::move(gridRitem));
 
 	return GameResultOk;
@@ -2543,19 +2557,29 @@ GameResult DxRenderer::BuildPSOs() {
 		DXGI_FORMAT_UNKNOWN,
 		"ssaoBlur"
 	));
-	CheckGameResult(mPsoManager.BuildPso(
-		PsoManager::InputLayouts::ENone,
-		mRSManager.GetSsrRootSignature(),
-		mShaderManager.GetShader("ssrVS"),
-		mShaderManager.GetShader("ssrPS"),
-		defaultRasterizerDesc,
-		depthStencilDescDisabledDepth,
-		defaultBlendDesc,
-		D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-		{ mSsr.GetAmbientMapFormat() },
-		DXGI_FORMAT_UNKNOWN,
-		"ssr"
-	));
+	{
+		auto depthStencilDesc = defaultDepthStencilDesc;
+		depthStencilDesc.DepthEnable = FALSE;
+		depthStencilDesc.StencilEnable = TRUE;
+		depthStencilDesc.StencilReadMask = StencilMasks::ESsr;
+		depthStencilDesc.StencilWriteMask = StencilMasks::ESsr;
+		depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+		CheckGameResult(mPsoManager.BuildPso(
+			PsoManager::InputLayouts::ENone,
+			mRSManager.GetSsrRootSignature(),
+			mShaderManager.GetShader("ssrVS"),
+			mShaderManager.GetShader("ssrPS"),
+			defaultRasterizerDesc,
+			depthStencilDesc,
+			defaultBlendDesc,
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+			{ mSsr.GetAmbientMapFormat() },
+			DXGI_FORMAT_UNKNOWN,
+			"ssr"
+		));
+	}
 	CheckGameResult(mPsoManager.BuildPso(
 		PsoManager::InputLayouts::ENone,
 		mRSManager.GetSsrRootSignature(),
@@ -2666,6 +2690,29 @@ GameResult DxRenderer::BuildPSOs() {
 		DXGI_FORMAT_UNKNOWN,
 		"bloomBlur"
 	));
+	{
+		auto depthStencilDesc = defaultDepthStencilDesc;
+		depthStencilDesc.StencilEnable = TRUE;
+		depthStencilDesc.StencilReadMask = 0xFF;
+		depthStencilDesc.StencilWriteMask = 0xFF;
+		depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_REPLACE;
+		depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+		depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+		depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+		CheckGameResult(mPsoManager.BuildPso(
+			PsoManager::InputLayouts::EBasic,
+			mRSManager.GetBasicRootSignature(),
+			mShaderManager.GetShader("gbufferVS"),
+			mShaderManager.GetShader("gbufferPS"),
+			defaultRasterizerDesc,
+			depthStencilDesc,
+			defaultBlendDesc,
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+			{ mGBuffer.GetDiffuseMapFormat(), mGBuffer.GetNormalMapFormat(), mGBuffer.GetSpecularMapFormat() },
+			mDepthStencilFormat,
+			"gbufferSsr"
+		));
+	}
 	return GameResultOk;
 }
 
@@ -2681,9 +2728,9 @@ GameResult DxRenderer::BuildFrameResources() {
 }
 
 void DxRenderer::DrawRenderItems(
-		ID3D12GraphicsCommandList*	outCmdList, 
-		RenderItem* const*			inRitems, 
-		size_t						inNum) {
+	ID3D12GraphicsCommandList*	outCmdList,
+	RenderItem* const*			inRitems,
+	size_t						inNum) {
 	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
@@ -2705,14 +2752,14 @@ void DxRenderer::DrawRenderItems(
 }
 
 void DxRenderer::DrawRenderItems(
-		ID3D12GraphicsCommandList*	outCmdList,
-		RenderItem* const*			inRitems,
-		size_t						inBegin,
-		size_t						inEnd) {
+	ID3D12GraphicsCommandList*	outCmdList,
+	RenderItem* const*			inRitems,
+	size_t						inBegin,
+	size_t						inEnd) {
 	UINT objCBByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
 	auto objectCB = mCurrFrameResource->mObjectCB.Resource();
-	
+
 	// For each render item...
 	for (size_t i = inBegin; i < inEnd; ++i) {
 		auto ri = inRitems[i];
@@ -2720,10 +2767,10 @@ void DxRenderer::DrawRenderItems(
 		outCmdList->IASetVertexBuffers(0, 1, &ri->mGeo->VertexBufferView());
 		outCmdList->IASetIndexBuffer(&ri->mGeo->IndexBufferView());
 		outCmdList->IASetPrimitiveTopology(ri->mPrimitiveType);
-		
+
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->mObjCBIndex * objCBByteSize;
 		outCmdList->SetGraphicsRootConstantBufferView(mRSManager.GetObjectCBIndex(), objCBAddress);
-		
+
 		outCmdList->DrawIndexedInstanced(ri->mIndexCount, ri->mNumInstancesToDraw,
 			ri->mStartIndexLocation, ri->mBaseVertexLocation, 0);
 	}
@@ -2796,7 +2843,7 @@ void DxRenderer::BindRootConstants(ID3D12GraphicsCommandList* outCmdList) {
 	);
 }
 
-GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
+GameResult DxRenderer::DrawShadowMap(UINT inTid) {
 	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
 	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
 
@@ -2827,7 +2874,7 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 	//
 	// Draw shador for opaque. 
 	//
-	const auto& opaque = mRitemLayer[RenderLayer::Opaque];
+	const auto& opaque = mRitemLayer[RenderLayers::EOpaque];
 
 	UINT numRitems = static_cast<UINT>(opaque.size());
 	UINT eachNumRitems = numRitems / mNumThreads;
@@ -2842,7 +2889,7 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 	//
 	// Draw shadow for skinned opaque.
 	//
-	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+	const auto& skinnedOpaque = mRitemLayer[RenderLayers::ESkinnedOpaque];
 
 	numRitems = static_cast<UINT>(skinnedOpaque.size());
 	eachNumRitems = numRitems / mNumThreads;
@@ -2875,7 +2922,7 @@ GameResult DxRenderer::DrawSceneToShadowMap(UINT inTid) {
 	return GameResultOk;
 }
 
-GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
+GameResult DxRenderer::DrawGBuffer(UINT inTid) {
 	auto diffuseMap = mGBuffer.GetDiffuseMap();
 	auto normalMap = mGBuffer.GetNormalMap();
 	auto specMap = mGBuffer.GetSpecularMap();
@@ -2920,7 +2967,7 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	//
 	// Draw gbuffer for opaque.
 	//
-	const auto& opaque = mRitemLayer[RenderLayer::Opaque];
+	const auto& opaque = mRitemLayer[RenderLayers::EOpaque];
 
 	UINT numRitems = static_cast<UINT>(opaque.size());
 	UINT eachNumRitems = numRitems / mNumThreads;
@@ -2931,12 +2978,12 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 
 	DrawRenderItems(cmdList, opaque.data(), begin, end);
 
-	cmdList->SetPipelineState(mPsoManager.GetPsoPtr("skinnedGbuffer"));
-
 	//
 	// Draw gbuffer for skinned opaque.
 	//
-	const auto& skinnedOpaque = mRitemLayer[RenderLayer::SkinnedOpaque];
+	cmdList->SetPipelineState(mPsoManager.GetPsoPtr("skinnedGbuffer"));
+
+	const auto& skinnedOpaque = mRitemLayer[RenderLayers::ESkinnedOpaque];
 
 	numRitems = static_cast<UINT>(skinnedOpaque.size());
 	eachNumRitems = numRitems / mNumThreads;
@@ -2946,6 +2993,24 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
 
 	DrawRenderItems(cmdList, skinnedOpaque.data(), begin, end);
+
+	//
+	// Draw gbuffer for opaque onto which to project the reflected object.
+	//
+	cmdList->OMSetStencilRef(StencilMasks::ESsr);
+	cmdList->SetPipelineState(mPsoManager.GetPsoPtr("gbufferSsr"));
+
+	const auto& opaqueSsr = mRitemLayer[RenderLayers::EOpaqueSsr];
+
+	numRitems = static_cast<UINT>(opaqueSsr.size());
+	eachNumRitems = numRitems / mNumThreads;
+	remaining = numRitems % mNumThreads;
+
+	begin = inTid * eachNumRitems + (inTid < remaining ? inTid : remaining);
+	end = begin + eachNumRitems + (inTid < remaining ? 1 : 0);
+
+	DrawRenderItems(cmdList, opaqueSsr.data(), begin, end);
+	cmdList->OMSetStencilRef(0);
 
 	if (inTid == mNumThreads - 1) {
 		// Change back to PIXEL_SHADER_RESOURCE so we can read the texture in a shader.
@@ -2979,14 +3044,154 @@ GameResult DxRenderer::DrawSceneToGBuffer(UINT inTid) {
 	return GameResultOk;
 }
 
-GameResult DxRenderer::DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ReturnIfFailed(outCmdList->Reset(inCmdListAlloc, nullptr));
+GameResult DxRenderer::DrawSceneToBackBuffer(UINT inTid) {
+	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[inTid].Get();
+	ID3D12GraphicsCommandList* cmdList = mCommandLists[inTid].Get();
 
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
-	outCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	//
+	// Pre-rendering passes.
+	//
+	const auto& prePasses = mPreRenderingPasses[inTid];
+	if (prePasses.size() > 0) {
+		// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+		// Reusing the command list reuses memory.
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
 
+		ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+		for (auto& func : prePasses) {
+			func(*this, cmdList, cmdListAlloc);
+		}
+
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+	}
+	SyncHost(mSpinlockBarrier);
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i) {
+			if (mPreRenderingPasses[i].size() > 0)
+				cmdsLists.push_back(mCommandLists[i].Get());
+		}
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+	SyncHost(mSpinlockBarrier);
+
+	//
+	// Main-rendering passes.
+	//
+	const auto& mainPasses = mMainRenderingPasses[inTid];
+	if (mainPasses.size() > 0) {
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, mPsoManager.GetPsoPtr("mainPass")));
+
+		ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+		for (auto& func : mainPasses) {
+			func(*this, cmdList, cmdListAlloc);
+		}
+
+		ReturnIfFailed(cmdList->Close());
+	}
+	SyncHost(mSpinlockBarrier);
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i) {
+			if (mMainRenderingPasses[i].size() > 0)
+				cmdsLists.push_back(mCommandLists[i].Get());
+		}
+
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+	SyncHost(mSpinlockBarrier);
+
+	//
+	// Post-rendering passes.
+	//
+	const auto& postPasses = mPostRenderingPasses[inTid];
+	if (postPasses.size() > 0) {
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+
+		ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+		for (auto& func : postPasses) {
+			func(*this, cmdList, cmdListAlloc);
+		}
+
+		ReturnIfFailed(cmdList->Close());
+	}
+	SyncHost(mSpinlockBarrier);
+	if (inTid == 0) {
+		std::vector<ID3D12CommandList*> cmdsLists;
+		for (UINT i = 0; i < mNumThreads; ++i) {
+			if (mPostRenderingPasses[i].size() > 0)
+				cmdsLists.push_back(mCommandLists[i].Get());
+		}
+		
+		mCommandQueue->ExecuteCommandLists(static_cast<UINT>(cmdsLists.size()), cmdsLists.data());
+	}
+
+	if (inTid == 0) {
+		CheckGameResult(DrawBackBuffer(cmdList, cmdListAlloc));
+		CheckGameResult(DrawDebug(cmdList, cmdListAlloc));
+
+		// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+		// Reusing the command list reuses memory.
+		ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
+		cmdList->SetGraphicsRootSignature(nullptr);
+		
+		ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		
+		cmdList->RSSetViewports(1, &mScreenViewport);
+		cmdList->RSSetScissorRects(1, &mScissorRect);
+		
+		// Specify the buffers we are going to render to.
+		cmdList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+		
+		//
+		// Draw texts.
+		//
+		DrawTexts();
+		
+		cmdList->ResourceBarrier(
+			1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				CurrentBackBuffer(),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PRESENT
+			)
+		);
+		
+		// Done recording commands.
+		ReturnIfFailed(cmdList->Close());
+		
+		// Add the command list to the queue for execution.
+		ID3D12CommandList* cmdsLists[] = { cmdList };
+		mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+		
+		mGraphicsMemory->Commit(mCommandQueue.Get());
+
+		// Swap the back and front buffers
+		ReturnIfFailed(mSwapChain->Present(0, 0));
+		mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+		
+		// Advance the fence value to mark commands up to this fence point.
+		mCurrFrameResource->mFence = ++mCurrentFence;
+		
+		// Add an instruction to the command queue to set a new fence point. 
+		// Because we are on the GPU timeline, the new fence point won't be 
+		// set until the GPU finishes processing all the commands prior to this Signal().
+		mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+	}
+
+	return GameResultOk;
+}
+
+GameResult DxRenderer::DrawSsao(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
 	outCmdList->ResourceBarrier(
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
@@ -3002,51 +3207,6 @@ GameResult DxRenderer::DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdLis
 		mSsao.ComputeSsao(outCmdList, mCurrFrameResource, 3);
 	}
 
-	// Done recording commands.
-	ReturnIfFailed(outCmdList->Close());
-
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { outCmdList };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	return GameResultOk;
-}
-
-GameResult DxRenderer::DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ReturnIfFailed(outCmdList->Reset(inCmdListAlloc, mPsoManager.GetPsoPtr("mainPass")));
-	// Rebind state whenever graphics root signature changes.
-	outCmdList->SetGraphicsRootSignature(mRSManager.GetBasicRootSignature());
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
-	outCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	outCmdList->RSSetViewports(1, &mScreenViewport);
-	outCmdList->RSSetScissorRects(1, &mScissorRect);
-
-	// Clear the back buffer and depth buffer.
-	outCmdList->ClearRenderTargetView(mMainPass.GetMainPassMapView1(), Colors::Black, 0, nullptr);
-	outCmdList->ClearRenderTargetView(mMainPass.GetMainPassMapView2(), Colors::Black, 0, nullptr);
-
-	// Indicate a state transition on the resource usage.
-	const D3D12_RESOURCE_BARRIER resourceBarriers[] = {
-		CD3DX12_RESOURCE_BARRIER::Transition(
-			mMainPass.GetMainPassMap1(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_RENDER_TARGET
-		),
-		CD3DX12_RESOURCE_BARRIER::Transition(
-			mMainPass.GetMainPassMap2(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			D3D12_RESOURCE_STATE_RENDER_TARGET
-		)
-	};
-	outCmdList->ResourceBarrier(
-		2,
-		resourceBarriers
-	);
-
 	outCmdList->ResourceBarrier(
 		1,
 		&CD3DX12_RESOURCE_BARRIER::Transition(
@@ -3056,8 +3216,42 @@ GameResult DxRenderer::DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdLi
 		)
 	);
 
+	return GameResultOk;
+}
+
+GameResult DxRenderer::DrawMainPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
+	// Rebind state whenever graphics root signature changes.
+	outCmdList->SetGraphicsRootSignature(mRSManager.GetBasicRootSignature());
+
+	outCmdList->RSSetViewports(1, &mScreenViewport);
+	outCmdList->RSSetScissorRects(1, &mScissorRect);
+
+	// Clear the back buffer and depth buffer.
+	outCmdList->ClearRenderTargetView(mMainPass.GetMainPassMapView1(), Colors::Black, 0, nullptr);
+	outCmdList->ClearRenderTargetView(mMainPass.GetMainPassMapView2(), Colors::Black, 0, nullptr);
+
+	{
+		// Indicate a state transition on the resource usage.
+		const D3D12_RESOURCE_BARRIER resourceBarriers[] = {
+			CD3DX12_RESOURCE_BARRIER::Transition(
+				mMainPass.GetMainPassMap1(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			),
+			CD3DX12_RESOURCE_BARRIER::Transition(
+				mMainPass.GetMainPassMap2(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			)
+		};
+		outCmdList->ResourceBarrier(
+			2,
+			resourceBarriers
+		);
+	}
+
 	// Specify the buffers we are going to render to.
-	outCmdList->OMSetRenderTargets(MainPass::NumRenderTargets, &mMainPass.GetMainPassMapView1(), true, &DepthStencilView());	
+	outCmdList->OMSetRenderTargets(MainPass::NumRenderTargets, &mMainPass.GetMainPassMapView1(), true, &DepthStencilView());
 
 	BindViews(outCmdList, false);
 	BindDescriptorTables(outCmdList, false);
@@ -3071,28 +3265,11 @@ GameResult DxRenderer::DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdLi
 
 	// Read to stick notes.
 	outCmdList->SetPipelineState(mPsoManager.GetPsoPtr("sky"));
-	auto ritems = mRitemLayer[RenderLayer::Sky];
+	auto ritems = mRitemLayer[RenderLayers::ESky];
 	DrawRenderItems(outCmdList, ritems.data(), ritems.size());
 
-	// Done recording commands.
-	ReturnIfFailed(outCmdList->Close());
-
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { outCmdList };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	return GameResultOk;
-}
-
-GameResult DxRenderer::DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ReturnIfFailed(outCmdList->Reset(inCmdListAlloc, nullptr));
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
-	outCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	const D3D12_RESOURCE_BARRIER resourceBarriers[] = {
+	{
+		const D3D12_RESOURCE_BARRIER resourceBarriers[] = {
 		CD3DX12_RESOURCE_BARRIER::Transition(
 			mMainPass.GetMainPassMap1(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -3103,20 +3280,47 @@ GameResult DxRenderer::DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdLi
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		)
-	};
-	outCmdList->ResourceBarrier(
-		2,
-		resourceBarriers
-	);
-
-	// Compute SSR.
-	if (mEffectEnabled & EffectEnabled::ESsr) {
-		outCmdList->SetGraphicsRootSignature(mRSManager.GetSsrRootSignature());
-		mSsr.ComputeSsr(outCmdList, mCurrFrameResource, 3);
+		};
+		outCmdList->ResourceBarrier(
+			2,
+			resourceBarriers
+		);
 	}
 
+	return GameResultOk;
+}
+
+GameResult DxRenderer::DrawSsr(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
+	if (mEffectEnabled & EffectEnabled::ESsr) {
+		outCmdList->OMSetStencilRef(StencilMasks::ESsr);
+		outCmdList->SetGraphicsRootSignature(mRSManager.GetSsrRootSignature());
+
+		mSsr.ComputeSsr(outCmdList, mCurrFrameResource, 3);
+
+		outCmdList->OMSetStencilRef(0);
+	}
+
+	return GameResultOk;
+}
+
+GameResult DxRenderer::DrawBloom(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
+	if (mEffectEnabled & EffectEnabled::EBloom) {
+		outCmdList->SetGraphicsRootSignature(mRSManager.GetBloomRootSignature());
+		mBloom.ComputeBloom(outCmdList, mCurrFrameResource, 3);
+	}
+
+	return GameResultOk;
+}
+
+GameResult DxRenderer::DrawBackBuffer(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
+	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
+	// Reusing the command list reuses memory.
+	ReturnIfFailed(outCmdList->Reset(inCmdListAlloc, mPsoManager.GetPsoPtr("postPass")));
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
+	outCmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 	outCmdList->SetGraphicsRootSignature(mRSManager.GetPostPassRootSignature());
-	outCmdList->SetPipelineState(mPsoManager.GetPsoPtr("postPass"));
 
 	auto postPassCBAddress = mCurrFrameResource->mPostPassCB.Resource()->GetGPUVirtualAddress();
 	outCmdList->SetGraphicsRootConstantBufferView(0, postPassCBAddress);
@@ -3149,12 +3353,6 @@ GameResult DxRenderer::DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdLi
 	outCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	outCmdList->DrawInstanced(6, 5, 0, 0);
 
-	// Compute Bloom
-	if (mEffectEnabled & EffectEnabled::EBloom) {
-		outCmdList->SetGraphicsRootSignature(mRSManager.GetBloomRootSignature());
-		mBloom.ComputeBloom(outCmdList, mCurrFrameResource, 3);
-	}
-
 	// Done recording commands.
 	ReturnIfFailed(outCmdList->Close());
 
@@ -3165,7 +3363,7 @@ GameResult DxRenderer::DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdLi
 	return GameResultOk;
 }
 
-GameResult DxRenderer::DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
+GameResult DxRenderer::DrawDebug(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc) {
 	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
 	// Reusing the command list reuses memory.
 	ReturnIfFailed(outCmdList->Reset(inCmdListAlloc, mPsoManager.GetPsoPtr("skeleton")));
@@ -3186,7 +3384,7 @@ GameResult DxRenderer::DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdL
 
 	if (bDrawDebugSkeletonsEnabled) {
 		// Draw skeletons lines for debugging.
-		auto ritems = mRitemLayer[RenderLayer::Skeleton];
+		auto ritems = mRitemLayer[RenderLayers::ESkeleton];
 		DrawRenderItems(outCmdList, ritems.data(), ritems.size());
 	}
 
@@ -3207,68 +3405,6 @@ GameResult DxRenderer::DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdL
 	// Add the command list to the queue for execution.
 	ID3D12CommandList* cmdsLists[] = { outCmdList };
 	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	return GameResultOk;
-}
-
-GameResult DxRenderer::DrawSceneToRenderTarget() {	
-	ID3D12CommandAllocator* cmdListAlloc = mCurrFrameResource->mCmdListAllocs[0].Get();
-	ID3D12GraphicsCommandList* cmdList = mCommandLists[0].Get();
-
-	CheckGameResult(DrawPreRenderingPass(cmdList, cmdListAlloc));
-	CheckGameResult(DrawMainRenderingPass(cmdList, cmdListAlloc));
-	CheckGameResult(DrawPostRenderingPass(cmdList, cmdListAlloc));
-	CheckGameResult(DrawDebugRenderingPass(cmdList, cmdListAlloc));
-
-	// A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-	// Reusing the command list reuses memory.
-	ReturnIfFailed(cmdList->Reset(cmdListAlloc, nullptr));
-	cmdList->SetGraphicsRootSignature(nullptr);
-
-	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvSrvUavDescriptorHeap.Get() };
-	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	cmdList->RSSetViewports(1, &mScreenViewport);
-	cmdList->RSSetScissorRects(1, &mScissorRect);
-
-	// Specify the buffers we are going to render to.
-	cmdList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
-
-	//
-	// Draw texts.
-	//
-	DrawTexts();
-
-	// Indicate a state transition on the resource usage.
-	cmdList->ResourceBarrier(
-		1, 
-		&CD3DX12_RESOURCE_BARRIER::Transition(
-			CurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT
-		)
-	);
-
-	// Done recording commands.
-	ReturnIfFailed(cmdList->Close());
-
-	// Add the command list to the queue for execution.
-	ID3D12CommandList* cmdsLists[] = { cmdList };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	mGraphicsMemory->Commit(mCommandQueue.Get());
-
-	// Swap the back and front buffers
-	ReturnIfFailed(mSwapChain->Present(0, 0));
-	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
-
-	// Advance the fence value to mark commands up to this fence point.
-	mCurrFrameResource->mFence = ++mCurrentFence;
-
-	// Add an instruction to the command queue to set a new fence point. 
-	// Because we are on the GPU timeline, the new fence point won't be 
-	// set until the GPU finishes processing all the commands prior to this Signal().
-	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 
 	return GameResultOk;
 }
@@ -3296,3 +3432,5 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE DxRenderer::GetRtv(int inIndex) const {
 	rtv.Offset(inIndex, mRtvDescriptorSize);
 	return rtv;
 }
+
+#endif // UsingVulkan

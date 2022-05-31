@@ -158,6 +158,9 @@ struct Material {
 	// Index into SRV heap for specular texture.
 	int SpecularSrvHeapIndex = -1;
 
+	// Index into SRV heap for subsurface sacttering texture.
+	int SSSSrvHeapIndex = -1;
+
 	// Index into SRV heap for displacment texture.
 	int DispSrvHeapIndex = -1;
 

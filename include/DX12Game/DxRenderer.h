@@ -2,6 +2,8 @@
 
 #include "DX12Game/DxLowRenderer.h"
 
+#ifndef UsingVulkan
+
 #include <DescriptorHeap.h>
 #include <GraphicsMemory.h>
 #include <SpriteBatch.h>
@@ -28,24 +30,30 @@ class Animation;
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
 	using UpdateFunc = std::function<GameResult(DxRenderer&, const GameTimer&, UINT)>;
+	using RenderPassFunc = std::vector<std::vector<std::function<GameResult(DxRenderer&, ID3D12GraphicsCommandList*, ID3D12CommandAllocator*)>>>;
 
 private:
-	enum RenderLayer : int {
-		Opaque = 0,
-		SkinnedOpaque,
-		OpaqueAlphaBlend,
-		SkinnedAlphaBlend,
-		Screen,
-		Skeleton,
-		Debug,
-		Sky,
+	enum RenderLayers : int {
+		EOpaque = 0,
+		ESkinnedOpaque,
+		EOpaqueAlphaBlend,
+		ESkinnedOpaqueAlphaBlend,
+		EOpaqueSsr,
+		EScreen,
+		ESkeleton,
+		EDebug,
+		ESky,
 		Count
 	};
 
-	enum BoundType : int {
-		AABB = 0,
-		OBB,
-		Sphere
+	enum BoundTypes : int {
+		EAABB = 0,
+		EOBB,
+		ESphere
+	};
+
+	enum StencilMasks : UINT {
+		ESsr = 1 << 0
 	};
 
 	// Lightweight structure stores parameters to draw a shape.  This will
@@ -61,7 +69,7 @@ private:
 		// Primitive topology.
 		D3D12_PRIMITIVE_TOPOLOGY mPrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-		BoundType mBoundType;
+		BoundTypes mBoundType;
 		struct BoundingStruct {
 			DirectX::BoundingBox mAABB;
 			DirectX::BoundingOrientedBox mOBB;
@@ -151,7 +159,6 @@ public:
 		UINT inClientHeight,
 		UINT inNumThreads = 1,
 		HWND hMainWnd = NULL,
-		GLFWwindow* inMainWnd = nullptr,
 		CVBarrier* inCV = nullptr,
 		SpinlockBarrier* inSpinlock = nullptr) override;
 
@@ -160,10 +167,12 @@ public:
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
+	virtual GameResult GetDeviceRemovedReason() override;
+
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
-				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
+		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal = false) override;
 	virtual void UpdateInstanceAnimationData(const std::string& inRenderItemName,
-				UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
+		UINT inAnimClipIdx, float inTimePos, bool inIsSkeletal = false) override;
 
 	virtual void SetVisible(const std::string& inRenderItemName, bool inState) override;
 	virtual void SetSkeletonVisible(const std::string& inRenderItemName, bool inState) override;
@@ -196,8 +205,8 @@ private:
 	///
 	// Update helper classes
 	///
-	bool IsContained(BoundType inType, const RenderItem::BoundingStruct& inBound,
-			const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
+	bool IsContained(BoundTypes inType, const RenderItem::BoundingStruct& inBound,
+		const DirectX::BoundingFrustum& inFrustum, UINT inTid = 0);
 	UINT UpdateEachInstances(RenderItem* inRitem);
 	/// Update helper classes
 
@@ -236,24 +245,17 @@ private:
 	void BindDescriptorTables(ID3D12GraphicsCommandList* outCmdList, bool bNullMiscTex);
 	void BindRootConstants(ID3D12GraphicsCommandList* outCmdList);
 
-	GameResult DrawOpaqueToShadowMap(UINT inTid = 0);
-	GameResult DrawSkinnedOpaqueToShadowMap(UINT inTid = 0);
-	GameResult DrawSceneToShadowMap(UINT inTid = 0);
+	GameResult DrawShadowMap(UINT inTid = 0);
+	GameResult DrawGBuffer(UINT inTid = 0);
+	GameResult DrawSceneToBackBuffer(UINT inTid = 0);
 
-	GameResult DrawOpaqueToGBuffer(UINT inTid = 0);
-	GameResult DrawSkinnedOpaqueToGBuffer(UINT inTid = 0);
-	GameResult DrawSceneToGBuffer(UINT inTid = 0);
+	GameResult DrawSsao(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawMainPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawSsr(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawBloom(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
 
-	void DrawDebugSkeleton(ID3D12GraphicsCommandList* outCmdList);
-	void DrawDebugWindows(ID3D12GraphicsCommandList* outCmdList);
-	void DrawSceneUsingGBuffer(ID3D12GraphicsCommandList* outCmdList);
-
-	GameResult DrawPreRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
-	GameResult DrawMainRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
-	GameResult DrawPostRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
-	GameResult DrawDebugRenderingPass(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
-
-	GameResult DrawSceneToRenderTarget();
+	GameResult DrawBackBuffer(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
+	GameResult DrawDebug(ID3D12GraphicsCommandList* outCmdList, ID3D12CommandAllocator* inCmdListAlloc);
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int inIndex) const;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int inIndex) const;
@@ -286,7 +288,7 @@ private:
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
 	// Render items divided by PSO.
-	std::vector<RenderItem*> mRitemLayer[RenderLayer::Count];
+	std::vector<RenderItem*> mRitemLayer[RenderLayers::Count];
 
 	std::unordered_map<std::string, UINT> mDiffuseSrvHeapIndices;
 	std::unordered_map<std::string, UINT> mNormalSrvHeapIndices;
@@ -345,4 +347,10 @@ private:
 
 	std::vector<UINT> mNumInstances;
 	std::vector<std::vector<UpdateFunc>> mEachUpdateFunctions;
+
+	RenderPassFunc mPreRenderingPasses;
+	RenderPassFunc mMainRenderingPasses;
+	RenderPassFunc mPostRenderingPasses;
 };
+
+#endif // UsingVulkan

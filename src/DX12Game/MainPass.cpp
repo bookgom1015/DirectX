@@ -44,11 +44,11 @@ void MainPass::RebuildDescriptors() {
 	rtvDesc.Format = mMainPassMapFormat;
 	rtvDesc.Texture2D.MipSlice = 0;
 	rtvDesc.Texture2D.PlaneSlice = 0;
-
+	
 	// Creates shader resource view for main pass maps.
 	md3dDevice->CreateShaderResourceView(mMainPassMap1.Get(), &srvDesc, mhMainPassMapCpuSrv1);
 	md3dDevice->CreateShaderResourceView(mMainPassMap2.Get(), &srvDesc, mhMainPassMapCpuSrv2);
-
+	
 	// Create render target view for main pass maps.
 	md3dDevice->CreateRenderTargetView(mMainPassMap1.Get(), &rtvDesc, mhMainPassMapCpuRtv1);
 	md3dDevice->CreateRenderTargetView(mMainPassMap2.Get(), &rtvDesc, mhMainPassMapCpuRtv2);

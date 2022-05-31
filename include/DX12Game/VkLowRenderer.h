@@ -1,9 +1,19 @@
 #pragma once
 
-#include "DX12Game/LowRenderer.h"
+#include "DX12Game/GameCore.h"
+
+#ifdef UsingVulkan
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 class VkLowRenderer {
-private:
+protected:
 	struct QueueFamilyIndices {
 		std::optional<std::uint32_t> mGraphicsFamily;
 		std::optional<std::uint32_t> mPresentFamily;
@@ -28,7 +38,7 @@ private:
 	};
 
 protected:
-	VkLowRenderer();
+	VkLowRenderer() = default;
 
 public:
 	virtual ~VkLowRenderer();
@@ -54,43 +64,37 @@ protected:
 	GameResult CreateShaderModule(const std::vector<char>& inCode, VkShaderModule& outModule);
 	GameResult ReadFile(const std::string& inFileName, std::vector<char>& outData);
 
+	VkLowRenderer::QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice inDevice);
+
+	virtual GameResult RecreateSwapChain();
+	virtual GameResult CleanUpSwapChain();
+
 private:
 	GameResult InitVulkan();
 
 	std::vector<const char*> GetRequiredExtensions();
 	GameResult CheckValidationLayersSupport();
-	GameResult CreateInstance();
 
-	GameResult SetUpDebugMessenger();
 	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& inCreateInfo);
 
-	GameResult CreateSurface();
-
-	GameResult PickPhysicalDevice();
-
 	bool IsDeviceSuitable(VkPhysicalDevice inDevice);
-
 	bool CheckDeviceExtensionsSupport(VkPhysicalDevice inDevice);
+	int RateDeviceSuitability(VkPhysicalDevice inDevice);
 
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice inDevice);
-
-	int RateDeviceSuitability(VkPhysicalDevice inDevice);
-	VkLowRenderer::QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice inDevice);
-
-	GameResult CreateLogicalDevice();
-
 	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats);
 	VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes);
 	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities);
 
+	GameResult CreateInstance();
+	GameResult SetUpDebugMessenger();
+	GameResult CreateSurface();
+	GameResult PickPhysicalDevice();
+	GameResult CreateLogicalDevice();
 	GameResult CreateSwapChain();
-	GameResult CreateImageViews();
 
-	GameResult CreateRenderPass();
-
-	GameResult CreateFramebuffers();
-
-	GameResult CreateCommandPool();
+public:
+	static const std::uint32_t SwapChainImageCount = 3;
 
 protected:
 	GLFWwindow* mMainWindow;
@@ -108,26 +112,18 @@ protected:
 
 	VkSwapchainKHR mSwapChain;
 	std::vector<VkImage> mSwapChainImages;
-	const std::uint32_t mSwapChainImageCount = 3;
 	VkFormat mSwapChainImageFormat;
 	VkExtent2D mSwapChainExtent;
-
-	std::vector<VkImageView> mSwapChainImageViews;
-
-	VkRenderPass mRenderPass;
-	VkPipelineLayout mPipelineLayout;
-	VkPipeline mGraphicsPipeline;
-
-	std::vector<VkFramebuffer> mSwapChainFramebuffers;
-
-	VkCommandPool mCommandPool;
-	std::vector<VkCommandBuffer> mCommandBuffers;
 
 	UINT mClientWidth = 0;
 	UINT mClientHeight = 0;
 
 	UINT mNumThreads;
 
+	VkSampleCountFlagBits mMsaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
 private:
 	bool bIsCleaned = false;
 };
+
+#endif // UsingVulkan

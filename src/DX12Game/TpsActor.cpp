@@ -136,9 +136,9 @@ void TpsActor::ProcessActorInput(const InputState& input) {
 		mSkeletalMeshComponent->SetClipName("Idle");
 }
 
-bool TpsActor::OnLoadingData() {
-	if (!mSkeletalMeshComponent->LoadMesh("leoni", "leoni.fbx", true))
-		return false;
+GameResult TpsActor::OnLoadingData() {
+	CheckGameResult(mSkeletalMeshComponent->LoadMesh("leoni", "leoni.fbx"));
+
 	mSkeletalMeshComponent->SetSkeleletonVisible(true);
 
 	return true;

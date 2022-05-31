@@ -98,13 +98,14 @@ DxFbxImporter::~DxFbxImporter() {
 		mFbxManager->Destroy();
 }
 
-bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiThreading) {
+bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName) {
 	if (!LoadFbxScene(inFileName)) {
 		WErrln(L"Failed to load fbx scnene");
 		return false;
 	}
 
 	auto fbxRootNode = mFbxScene->GetRootNode();
+	
 	LoadSkeletonHierarchy(fbxRootNode);
 
 	bool loadingBonesStatus;
@@ -147,8 +148,7 @@ bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName, bool bMultiT
 		if (childNode->GetNodeAttribute() && childNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh) {
 			mSubsetNames.push_back(childNode->GetName());
 
-			prevNumVertices = bMultiThreading ? 
-				MTLoadDataFromMesh(childNode, prevNumVertices) : LoadDataFromMesh(childNode, prevNumVertices);
+			prevNumVertices = LoadDataFromMesh(childNode, prevNumVertices);
 
 			if (prevNumVertices < 0)
 				return false;
@@ -404,218 +404,14 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 				vertex.mBoneWeights[i] = boneIdxWeights[i].mWeight;
 			}
 
-			auto iter = std::find(mVertices.cbegin(), mVertices.cend(), vertex);
-			if (iter != mVertices.cend()) {
-				const UINT index = static_cast<UINT>(iter - mVertices.cbegin());
-				mIndices.push_back(index);
-			}
-			else {
-				const UINT index = static_cast<UINT>(mVertices.size());
-				mIndices.push_back(index);
+			if (mUniqueVertices.count(vertex) == 0) {
+				mUniqueVertices[vertex] = static_cast<std::uint32_t>(mVertices.size());
 				mVertices.push_back(vertex);
 			}
 
+			mIndices.push_back(mUniqueVertices[vertex]);
 			++vertexCounter;
 		}
-	}
-
-	mSubsets.emplace_back(static_cast<UINT>(vertexCounter), inPrevNumVertices);
-
-	return vertexCounter + inPrevNumVertices;
-}
-
-namespace {
-	void Distribute(size_t							inEachVertexCount, 
-					size_t							inOffset, 
-					const std::vector<DxFbxVertex>&	inPolygonVertices,					
-					const std::vector<DxFbxVertex>&	inOverlappedVertexSet, 
-					std::vector<DxFbxVertex>&		outUniqueVertexSet) {
-		std::uint32_t counter = 0;
-		for (auto vertIter = inOverlappedVertexSet.cbegin(), iterEnd = inOverlappedVertexSet.cend(); 
-				vertIter != iterEnd; ++vertIter) {
-			auto vert = (*vertIter);
-			bool isOverlapped = false;
-			size_t vertOffset = inOffset + (vertIter - inOverlappedVertexSet.cbegin());
-
-			for (size_t i = inOffset, iEnd = inOffset + inEachVertexCount; i < iEnd; ++i) {
-				++counter;
-				if (vertOffset == i)
-					break;
-
-				const auto& polyVert = inPolygonVertices[i];
-
-				if (vert == polyVert) {
-					isOverlapped = true;
-					break;
-				}
-			}
-
-			if (!isOverlapped)
-				outUniqueVertexSet.push_back(vert);
-		}
-		TWLogln(L"Distribution Loop-Count: ", std::to_wstring(counter));
-	}
-
-	void Composite(const std::vector<DxFbxVertex>&				inOverlappedVertexSet, 
-				   const std::vector<DxFbxVertex>&				inUniqueVertexSet,		
-				   std::vector<std::uint32_t>&					outIndexSet, 
-				   const std::vector<std::vector<DxFbxVertex>>&	inFrontUniqueVertexSets) {
-		std::uint32_t counter = 0;
-		size_t frontSize = 0;
-		for (const auto& vertexSet : inFrontUniqueVertexSets)
-			frontSize += vertexSet.size();
-
-		for (const auto& oVert : inOverlappedVertexSet) {
-			++counter;
-			auto iter = std::find(inUniqueVertexSet.cbegin(), inUniqueVertexSet.cend(), oVert);
-			if (iter != inUniqueVertexSet.cend()) {
-				size_t index = iter - inUniqueVertexSet.cbegin();
-				outIndexSet.push_back(static_cast<std::uint32_t>(frontSize + index));
-			}
-			else {
-				size_t stackedFrontSize = 0;
-				for (const auto& vertexSet : inFrontUniqueVertexSets) {
-					for (auto vIter = vertexSet.cbegin(), end = vertexSet.cend(); vIter != end; ++vIter) {
-						if (oVert == (*vIter)) {
-							size_t index = vIter - vertexSet.cbegin();
-							outIndexSet.push_back(static_cast<std::uint32_t>(stackedFrontSize + index));
-						}
-					}
-
-					stackedFrontSize += vertexSet.size();
-				}
-			}
-		}
-		TWLogln( L"Composition Loop-Count: ", std::to_wstring(counter));
-	}
-}
-
-int DxFbxImporter::MTLoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
-	auto fbxMesh = inNode->GetMesh();
-	std::string meshName = fbxMesh->GetName();
-
-	const int controlPointCount = fbxMesh->GetControlPointsCount();
-	std::vector<XMFLOAT3> controlPoints(controlPointCount);
-	for (int i = 0; i < controlPointCount; ++i) {
-		controlPoints[i].x = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[0]);
-		controlPoints[i].y = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[1]);
-		controlPoints[i].z = static_cast<float>(fbxMesh->GetControlPointAt(i).mData[2]);
-	}
-
-	const UINT polygonCount = fbxMesh->GetPolygonCount();
-	UINT vertexCounter = 0;
-	std::vector<DxFbxVertex> polygonVertices;
-
-	for (UINT polygonIdx = 0; polygonIdx < polygonCount; ++polygonIdx) {
-		const UINT numPolygonVertices = fbxMesh->GetPolygonSize(polygonIdx);
-
-		if (numPolygonVertices != 3) {
-			WErrln(L"Polygon vertex size for Fbx mesh is not matched 3");
-			return -1;
-		}
-
-		for (int vertIdx = 0; vertIdx < 3; ++vertIdx) {
-			UINT controlPointIndex = fbxMesh->GetPolygonVertex(polygonIdx, vertIdx);
-
-			const XMFLOAT3 pos = controlPoints[controlPointIndex];
-			const XMFLOAT3 normal = ReadNormal(fbxMesh, controlPointIndex, vertexCounter);
-			const XMFLOAT2 texC = ReadUV(fbxMesh, controlPointIndex, vertexCounter);
-			const XMFLOAT3 tangent = ReadTangent(fbxMesh, controlPointIndex, vertexCounter);
-
-			DxFbxVertex vertex = { pos, normal, texC, tangent };
-			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
-			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
-				vertex.mBoneIndices[i] = boneIdxWeights[i].mBoneIndex;
-				vertex.mBoneWeights[i] = boneIdxWeights[i].mWeight;
-			}
-
-			polygonVertices.push_back(vertex);
-
-			++vertexCounter;
-		}
-	}
-
-	UINT numProcessors = ThreadUtil::GetProcessorCount(false);
-
-	std::vector<UINT> eachPolygonCounts(numProcessors);
-	const UINT lineSize = vertexCounter / numProcessors;
-	const UINT remaining = vertexCounter % numProcessors;
-	{
-		std::wstringstream wsstream;
-		wsstream << L":\n";
-		for (size_t i = 0; i < numProcessors; ++i) {
-			if (i < remaining)
-				eachPolygonCounts[i] = lineSize + 1;
-			else
-				eachPolygonCounts[i] = lineSize;
-			wsstream << L"Thread_" << i << " Line-Size:" << eachPolygonCounts[i] << std::endl;
-		}
-		TWLog(wsstream.str());
-	}
-	
-	std::vector<std::vector<DxFbxVertex>> overlappedVertexSets(numProcessors);
-	{
-		size_t counter = 0;
-		for (size_t i = 0; i < numProcessors; ++i) {
-			for (std::uint32_t j = 0; j < eachPolygonCounts[i]; ++j) {
-				const auto& vert = polygonVertices[counter++];
-				overlappedVertexSets[i].push_back(vert);
-			}
-		}
-	}
-
-	std::vector<std::vector<DxFbxVertex>> uniqueVertexSets(numProcessors);
-	{
-		size_t counter = 0;
-		for (auto& vertexSet : uniqueVertexSets) {
-			vertexSet.reserve(eachPolygonCounts[counter++]);
-		}
-	}
-	
-	std::vector<std::thread> threads(numProcessors);
-	{
-		size_t offset = 0;
-		for (size_t i = 0; i < numProcessors; ++i) {
-			threads[i] = std::thread(Distribute,
-				eachPolygonCounts[i], offset, polygonVertices,
-				overlappedVertexSets[i], std::ref(uniqueVertexSets[i]));
-
-			offset += eachPolygonCounts[i];
-		}
-	}
-	for (auto& thread : threads)
-		thread.join();
-
-	std::vector<std::vector<std::uint32_t>> indexSets(numProcessors);
-	{
-		size_t counter = 0;
-		for (auto& indexSet : indexSets) {
-			indexSet.reserve(eachPolygonCounts[counter++]);
-		}
-	}
-
-	std::vector<std::vector<DxFbxVertex>> frontUniqueVertexSets;
-	for (size_t i = 0; i < numProcessors; ++i) {
-		threads[i] = std::thread(Composite, 
-			overlappedVertexSets[i], uniqueVertexSets[i], 
-			std::ref(indexSets[i]), frontUniqueVertexSets);
-		
-		frontUniqueVertexSets.push_back(uniqueVertexSets[i]);
-	}
-	
-	for (auto& thread : threads)
-		thread.join();
-
-	std::uint32_t vertSize = (std::uint32_t)mVertices.size();
-
-	for (const auto& vertexSet : uniqueVertexSets) {
-		for (const auto& vertex : vertexSet)
-			mVertices.push_back(vertex);
-	}
-	
-	for (const auto& indexSet : indexSets) {
-		for (const auto& index : indexSet)
-			mIndices.push_back(vertSize + index);
 	}
 
 	mSubsets.emplace_back(static_cast<UINT>(vertexCounter), inPrevNumVertices);

@@ -39,7 +39,9 @@ GameResult PsoManager::BuildPso(
 		DXGI_FORMAT inDSVFormat,
 		const std::string& inName) {
 	size_t rtNum = inRTVFormats.size();
-	if (inRootSignature == nullptr || inVShader == nullptr || inPShader == nullptr || rtNum > 8) return GameResult(S_FALSE, L"Invalid arguments");
+	if (inRootSignature == nullptr || inVShader == nullptr || inPShader == nullptr || rtNum > 8) {
+		ReturnGameResult(S_FALSE, L"Invalid arguments");
+	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
 
@@ -86,7 +88,9 @@ GameResult PsoManager::BuildPso(
 		DXGI_FORMAT inDSVFormat,
 		const std::string& inName) {
 	size_t rtNum = inRTVFormats.size();
-	if (inRootSignature == nullptr || inVShader == nullptr || inPShader == nullptr || rtNum > 8) return GameResult(S_FALSE, L"Invalid arguments");
+	if (inRootSignature == nullptr || inVShader == nullptr || inPShader == nullptr || rtNum > 8) {
+		ReturnGameResult(S_FALSE, L"Invalid arguments");
+	}
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
 

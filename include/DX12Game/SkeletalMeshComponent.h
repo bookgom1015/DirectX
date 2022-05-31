@@ -14,8 +14,7 @@ public:
 	virtual void OnUpdateWorldTransform() override;
 	//* Update this component by delta time.
 	virtual void Update(const GameTimer& gt) override;
-	virtual bool LoadMesh(const std::string& inMeshName,
-		const std::string& inFileName, bool bMultiThreading = false) override;
+	virtual GameResult LoadMesh(const std::string& inMeshName, const std::string& inFileName) override;
 
 	void SetClipName(const std::string& inClipName);
 	virtual void SetVisible(bool inState) override;

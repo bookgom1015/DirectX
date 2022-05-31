@@ -94,8 +94,9 @@ GameResult D3D12Util::CompileShader(
 	if (errors != nullptr)
 		wsstream << reinterpret_cast<char*>(errors->GetBufferPointer());
 
-	if (FAILED(hr))
-		return GameResult(hr, wsstream.str());
+	if (FAILED(hr)) {
+		ReturnGameResult(hr, wsstream.str());
+	}
 
 	return GameResult(S_OK);
 }

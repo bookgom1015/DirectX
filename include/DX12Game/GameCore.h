@@ -2,8 +2,6 @@
 
 //#define UsingVulkan
 
-#define DeferredRendering
-
 // Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
@@ -36,12 +34,23 @@ const int gNumFrameResources = 3;
 
 #include "DX12Game/D3D12Util.h"
 
-#define VK_USE_PLATFORM_WIN32_KHR
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-#include <glm/glm.hpp>
-
 #include "DX12Game/GameTimer.h"
 #include "DX12Game/ThreadUtil.h"
+
+#ifdef UsingVulkan
+	#define VK_USE_PLATFORM_WIN32_KHR
+	#define GLFW_INCLUDE_VULKAN
+	#include <GLFW/glfw3.h>
+	
+	#define GLFW_EXPOSE_NATIVE_WIN32
+	#include <GLFW/glfw3native.h>
+#endif
+
+const std::wstring TextureFilePathW = L"./../../../../Assets/Textures/";
+const std::string TextureFilePath = "./../../../../Assets/Textures/";
+const std::wstring ShaderFilePathW = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
+const std::string ShaderFilePath = ".\\..\\..\\..\\..\\Assets\\Shaders\\";
+const std::wstring FontFilePathW = L"./../../../../Assets/Fonts/";
+const std::string FontFilePath = "./../../../../Assets/Fonts/";
+const std::wstring ModelFilePathW = L"./../../../../Assets/Models/";
+const std::string ModelFilePath = "./../../../../Assets/Models/";

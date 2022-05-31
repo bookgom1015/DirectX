@@ -42,8 +42,8 @@ void Actor::ProcessInput(const InputState& input) {
 	}
 }
 
-bool Actor::OnLoadingData() {
-	return true;
+GameResult Actor::OnLoadingData() {
+	return GameResultOk;
 }
 
 void Actor::OnUnloadingData() {}

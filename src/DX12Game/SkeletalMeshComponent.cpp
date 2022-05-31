@@ -31,15 +31,13 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePos, true);
 }
 
-bool SkeletalMeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName, bool bMultiThreading) {
-	mMesh = GameWorld::GetWorld()->AddMesh(inFileName, true, false, bMultiThreading);
-	if (mMesh == nullptr)
-		return false;
+GameResult SkeletalMeshComponent::LoadMesh(const std::string& inMeshName, const std::string& inFileName) {
+	CheckGameResult(GameWorld::GetWorld()->AddMesh(inFileName, mMesh, true, false));
 
 	mMeshName = inMeshName;
 	mRenderer->AddRenderItem(mMeshName, mMesh);
 
-	return true;
+	return GameResultOk;
 }
 
 void SkeletalMeshComponent::SetClipName(const std::string& inClipName) {

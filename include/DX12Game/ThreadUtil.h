@@ -143,7 +143,7 @@ private:
 
 class ThreadBarrier {
 public:
-	virtual void Wait() = 0;
+	virtual bool Wait() = 0;
 	virtual void WakeUp() = 0;
 	virtual void Terminate() = 0;
 
@@ -164,7 +164,7 @@ private:
 	void operator=(CVBarrier&& rhs) = delete;
 
 public:
-	void Wait() override final;
+	bool Wait() override final;
 	void WakeUp() override final;
 	void Terminate() override final;
 
@@ -189,7 +189,7 @@ private:
 	void operator=(SpinlockBarrier&& rhs) = delete;
 
 public:
-	void Wait() override final;
+	bool Wait() override final;
 	void WakeUp() override final;
 	void Terminate() override final;
 

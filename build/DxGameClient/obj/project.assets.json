@@ -11565,11 +11565,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\OneDrive\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\DXGameClient.csproj",
+      "projectUniqueName": "D:\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\DXGameClient.csproj",
       "projectName": "DXGameClient",
-      "projectPath": "D:\\OneDrive\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\DXGameClient.csproj",
+      "projectPath": "D:\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\DXGameClient.csproj",
       "packagesPath": "C:\\Users\\bookg\\.nuget\\packages\\",
-      "outputPath": "D:\\OneDrive\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\obj\\",
+      "outputPath": "D:\\Visual Studio Projects\\DirectX\\build\\DXGameClient\\obj\\",
       "projectStyle": "PackageReference",
       "skipContentFileWrite": true,
       "fallbackFolders": [
@@ -11593,8 +11593,8 @@
       "frameworks": {
         "uap10.0.18362": {
           "projectReferences": {
-            "D:\\OneDrive\\Visual Studio Projects\\DirectX\\build\\DXGameClient.Core\\DXGameClient.Core.csproj": {
-              "projectPath": "D:\\OneDrive\\Visual Studio Projects\\DirectX\\build\\DXGameClient.Core\\DXGameClient.Core.csproj"
+            "D:\\Visual Studio Projects\\DirectX\\build\\DXGameClient.Core\\DXGameClient.Core.csproj": {
+              "projectPath": "D:\\Visual Studio Projects\\DirectX\\build\\DXGameClient.Core\\DXGameClient.Core.csproj"
             }
           }
         }

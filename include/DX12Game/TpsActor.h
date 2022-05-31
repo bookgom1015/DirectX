@@ -13,7 +13,7 @@ public:
 public:
 	virtual void UpdateActor(const GameTimer& gt) override;
 	virtual void ProcessActorInput(const InputState& input) override;
-	virtual bool OnLoadingData() override;
+	virtual GameResult OnLoadingData() override;
 
 private:
 	std::unique_ptr<CameraComponent> mCameraComp = nullptr;

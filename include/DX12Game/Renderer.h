@@ -29,19 +29,30 @@ private:
 	Renderer& operator=(Renderer&& inRVal) = delete;
 
 public:
+#ifndef UsingVulkan
 	virtual GameResult Initialize(
 		UINT inClientWidth,
 		UINT inClientHeight,
 		UINT inNumThreads = 1,
 		HWND hMainWnd = NULL,
+		CVBarrier* inCV = nullptr,
+		SpinlockBarrier* inSpinlock = nullptr) = 0;
+#else
+	virtual GameResult Initialize(
+		UINT inClientWidth,
+		UINT inClientHeight,
+		UINT inNumThreads = 1,
 		GLFWwindow* inMainWnd = nullptr,
 		CVBarrier* inCV = nullptr,
 		SpinlockBarrier* inSpinlock = nullptr) = 0;
+#endif
 
 	virtual void CleanUp() = 0;
 	virtual GameResult Update(const GameTimer& gt, UINT inTid = 0) = 0;
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) = 0;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) = 0;
+
+	virtual GameResult GetDeviceRemovedReason() = 0;
 
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName, 
 				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) = 0;

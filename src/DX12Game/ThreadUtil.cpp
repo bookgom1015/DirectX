@@ -191,7 +191,7 @@ CVBarrier::~CVBarrier() {
 	WakeUp();
 }
 
-void CVBarrier::Wait() {
+bool CVBarrier::Wait() {
 	std::unique_lock<std::mutex> ulock(mMutex);
 	std::uint64_t currGen = mGeneration;
 
@@ -199,11 +199,13 @@ void CVBarrier::Wait() {
 		++mGeneration;
 		mCurrCount = mInitCount;
 		mConditionalVar.notify_all();
-		return;
+		return bTerminated;
 	}
 
 	while (!bTerminated && currGen == mGeneration)
 		mConditionalVar.wait(ulock);
+
+	return bTerminated;
 }
 
 void CVBarrier::WakeUp() {
@@ -219,20 +221,22 @@ void CVBarrier::Terminate() {
 SpinlockBarrier::SpinlockBarrier(UINT inCount) 
 	: mInitCount(inCount), mCurrCount(inCount), mGeneration(0) {}
 
-void SpinlockBarrier::Wait() {	
+bool SpinlockBarrier::Wait() {	
 	std::unique_lock<std::mutex> ulock(mMutex);
 	std::uint64_t currGen = mGeneration;
 
 	if (--mCurrCount == 0) {
 		++mGeneration;
 		mCurrCount = mInitCount;
-		return;
+		return bTerminated;
 	}
 
 	ulock.unlock();
 
 	while (!bTerminated && currGen == mGeneration)
 		std::this_thread::yield();
+
+	return bTerminated;
 }
 
 void SpinlockBarrier::WakeUp() {
