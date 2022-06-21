@@ -3,21 +3,21 @@
 
 using namespace DirectX;
 
-ObjectConstants::ObjectConstants(UINT inObjectIndex /* = 0 */) {
+Game::ObjectConstants::ObjectConstants(UINT inObjectIndex /* = 0 */) {
 	mObjectIndex = inObjectIndex;
 	mObjectPad0 = 0;
 	mObjectPad1 = 0;
 	mObjectPad2 = 0;
 }
 
-InstanceIdxData::InstanceIdxData(UINT inIdx /* = 0 */) {
+Game::InstanceIdxData::InstanceIdxData(UINT inIdx /* = 0 */) {
 	mInstanceIdx = inIdx;
 	mInstIdxPad0 = 0;
 	mInstIdxPad1 = 0;
 	mInstIdxPad2 = 0;
 }
 
-InstanceData::InstanceData(
+Game::InstanceData::InstanceData(
 	const DirectX::XMFLOAT4X4& inWorld			/* = MathHelper::Identity4x4() */,
 	const DirectX::XMFLOAT4X4& inTexTransform	/* = MathHelper::Identity4x4() */,
 	float inTimePos								/* = 0.0f */,
@@ -35,19 +35,19 @@ InstanceData::InstanceData(
 	SetFramesDirty(gNumFrameResources);
 }
 
-void InstanceData::SetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
+void Game::InstanceData::SetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
 	inRenderState |= inTargetState;
 }
 
-void InstanceData::UnsetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
+void Game::InstanceData::UnsetRenderState(UINT& inRenderState, EInstanceRenderState inTargetState) {
 	inRenderState &= ~inTargetState;
 }
 
-bool InstanceData::IsMatched(UINT inRenderState, EInstanceRenderState inTargetState) {
+bool Game::InstanceData::IsMatched(UINT inRenderState, EInstanceRenderState inTargetState) {
 	return (inRenderState & inTargetState) != 0;
 }
 
-bool InstanceData::IsUnmatched(UINT inRenderState, EInstanceRenderState inTargetState) {
+bool Game::InstanceData::IsUnmatched(UINT inRenderState, EInstanceRenderState inTargetState) {
 	return (inRenderState & inTargetState) == 0;
 }
 
@@ -56,11 +56,11 @@ namespace {
 	const UINT DecreaseOne = (1 << BitShift);
 }
 
-bool InstanceData::CheckFrameDirty(UINT inIndex) const {
+bool Game::InstanceData::CheckFrameDirty(UINT inIndex) const {
 	return ((mRenderState >> BitShift) & (1 << inIndex)) != 0;
 }
 
-void InstanceData::SetFramesDirty(UINT inNum) {
+void Game::InstanceData::SetFramesDirty(UINT inNum) {
 	UINT num = 1;
 
 	for (UINT i = 1; i < inNum; ++i)
@@ -69,11 +69,11 @@ void InstanceData::SetFramesDirty(UINT inNum) {
 	mRenderState |= (num << BitShift);
 }
 
-void InstanceData::UnsetFrameDirty(UINT inIndex) {
+void Game::InstanceData::UnsetFrameDirty(UINT inIndex) {
 	mRenderState &= ~((1 << inIndex) << BitShift);
 }
 
-PassConstants::PassConstants() {
+Game::PassConstants::PassConstants() {
 	mView = MathHelper::Identity4x4();
 	mInvView = MathHelper::Identity4x4();
 	mProj = MathHelper::Identity4x4();
@@ -94,7 +94,7 @@ PassConstants::PassConstants() {
 	mAmbientLight = { 0.0f, 0.0f, 0.0f, 1.0f };
 }
 
-MaterialData::MaterialData() {
+Game::MaterialData::MaterialData() {
 	mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	mFresnelR0 = { 0.01f, 0.01f, 0.01f };
 	mRoughness = 64.0f;
@@ -108,7 +108,7 @@ MaterialData::MaterialData() {
 	mDispMapIndex = -1;
 }
 
-Vertex::Vertex(
+Game::Vertex::Vertex(
 	XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */,
 	XMFLOAT3 inNormal	/* = { 0.0f, 0.0f, 0.0f } */, 
 	XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
@@ -120,14 +120,14 @@ Vertex::Vertex(
 	mTangentU = inTangent;
 }
 
-bool operator==(const Vertex& lhs, const Vertex& rhs) {
+bool Game::operator==(const Vertex& lhs, const Vertex& rhs) {
 	return MathHelper::IsEqual(lhs.mPos,		rhs.mPos)		&&
 		   MathHelper::IsEqual(lhs.mNormal,		rhs.mNormal)	&&
 		   MathHelper::IsEqual(lhs.mTexC,		rhs.mTexC)		&&
 		   MathHelper::IsEqual(lhs.mTangentU,	rhs.mTangentU);
 }
 
-SkinnedVertex::SkinnedVertex() {
+Game::SkinnedVertex::SkinnedVertex() {
 	mPos = { 0.0f, 0.0f, 0.0f };
 	mNormal = { 0.0f, 0.0f, 0.0f };
 	mTexC = { 0.0f, 0.0f };
@@ -140,14 +140,14 @@ SkinnedVertex::SkinnedVertex() {
 		index = -1;
 }
 
-SkinnedVertex::SkinnedVertex(XMFLOAT3 inPos, XMFLOAT3 inNormal, XMFLOAT2 inTexC, XMFLOAT3 inTangent) {
+Game::SkinnedVertex::SkinnedVertex(XMFLOAT3 inPos, XMFLOAT3 inNormal, XMFLOAT2 inTexC, XMFLOAT3 inTangent) {
 	mPos = inPos;
 	mNormal = inNormal;
 	mTexC = inTexC;
 	mTangentU = inTangent;
 }
 
-bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
+bool Game::operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
 	bool bResult = MathHelper::IsEqual(lhs.mPos,			rhs.mPos)			&&
 				   MathHelper::IsEqual(lhs.mNormal,			rhs.mNormal)		&&
 				   MathHelper::IsEqual(lhs.mTexC,			rhs.mTexC)			&&
@@ -165,7 +165,7 @@ bool operator==(const SkinnedVertex& lhs, const SkinnedVertex& rhs) {
 	return true;
 }
 
-FrameResource::FrameResource(ID3D12Device* inDevice, 
+Game::FrameResource::FrameResource(ID3D12Device* inDevice,
 	UINT inPassCount, UINT inObjectCount, UINT inMaxInstanceCount, UINT inMaterialCount) 
 	: mPassCount(inPassCount), 
 	  mObjectCount(inObjectCount), 
@@ -175,7 +175,7 @@ FrameResource::FrameResource(ID3D12Device* inDevice,
 	mDevice = inDevice;
 }
 
-GameResult FrameResource::Initialize(UINT inNumThreads) {
+GameResult Game::FrameResource::Initialize(UINT inNumThreads) {
 	mCmdListAllocs.resize(inNumThreads);
 
 	for (UINT i = 0; i < inNumThreads; ++i) {

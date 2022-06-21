@@ -4,7 +4,10 @@
 
 class GameCamera;
 class Mesh;
-class Animation;
+
+namespace Game {
+	class Animation;
+}
 
 const size_t gNumBones = 512;
 
@@ -66,7 +69,7 @@ public:
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) = 0;
 	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) = 0;
 
-	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) = 0;
+	virtual UINT AddAnimations(const std::string& inClipName, const Game::Animation& inAnim) = 0;
 	virtual GameResult UpdateAnimationsMap() = 0;
 
 	void AddOutputText(const std::string& inNameId, const std::wstring& inText,

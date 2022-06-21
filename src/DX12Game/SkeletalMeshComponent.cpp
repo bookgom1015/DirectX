@@ -26,7 +26,7 @@ void SkeletalMeshComponent::Update(const GameTimer& gt) {
 		mLastTotalTime = gt.TotalTime();
 		mClipIsChanged = false;
 	}
-
+	
 	float timePos = mMesh->GetSkinnedData().GetTimePosition(mClipName, gt.TotalTime() - mLastTotalTime);
 	mRenderer->UpdateInstanceAnimationData(mMeshName, mMesh->GetClipIndex(mClipName), timePos, true);
 }

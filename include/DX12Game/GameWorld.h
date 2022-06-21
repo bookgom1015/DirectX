@@ -33,9 +33,6 @@ public:
 	virtual ~GameWorld();
 
 private:
-	///
-	// GameWorld doesn't allow substitution and replication.
-	///
 	GameWorld(const GameWorld& src) = delete;
 	GameWorld& operator=(const GameWorld& rhs) = delete;
 	GameWorld(GameWorld&& src) = delete;
@@ -44,8 +41,10 @@ private:
 public:
 	GameResult Initialize(INT inWidth = 800, UINT inHeight = 600);
 	void CleanUp();
+
 	GameResult LoadData();
 	void UnloadData();
+
 	GameResult RunLoop();
 	GameResult GameLoop();
 
@@ -55,7 +54,6 @@ public:
 	GameResult AddMesh(const std::string& inFileName, Mesh*& outMeshPtr, bool inIsSkeletal = false, bool inNeedToBeAligned = false);
 	void RemoveMesh(const std::string& inFileName);
 
-	//* Returns single-tone for GameWorld.
 	static GameWorld* GetWorld();
 
 	Renderer* GetRenderer() const;
@@ -69,8 +67,19 @@ public:
 
 	HWND GetMainWindowsHandle() const;
 
-	//* Processes window messages.
+#ifdef UsingVulkan
+	void MsgProc(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods);
+
+	void OnWindowFocusChanged(bool inState);
+#else
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	void OnMouseDown(WPARAM inBtnState, int inX, int inY);
+	void OnMouseUp(WPARAM inBtnState, int inX, int inY);
+	void OnMouseMove(WPARAM inBtnState, int inX, int inY);
+
+	void OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam);
+#endif
 
 private:
 	void ProcessInput(const GameTimer& gt, UINT inTid = 0);
@@ -79,18 +88,6 @@ private:
 
 	GameResult InitMainWindow();
 	GameResult OnResize();
-
-	///
-	// Call-back functions for mouse state.
-	///
-	void OnMouseDown(WPARAM inBtnState, int inX, int inY);
-	void OnMouseUp(WPARAM inBtnState, int inX, int inY);
-	void OnMouseMove(WPARAM inBtnState, int inX, int inY);
-
-	///
-	// Call-back functions for keyboard state.
-	///
-	void OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
 	static GameWorld* sWorld;
@@ -135,8 +132,6 @@ private:
 	std::vector<std::vector<Actor*>> mActors;
 	std::vector<std::vector<Actor*>> mPendingActors;
 	std::vector<bool> bUpdatingActors;
-
-	std::mutex mAddingActorMutex;
 
 	std::unique_ptr<CVBarrier> mCVBarrier;
 	std::unique_ptr<SpinlockBarrier> mSpinlockBarrier;

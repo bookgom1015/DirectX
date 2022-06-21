@@ -70,8 +70,8 @@ public:
 	bool GetIsDirty() const;
 	void SetActorClean();
 
-	UINT GetOwnerThreadID() const;
-	void SetOwnerThreadID(UINT inId);
+	UINT GetOwnerThreadId() const;
+	void SetOwnerThreadId(UINT inTid);
 
 private:
 	ActorState mState = ActorState::EActive;
@@ -88,5 +88,5 @@ private:
 
 	bool mIsDirty = false;
 
-	UINT mOwnerId;
+	UINT mOwnerTid;
 };

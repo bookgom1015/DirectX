@@ -431,9 +431,6 @@
     <None Include="..\..\Assets\Shaders\Waves.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
-    <None Include="..\..\Assets\Shaders\DefaultUsingGBuffer.hlsl">
-      <Filter>Shader Files\Dx</Filter>
-    </None>
     <None Include="..\..\Assets\Shaders\DrawGBuffer.hlsl">
       <Filter>Shader Files\Dx</Filter>
     </None>
@@ -458,5 +455,8 @@
     <None Include="..\..\Assets\Shaders\Bloom.hlsl" />
     <None Include="..\..\Assets\Shaders\BloomBlur.hlsl" />
     <None Include="..\..\Assets\Shaders\BloomCommon.hlsl" />
+    <None Include="..\..\Assets\Shaders\MainPass.hlsl">
+      <Filter>Shader Files\Dx</Filter>
+    </None>
   </ItemGroup>
 </Project>

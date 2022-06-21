@@ -480,8 +480,8 @@ void CrateApp::BuildDescriptorHeaps() {
 
 void CrateApp::BuildShadersAndInputLayout() {
 #if defined(Ex3) || defined(Ex4_Trans)
-	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\DefaultEx3.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\DefaultEx3.hlsl", nullptr, "PS", "ps_5_0");
+	mShaders["standardVS"] = d3dUtil::CompileShader(L".\\..\\..\\..\\..\\Assets\\Shaders\\Demos\\Crate\\DefaultEx3.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["opaquePS"] = d3dUtil::CompileShader(L".\\..\\..\\..\\..\\Assets\\Shaders\\Demos\\Crate\\DefaultEx3.hlsl", nullptr, "PS", "ps_5_0");
 #elif defined(Ex4_Shader)
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\DefaultEx4.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\DefaultEx4.hlsl", nullptr, "PS", "ps_5_0");

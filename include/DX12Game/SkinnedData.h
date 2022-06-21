@@ -2,31 +2,40 @@
 
 #include "DX12Game/GameCore.h"
 
-struct Bone {
-	Bone() = default;
-	Bone(const std::string inName, int inParentIndex,
-		const DirectX::XMFLOAT4X4& inLocalBindPose,
-		const DirectX::XMFLOAT4X4& inGlobalBindPose,
-		const DirectX::XMFLOAT4X4& inGlobalInvBindPose);
+namespace Game {
+	struct Bone;
+	class Skeleton;
+	class Animation;
+	class SkinnedData;
+}
 
+struct Game::Bone {
+public:
 	std::string Name;
 	int ParentIndex = -1;
 	DirectX::XMFLOAT4X4 LocalBindPose = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 GlobalBindPose = MathHelper::Identity4x4();
 	DirectX::XMFLOAT4X4 GlobalInvBindPose = MathHelper::Identity4x4();
+
+public:
+	Bone() = default;
+	Bone(const std::string inName, int inParentIndex,
+		const DirectX::XMFLOAT4X4& inLocalBindPose,
+		const DirectX::XMFLOAT4X4& inGlobalBindPose,
+		const DirectX::XMFLOAT4X4& inGlobalInvBindPose);
 };
 
-class Skeleton {
+class Game::Skeleton {
 public:
 	Skeleton() = default;
 	virtual ~Skeleton() = default;
 
 public:
 	// The bones in the skeleton.
-	std::vector<Bone> mBones;
+	std::vector<Game::Bone> mBones;
 };
 
-class Animation {
+class Game::Animation {
 public:
 	Animation() = default;
 	virtual ~Animation() = default;
@@ -44,7 +53,7 @@ public:
 	std::vector<std::vector<DirectX::XMFLOAT4X4>> mCurves;
 };
 
-class SkinnedData {
+class Game::SkinnedData {
 public:
 	SkinnedData() = default;
 	virtual ~SkinnedData() = default;
@@ -53,7 +62,7 @@ public:
 	float GetTimePosition(const std::string& inClipName, float inTime) const;
 
 public:
-	Skeleton mSkeleton;
+	Game::Skeleton mSkeleton;
 
-	std::unordered_map<std::string /* Clip name */, Animation> mAnimations;
+	std::unordered_map<std::string /* Clip name */, Game::Animation> mAnimations;
 };

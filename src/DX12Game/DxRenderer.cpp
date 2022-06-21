@@ -13,6 +13,7 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
+using namespace Game;
 
 namespace {
 	const float DefaultFontSize = 32;
@@ -161,14 +162,14 @@ GameResult DxRenderer::Initialize(
 	// Set blur weights.
 	//
 	auto blurWeights2_5 = BlurHelper::CalcGaussWeights(2.5f);
-	if (blurWeights2_5 == nullptr) return GameResultFalse;
+	if (blurWeights2_5 == nullptr) return GameResultFail;
 	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[0]));
 	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[4]));
 	mBlurWeights5.push_back(XMFLOAT4(&blurWeights2_5[8]));
 	delete[] blurWeights2_5;
 
 	auto blurWeights4_5 = BlurHelper::CalcGaussWeights(4.5f);
-	if (blurWeights4_5 == nullptr) return GameResultFalse;
+	if (blurWeights4_5 == nullptr) return GameResultFail;
 	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[0]));
 	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[4]));
 	mBlurWeights9.push_back(XMFLOAT4(&blurWeights4_5[8]));
@@ -177,7 +178,7 @@ GameResult DxRenderer::Initialize(
 	delete[] blurWeights4_5;
 
 	auto blurWeights8_5 = BlurHelper::CalcGaussWeights(8.5f);
-	if (blurWeights8_5 == nullptr) return GameResultFalse;
+	if (blurWeights8_5 == nullptr) return GameResultFail;
 	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[0]));
 	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[4]));
 	mBlurWeights17.push_back(XMFLOAT4(&blurWeights8_5[8]));
@@ -249,9 +250,7 @@ GameResult DxRenderer::Update(const GameTimer& gt, UINT inTid) {
 	SyncHost(mCVBarrier);
 
 	CheckGameResult(AnimateMaterials(gt, inTid));
-
 	CheckGameResult(UpdateObjectCBsAndInstanceBuffers(gt, inTid));
-
 	CheckGameResult(UpdateMaterialBuffers(gt, inTid));
 
 	if (inTid == 0) {
@@ -309,7 +308,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	DxLowRenderer::OnResize(inClientWidth, inClientHeight);
 
 	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist")
+		ReturnGameResult(E_POINTER, L"Main camera does not exist")
 
 		CheckGameResult(DxLowRenderer::OnResize(inClientWidth, inClientHeight));
 
@@ -1429,7 +1428,7 @@ GameResult DxRenderer::AnimateMaterials(const GameTimer& gt, UINT inTid) {
 
 GameResult DxRenderer::UpdateObjectCBsAndInstanceBuffers(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+		ReturnGameResult(E_POINTER, L"Main camera does not exist");
 
 	auto& currObjectCB = mCurrFrameResource->mObjectCB;
 
@@ -1513,7 +1512,7 @@ GameResult DxRenderer::UpdateMaterialBuffers(const GameTimer& gt, UINT inTid) {
 
 GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+		ReturnGameResult(E_POINTER, L"Main camera does not exist");
 
 	XMFLOAT3 camPos = { 0.0f, 0.0f, 0.0f };
 	XMFLOAT3 dirf = { 0.0f, 0.0f, 0.0f };
@@ -1569,7 +1568,7 @@ GameResult DxRenderer::UpdateShadowTransform(const GameTimer& gt, UINT inTid) {
 
 GameResult DxRenderer::UpdateMainPassCB(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+		ReturnGameResult(E_POINTER, L"Main camera does not exist");
 
 	XMMATRIX view = mMainCamera->GetView();
 	XMMATRIX proj = mMainCamera->GetProj();
@@ -1667,7 +1666,7 @@ GameResult DxRenderer::UpdatePostPassCB(const GameTimer& gt, UINT inTid) {
 
 GameResult DxRenderer::UpdateSsaoCB(const GameTimer& gt, UINT inTid) {
 	if (!mMainCamera)
-		ReturnGameResult(S_FALSE, L"Main camera does not exist");
+		ReturnGameResult(E_POINTER, L"Main camera does not exist");
 
 	SsaoConstants ssaoCB;
 
@@ -2088,7 +2087,7 @@ GameResult DxRenderer::BuildShaders() {
 		CheckGameResult(mShaderManager.CompileShader(filePath, AlphaTestDefines, "PS", "ps_5_1", "gbufferPS"));
 	}
 	{
-		const std::wstring filePath = ShaderFilePathW + L"DefaultUsingGBuffer.hlsl";
+		const std::wstring filePath = ShaderFilePathW + L"MainPass.hlsl";
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "VS", "vs_5_1", "mainPassVS"));
 		CheckGameResult(mShaderManager.CompileShader(filePath, nullptr, "PS", "ps_5_1", "mainPassPS"));
 	}

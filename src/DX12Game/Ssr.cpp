@@ -94,7 +94,7 @@ void Ssr::RebuildDescriptors() {
 
 void Ssr::ComputeSsr(
 		ID3D12GraphicsCommandList*	outCmdList,
-		const FrameResource*		inCurrFrame,
+		const Game::FrameResource*		inCurrFrame,
 		int							inBlurCount) {
 	outCmdList->SetPipelineState(mSsrPso);
 
@@ -151,7 +151,7 @@ void Ssr::SetPSOs(ID3D12PipelineState* inSsrPso, ID3D12PipelineState* inSsrBlurP
 	mBlurPso = inSsrBlurPso;
 }
 
-void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
+void Ssr::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount) {
 	outCmdList->SetPipelineState(mBlurPso);
 
 	auto ssrCBAddress = inCurrFrame->mSsrCB.Resource()->GetGPUVirtualAddress();

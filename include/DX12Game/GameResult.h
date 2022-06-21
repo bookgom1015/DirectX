@@ -36,14 +36,14 @@ public:
 };
 
 static GameResult __STATIC_GAMERESULT_OK(S_OK);
-static GameResult __STATIC_GAMERESULT_FALSE(S_FALSE);
+static GameResult __STATIC_GAMERESULT_FAIL(E_FAIL);
 
 #ifndef GameResultOk
 	#define GameResultOk __STATIC_GAMERESULT_OK
 #endif
 
-#ifndef GameResultFalse
-	#define GameResultFalse __STATIC_GAMERESULT_FALSE
+#ifndef GameResultFail
+	#define GameResultFail __STATIC_GAMERESULT_FAIL
 #endif
 
 #ifndef ReturnGameResult
@@ -58,15 +58,20 @@ static GameResult __STATIC_GAMERESULT_FALSE(S_FALSE);
 #endif
 
 #ifndef CheckGameResult
-	#define CheckGameResult(__statement)										\
-		{																		\
-			GameResult __result = (__statement);								\
-			if (FAILED(__result.hr)) {											\
-				std::wstringstream __wsstream_CGR;								\
-				__wsstream_CGR << __FILE__ << L"; line: " << __LINE__ << L';';	\
-				WLogln(__wsstream_CGR.str());									\
-				return __result;												\
-			}																	\
+	#define CheckGameResult(__statement)											\
+		{																			\
+			try {																	\
+				GameResult __result = (__statement);								\
+				if (FAILED(__result.hr)) {											\
+					std::wstringstream __wsstream_CGR;								\
+					__wsstream_CGR << __FILE__ << L"; line: " << __LINE__ << L';';	\
+					WLogln(__wsstream_CGR.str());									\
+					return __result;												\
+				}																	\
+			}																		\
+			catch (const std::exception& e) {										\
+				ReturnGameResult(E_UNEXPECTED, e.what());							\
+			}																		\
 		}
 #endif
 
@@ -101,11 +106,11 @@ static GameResult __STATIC_GAMERESULT_FALSE(S_FALSE);
 		if (__pBarrier != nullptr) {									\
 			bool terminated = __pBarrier->Wait();						\
 			if (terminated) {											\
-				return GameResultFalse;									\
+				return GameResultFail;									\
 			}															\
 		}																\
 		else {															\
-			ReturnGameResult(S_FALSE, L#__pBarrier L" is nullptr");		\
+			ReturnGameResult(E_POINTER, L#__pBarrier L" is nullptr");	\
 		}																\
 	}
 #endif

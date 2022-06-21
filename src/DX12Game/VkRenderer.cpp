@@ -20,7 +20,7 @@ namespace {
 			}
 		}
 
-		ReturnGameResult(S_FALSE, L"Failed to find suitable memory type");
+		ReturnGameResult(E_NOINTERFACE, L"Failed to find suitable memory type");
 	}
 
 	VkCommandBuffer BeginSingleTimeCommands(VkDevice inDevice, VkCommandPool inCommandPool) {
@@ -72,7 +72,7 @@ namespace {
 		bufferInfo.flags = 0;
 
 		if (vkCreateBuffer(inDevice, &bufferInfo, nullptr, &outBuffer) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create vertex buffer");
+			ReturnGameResult(E_FAIL, L"Failed to create vertex buffer");
 
 		VkMemoryRequirements memRequirements;
 		vkGetBufferMemoryRequirements(inDevice, outBuffer, &memRequirements);
@@ -87,7 +87,7 @@ namespace {
 			allocInfo.memoryTypeIndex));
 
 		if (vkAllocateMemory(inDevice, &allocInfo, nullptr, &outBufferMemory) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to allocate vertex buffer memory");
+			ReturnGameResult(E_OUTOFMEMORY, L"Failed to allocate vertex buffer memory");
 
 		vkBindBufferMemory(inDevice, outBuffer, outBufferMemory, 0);
 
@@ -142,7 +142,7 @@ namespace {
 		imageInfo.flags = 0;
 
 		if (vkCreateImage(inDevice, &imageInfo, nullptr, &inImage) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create image");
+			ReturnGameResult(E_FAIL, L"Failed to create image");
 
 		VkMemoryRequirements memRequirements;
 		vkGetImageMemoryRequirements(inDevice, inImage, &memRequirements);
@@ -153,7 +153,7 @@ namespace {
 		CheckGameResult(FindMemoryType(inPhysicalDevice, memRequirements.memoryTypeBits, inProperties, allocInfo.memoryTypeIndex));
 
 		if (vkAllocateMemory(inDevice, &allocInfo, nullptr, &inImageMemory) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to allocate texture image memory");
+			ReturnGameResult(E_OUTOFMEMORY, L"Failed to allocate texture image memory");
 
 		vkBindImageMemory(inDevice, inImage, inImageMemory, 0);
 
@@ -223,7 +223,7 @@ namespace {
 			destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		}
 		else {
-			ReturnGameResult(S_FALSE, L"Unsupported layout transition");
+			ReturnGameResult(E_NOINTERFACE, L"Unsupported layout transition");
 		}
 
 		barrier.srcAccessMask = 0;
@@ -296,7 +296,7 @@ namespace {
 		viewInfo.subresourceRange.layerCount = 1;
 
 		if (vkCreateImageView(inDevice, &viewInfo, nullptr, &outImageView) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create texture image view");
+			ReturnGameResult(E_FAIL, L"Failed to create texture image view");
 
 		return GameResultOk;
 	}
@@ -321,7 +321,7 @@ namespace {
 			}
 		}
 
-		ReturnGameResult(S_FALSE, L"Failed to find suported format");
+		ReturnGameResult(E_NOINTERFACE, L"Failed to find suported format");
 	}
 
 	GameResult FindDepthFormat(VkPhysicalDevice inDevice, VkFormat& outFormat) {
@@ -350,7 +350,7 @@ namespace {
 		vkGetPhysicalDeviceFormatProperties(inPhysicalDevice, inFormat, &formatProperties);
 
 		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
-			ReturnGameResult(S_FALSE, L"Texture image format does not support linear bliting");
+			ReturnGameResult(E_NOINTERFACE, L"Texture image format does not support linear bliting");
 
 		VkCommandBuffer commandBuffer = BeginSingleTimeCommands(inDevice, inCommandPool);
 
@@ -562,7 +562,7 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 		return GameResultOk;
 	}
 	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-		ReturnGameResult(S_FALSE, L"Failed to acquire swap chain image");
+		ReturnGameResult(E_FAIL, L"Failed to acquire swap chain image");
 	}
 
 	if (mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
@@ -597,7 +597,7 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 	vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
 
 	if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to submit draw command buffer");
+		ReturnGameResult(E_FAIL, L"Failed to submit draw command buffer");
 
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -616,7 +616,7 @@ GameResult VkRenderer::Draw(const GameTimer& gt, UINT inTid) {
 		RecreateSwapChain();
 	}
 	else if (result != VK_SUCCESS) {
-		ReturnGameResult(S_FALSE, L"Failed to present swap chain image");
+		ReturnGameResult(E_FAIL, L"Failed to present swap chain image");
 	}
 
 	mCurrentFrame = (mCurrentFrame + 1) % SwapChainImageCount;
@@ -670,7 +670,7 @@ GameResult VkRenderer::AddMaterials(const std::unordered_map<std::string, Materi
 	return GameResultOk;
 }
 
-UINT VkRenderer::AddAnimations(const std::string& inClipName, const Animation& inAnim) {
+UINT VkRenderer::AddAnimations(const std::string& inClipName, const Game::Animation& inAnim) {
 
 	return 0;
 }
@@ -761,7 +761,7 @@ GameResult VkRenderer::CreateRenderPass() {
 	renderPassInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create render pass");
+		ReturnGameResult(E_FAIL, L"Failed to create render pass");
 
 	return GameResultOk;
 }
@@ -786,7 +786,7 @@ GameResult VkRenderer::CreateFramebuffers() {
 		framebufferInfo.layers = 1;
 
 		if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapChainFramebuffers[i]) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create framebuffer");
+			ReturnGameResult(E_FAIL, L"Failed to create framebuffer");
 	}
 
 	return GameResultOk;
@@ -801,7 +801,7 @@ GameResult VkRenderer::CreateCommandPool() {
 	poolInfo.flags = 0;
 
 	if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create command pool");
+		ReturnGameResult(E_FAIL, L"Failed to create command pool");
 
 	return GameResultOk;
 }
@@ -883,7 +883,7 @@ GameResult VkRenderer::CreateTextureImage() {
 
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-	if (!pixels) ReturnGameResult(S_FALSE, L"Failed to load texture image");
+	if (!pixels) ReturnGameResult(E_FAIL, L"Failed to load texture image");
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -989,7 +989,7 @@ GameResult VkRenderer::CreateTextureSampler() {
 	samplerInfo.maxLod = static_cast<float>(mMipLevels);
 
 	if (vkCreateSampler(mDevice, &samplerInfo, nullptr, &mTextureSampler) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create texture sampler");
+		ReturnGameResult(E_FAIL, L"Failed to create texture sampler");
 
 	return GameResultOk;
 }
@@ -1017,7 +1017,7 @@ GameResult VkRenderer::CreateDescriptorSetLayout() {
 	layoutInfo.pBindings = bindings.data();
 
 	if (vkCreateDescriptorSetLayout(mDevice, &layoutInfo, nullptr, &mDescriptorSetLayout) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create descriptor set layout");
+		ReturnGameResult(E_FAIL, L"Failed to create descriptor set layout");
 
 	return GameResultOk;
 }
@@ -1140,7 +1140,7 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
 	if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create pipeline layout");
+		ReturnGameResult(E_FAIL, L"Failed to create pipeline layout");
 
 	VkPipelineDepthStencilStateCreateInfo depthStencil = {};
 	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -1173,7 +1173,7 @@ GameResult VkRenderer::CreateGraphicsPipeline() {
 	pipelineInfo.basePipelineIndex = -1;
 
 	if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create graphics pipeline");
+		ReturnGameResult(E_FAIL, L"Failed to create graphics pipeline");
 
 	vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
 	vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
@@ -1289,7 +1289,7 @@ GameResult VkRenderer::CreateDescriptorPool() {
 	poolInfo.flags = 0;
 
 	if (vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create descriptor pool");
+		ReturnGameResult(E_FAIL, L"Failed to create descriptor pool");
 
 	return GameResultOk;
 }
@@ -1305,7 +1305,7 @@ GameResult VkRenderer::CreateDescriptorSets() {
 
 	mDescriptorSets.resize(SwapChainImageCount);
 	if (vkAllocateDescriptorSets(mDevice, &allocInfo, mDescriptorSets.data()) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to allocate descriptor sets");
+		ReturnGameResult(E_FAIL, L"Failed to allocate descriptor sets");
 
 	for (size_t i = 0; i < SwapChainImageCount; ++i) {
 		VkDescriptorBufferInfo bufferInfo = {};
@@ -1351,7 +1351,7 @@ GameResult VkRenderer::CreateCommandBuffers() {
 	allocInfo.commandBufferCount = static_cast<std::uint32_t>(mCommandBuffers.size());
 
 	if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create command buffers");
+		ReturnGameResult(E_FAIL, L"Failed to create command buffers");
 
 	for (size_t i = 0, end = mCommandBuffers.size(); i < end; ++i) {
 		VkCommandBufferBeginInfo beginInfo = {};
@@ -1360,7 +1360,7 @@ GameResult VkRenderer::CreateCommandBuffers() {
 		beginInfo.pInheritanceInfo = nullptr;
 
 		if (vkBeginCommandBuffer(mCommandBuffers[i], &beginInfo) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to begin recording command buffer");
+			ReturnGameResult(E_FAIL, L"Failed to begin recording command buffer");
 
 		VkRenderPassBeginInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -1395,7 +1395,7 @@ GameResult VkRenderer::CreateCommandBuffers() {
 		vkCmdEndRenderPass(mCommandBuffers[i]);
 
 		if (vkEndCommandBuffer(mCommandBuffers[i]) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to record command buffer");
+			ReturnGameResult(E_FAIL, L"Failed to record command buffer");
 	}
 
 	return GameResultOk;
@@ -1418,7 +1418,7 @@ GameResult VkRenderer::CreateSyncObjects() {
 		if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageAvailableSemaphores[i]) != VK_SUCCESS ||
 			vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinishedSemaphores[i]) != VK_SUCCESS ||
 			vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS)
-			ReturnGameResult(S_FALSE, L"Failed to create synchronization object(s) for a frame");
+			ReturnGameResult(E_FAIL, L"Failed to create synchronization object(s) for a frame");
 	}
 
 	return GameResultOk;
@@ -1508,7 +1508,7 @@ GameResult VkRenderer::LoadModel() {
 	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, ModelPath.c_str())) {
 		std::wstringstream wsstream;
 		wsstream << warn.c_str() << err.c_str();
-		ReturnGameResult(S_FALSE, wsstream.str());
+		ReturnGameResult(E_FAIL, wsstream.str());
 	}
 
 	for (const auto& shape : shapes) {

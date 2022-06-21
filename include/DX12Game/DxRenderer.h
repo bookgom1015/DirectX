@@ -24,8 +24,8 @@
 #include "DX12Game/MainPass.h"
 #include "DX12Game/Bloom.h"
 
-class Mesh;
-class Animation;
+//class Mesh;
+//class Animation;
 
 class DxRenderer : public DxLowRenderer, public Renderer {
 private:
@@ -76,7 +76,7 @@ private:
 			DirectX::BoundingSphere mSphere;
 		} mBoundingUnion;
 
-		std::vector<InstanceData> mInstances;
+		std::vector<Game::InstanceData> mInstances;
 
 		// DrawIndexedInstanced parameters.
 		UINT mIndexCount = 0;
@@ -181,7 +181,7 @@ public:
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) override;
 	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) override;
 
-	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
+	virtual UINT AddAnimations(const std::string& inClipName, const Game::Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
 
 protected:
@@ -265,8 +265,8 @@ private:
 private:
 	bool bIsCleaned = false;
 
-	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
-	FrameResource* mCurrFrameResource = nullptr;
+	std::vector<std::unique_ptr<Game::FrameResource>> mFrameResources;
+	Game::FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeap = nullptr;
@@ -305,8 +305,8 @@ private:
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
 
-	PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
-	PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
+	Game::PassConstants mMainPassCB;		// Index 0 of pass cbuffer.
+	Game::PassConstants mShadowPassCB;	// Index 1 of pass cbuffer.
 
 	GBuffer mGBuffer;
 	ShadowMap mShadowMap;

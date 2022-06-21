@@ -54,7 +54,7 @@ public:
 	///</summary>
 	void ComputeSsao(
 		ID3D12GraphicsCommandList* outCmdList,
-		const FrameResource* inCurrFrame,
+		const Game::FrameResource* inCurrFrame,
 		int inBlurCount);
 
 	UINT GetSsaoMapWidth() const;
@@ -75,7 +75,7 @@ private:
 	/// few random samples per pixel.  We use an edge preserving blur so that 
 	/// we do not blur across discontinuities--we want edges to remain edges.
 	///</summary>
-	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount);
 	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);
 
 	GameResult BuildResources();

@@ -111,7 +111,7 @@ GameResult VkLowRenderer::CreateShaderModule(const std::vector<char>& inCode, Vk
 	createInfo.pCode = reinterpret_cast<const std::uint32_t*>(inCode.data());
 
 	if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &outModule) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create shader module");
+		ReturnGameResult(E_FAIL, L"Failed to create shader module");
 
 	return GameResultOk;
 }
@@ -237,7 +237,7 @@ GameResult VkLowRenderer::CheckValidationLayersSupport() {
 		for (const auto& layerName : unsupportedLayer)
 			wsstream << layerName << L" is not supported" << std::endl;
 
-		ReturnGameResult(S_FALSE, wsstream.str());
+		ReturnGameResult(E_FAIL, wsstream.str());
 	}
 
 	return GameResultOk;
@@ -445,7 +445,7 @@ GameResult VkLowRenderer::CreateInstance() {
 		if (missingExtensions.size() > 0) {
 			for (const auto& missingExt : missingExtensions)
 				Logln("                    ", missingExt);
-			ReturnGameResult(S_FALSE, L"that extensions are not supported");
+			ReturnGameResult(E_FAIL, L"that extensions are not supported");
 		}
 		else {
 			Logln("                    None");
@@ -468,7 +468,7 @@ GameResult VkLowRenderer::CreateInstance() {
 	}
 
 	if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create instance");
+		ReturnGameResult(E_FAIL, L"Failed to create instance");
 
 	return GameResultOk;
 }
@@ -481,14 +481,14 @@ GameResult VkLowRenderer::SetUpDebugMessenger() {
 	PopulateDebugMessengerCreateInfo(createInfo);
 
 	if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create debug messenger");
+		ReturnGameResult(E_FAIL, L"Failed to create debug messenger");
 
 	return GameResultOk;
 }
 
 GameResult VkLowRenderer::CreateSurface() {
 	if (glfwCreateWindowSurface(mInstance, mMainWindow, nullptr, &mSurface) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create window surface");
+		ReturnGameResult(E_FAIL, L"Failed to create window surface");
 
 	return GameResultOk;
 }
@@ -497,7 +497,7 @@ GameResult VkLowRenderer::PickPhysicalDevice() {
 	std::uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(mInstance, &deviceCount, nullptr);
 	if (deviceCount == 0)
-		ReturnGameResult(S_FALSE, L"Failed to find GPUs with Vulkan support");
+		ReturnGameResult(E_FAIL, L"Failed to find GPUs with Vulkan support");
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
@@ -516,7 +516,7 @@ GameResult VkLowRenderer::PickPhysicalDevice() {
 		WLogln(L"[VkLowRenderer] Mutil Sample Counts: ", std::to_wstring(mMsaaSamples));
 	}
 	else
-		ReturnGameResult(S_FALSE, L"Failed to find a suitable GPU");
+		ReturnGameResult(E_FAIL, L"Failed to find a suitable GPU");
 
 	return GameResultOk;
 }
@@ -561,7 +561,7 @@ GameResult VkLowRenderer::CreateLogicalDevice() {
 	}
 
 	if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create logical device");
+		ReturnGameResult(E_FAIL, L"Failed to create logical device");
 
 	vkGetDeviceQueue(mDevice, indices.GetGraphicsFamilyIndex(), 0, &mGraphicsQueue);
 	vkGetDeviceQueue(mDevice, indices.GetPresentFamilyIndex(), 0, &mPresentQueue);
@@ -617,7 +617,7 @@ GameResult VkLowRenderer::CreateSwapChain() {
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
 	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapChain) != VK_SUCCESS)
-		ReturnGameResult(S_FALSE, L"Failed to create swap chain");
+		ReturnGameResult(E_FAIL, L"Failed to create swap chain");
 
 	vkGetSwapchainImagesKHR(mDevice, mSwapChain, &imageCount, nullptr);
 	mSwapChainImages.resize(imageCount);

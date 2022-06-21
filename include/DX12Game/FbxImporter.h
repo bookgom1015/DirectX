@@ -15,7 +15,16 @@
 
 #include "common/MathHelper.h"
 
-struct DxFbxVertex {
+namespace Game {
+	struct FbxVertex;
+	struct FbxMaterial;
+	struct FbxBone;
+	class FbxSkeleton;
+	class FbxAnimation;
+	class FbxImporter;
+}
+
+struct Game::FbxVertex {
 public:
 	DirectX::XMFLOAT3 mPos;
 	DirectX::XMFLOAT3 mNormal;
@@ -25,20 +34,20 @@ public:
 	int mBoneIndices[8];
 
 public:
-	DxFbxVertex(
-		DirectX::XMFLOAT3 inPos			= { 0.0f, 0.0f, 0.0f },
-		DirectX::XMFLOAT3 inNormal		= { 0.0f, 0.0f, 0.0f },
-		DirectX::XMFLOAT2 inTexC		= { 0.0f, 0.0f },
-		DirectX::XMFLOAT3 inTangentU	= { 0.0f, 0.0f, 0.0f }
+	FbxVertex(
+		DirectX::XMFLOAT3 inPos = { 0.0f, 0.0f, 0.0f },
+		DirectX::XMFLOAT3 inNormal = { 0.0f, 0.0f, 0.0f },
+		DirectX::XMFLOAT2 inTexC = { 0.0f, 0.0f },
+		DirectX::XMFLOAT3 inTangentU = { 0.0f, 0.0f, 0.0f }
 	);
 
 public:
-	friend bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs);
+	friend bool operator==(const Game::FbxVertex& lhs, const Game::FbxVertex& rhs);
 };
 
 namespace std {
-	template<> struct hash<DxFbxVertex> {
-		size_t operator()(DxFbxVertex const& vertex) const {
+	template<> struct hash<Game::FbxVertex> {
+		size_t operator()(Game::FbxVertex const& vertex) const {
 			size_t pos = static_cast<size_t>(vertex.mPos.x + vertex.mPos.y + vertex.mPos.z);
 			size_t normal = static_cast<size_t>(vertex.mNormal.x + vertex.mNormal.y + vertex.mNormal.z);
 			size_t texC = static_cast<size_t>(vertex.mTexC.x + vertex.mTexC.y);
@@ -49,7 +58,7 @@ namespace std {
 	};
 }
 
-struct DxFbxMaterial {
+struct Game::FbxMaterial {
 public:
 	std::string mMaterialName;
 	std::string mDiffuseMapFileName;
@@ -63,10 +72,10 @@ public:
 	float mRoughness;
 
 public:
-	DxFbxMaterial();
+	FbxMaterial();
 };
 
-struct DxFbxBone {
+struct Game::FbxBone {
 public:
 	std::string mName;
 	int mParentIndex;
@@ -80,28 +89,28 @@ public:
 	fbxsdk::FbxAMatrix mFbxGlobalInvBindPose;
 
 public:
-	DxFbxBone();
+	FbxBone();
 };
 
-class DxFbxSkeleton {
+class Game::FbxSkeleton {
 public:
-	DxFbxSkeleton() = default;
-	virtual ~DxFbxSkeleton() = default;
+	FbxSkeleton() = default;
+	virtual ~FbxSkeleton() = default;
 
 public:
-	const std::vector<DxFbxBone>& GetBones() const;
+	const std::vector<FbxBone>& GetBones() const;
 	size_t GetNumBones() const;
 
 private:
-	friend class DxFbxImporter;
+	friend class Game::FbxImporter;
 
-	std::vector<DxFbxBone> mBones;
+	std::vector<Game::FbxBone> mBones;
 };
 
-class DxFbxAnimation {
+class Game::FbxAnimation {
 public:
-	DxFbxAnimation() = default;
-	virtual ~DxFbxAnimation() = default;
+	FbxAnimation() = default;
+	virtual ~FbxAnimation() = default;
 
 public:
 	size_t GetNumFrames() const;
@@ -110,7 +119,7 @@ public:
 	const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& GetCurves() const;
 
 private:
-	friend class DxFbxImporter;
+	friend class Game::FbxImporter;
 
 	// Number of frames in the animation
 	size_t mNumFrames = 0;
@@ -123,7 +132,7 @@ private:
 	std::unordered_map<int /* Parent Bone index */, std::vector<fbxsdk::FbxAMatrix>> mParentGlobalTransforms;
 };
 
-class DxFbxImporter {
+class Game::FbxImporter {
 private:
 	struct BoneIndexWeight {
 		int mBoneIndex = -1;
@@ -135,25 +144,25 @@ private:
 	};
 
 public:
-	DxFbxImporter();
-	virtual ~DxFbxImporter();
+	FbxImporter();
+	virtual ~FbxImporter();
 
 private:
-	DxFbxImporter(const DxFbxImporter& src) = delete;
-	DxFbxImporter(DxFbxImporter&& src) = delete;
-	DxFbxImporter& operator=(const DxFbxImporter& rhs) = delete;
-	DxFbxImporter& operator=(DxFbxImporter&& rhs) = delete;
+	FbxImporter(const Game::FbxImporter& src) = delete;
+	FbxImporter(Game::FbxImporter&& src) = delete;
+	Game::FbxImporter& operator=(const Game::FbxImporter& rhs) = delete;
+	Game::FbxImporter& operator=(Game::FbxImporter&& rhs) = delete;
 
 public:
 	bool LoadDataFromFile(const std::string& inFileName);
 
-	const std::vector<DxFbxVertex>& GetVertices() const;
+	const std::vector<Game::FbxVertex>& GetVertices() const;
 	const std::vector<std::uint32_t>& GetIndices() const;
 	const std::vector<std::string>& GetSubsetNames() const;
 	const std::vector<std::pair<UINT, UINT>>& GetSubsets() const;
-	const std::unordered_map<std::string, DxFbxMaterial>& GetMaterials() const;
-	const DxFbxSkeleton& GetSkeleton() const;
-	const std::unordered_map<std::string, DxFbxAnimation>& GetAnimations() const;
+	const std::unordered_map<std::string, Game::FbxMaterial>& GetMaterials() const;
+	const Game::FbxSkeleton& GetSkeleton() const;
+	const std::unordered_map<std::string, Game::FbxAnimation>& GetAnimations() const;
 
 private:
 	//* Initializes fbx sdk(The app crashes when triangulating geometry).
@@ -182,8 +191,8 @@ private:
 	UINT FindBoneIndexUsingName(const std::string& inBoneName);
 
 	//* Build local, global and global inverse bind pose for each bone in skeleton.
-	void BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsdk::FbxAMatrix& inGeometryTransform, 
-						   UINT inClusterIndex, int inParentIndex, const DxFbxSkeleton& inSkeleton, DxFbxBone& outBone);
+	void BuildBindPoseData(fbxsdk::FbxCluster* inCluster, const fbxsdk::FbxAMatrix& inGeometryTransform,
+		UINT inClusterIndex, int inParentIndex, const Game::FbxSkeleton& inSkeleton, Game::FbxBone& outBone);
 	//* Builds weigths for each control point.
 	//* Each cluster has control points that is affected by it.
 	//* So the app need to iterate all the meshes that is existed and extract clusters affecting the mesh.
@@ -192,39 +201,39 @@ private:
 	//   and FbxAnimCurve-set in FbxAnimLayer-set.
 	//* After loads FbxAnimCurve-set, calls the function BuildAnimationKeyFrames
 	//   to build global transform(to-root) matrix at each frame.
-	void BuildAnimations(fbxsdk::FbxNode* inNode, fbxsdk::FbxCluster* inCluster, 
+	void BuildAnimations(fbxsdk::FbxNode* inNode, fbxsdk::FbxCluster* inCluster,
 		const fbxsdk::FbxAMatrix& inGeometryTransform, UINT inClusterIndex, int inParentIndex);
 	//* Helper class for the function BuildAnimations.
 	//* Loads TRS-components in FbxAnimCurve at each frame to build global transform(to-root).
 	void BuildAnimationKeyFrames(fbxsdk::FbxAnimLayer* inAnimLayer, fbxsdk::FbxNode* inNode, fbxsdk::FbxCluster* inCluster,
-								 const fbxsdk::FbxAMatrix& inGeometryTransform, fbxsdk::FbxTakeInfo* inTakeInfo, 
-								 DxFbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex);
+		const fbxsdk::FbxAMatrix& inGeometryTransform, fbxsdk::FbxTakeInfo* inTakeInfo,
+		Game::FbxAnimation& outAnimation, UINT inClusterIndex, int inParentIndex);
 	//* Deprecated.
 	void BuildAnimationKeyFrames(fbxsdk::FbxTakeInfo* inTakeInfo, fbxsdk::FbxCluster* inCluster, fbxsdk::FbxNode* inNode,
-								 fbxsdk::FbxAMatrix inGeometryTransform, DxFbxAnimation& outAnimation, 
-								 UINT inClusterIndex, int inParentIndex);
+		fbxsdk::FbxAMatrix inGeometryTransform, Game::FbxAnimation& outAnimation,
+		UINT inClusterIndex, int inParentIndex);
 
 private:
 	fbxsdk::FbxManager* mFbxManager;
 	fbxsdk::FbxIOSettings* mFbxIos;
 	fbxsdk::FbxScene* mFbxScene;
 
-	std::unordered_map<DxFbxVertex, std::uint32_t> mUniqueVertices;
-	std::vector<DxFbxVertex> mVertices;
+	std::unordered_map<FbxVertex, std::uint32_t> mUniqueVertices;
+	std::vector<FbxVertex> mVertices;
 	std::vector<std::uint32_t> mIndices;
 
 	std::vector<std::string> mSubsetNames;
 	std::vector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
 
-	std::unordered_map<std::string /* Submesh name */, DxFbxMaterial> mMaterials;
+	std::unordered_map<std::string /* Submesh name */, Game::FbxMaterial> mMaterials;
 
-	DxFbxSkeleton mSkeleton;
+	Game::FbxSkeleton mSkeleton;
 
 	std::unordered_map<std::string /* Submesh name */,
-					   std::unordered_map<int /* Control point index */,
-					   std::vector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
+		std::unordered_map<int /* Control point index */,
+		std::vector<BoneIndexWeight> /* Max size: 8 */>> mControlPointsWeights;
 
-	std::unordered_map<std::string /* Clip name */, DxFbxAnimation> mAnimations;
+	std::unordered_map<std::string /* Clip name */, Game::FbxAnimation> mAnimations;
 
 	std::unordered_map<UINT /* Bone index */, fbxsdk::FbxCluster*> mClusters;
 	std::vector<UINT /* BOne index */> mNestedClusters;

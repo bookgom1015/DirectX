@@ -14,9 +14,9 @@
 //#define Ex1_Clamp
 //#define Ex1_Mirror
 //#define Ex2
-#define Ex2_Linear
+//#define Ex2_Linear
 //#define Ex3
-//#define Ex4_Trans
+#define Ex4_Trans
 //#define Ex4_Shader
 //#define Ex6
 

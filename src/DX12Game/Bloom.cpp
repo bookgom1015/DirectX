@@ -67,7 +67,7 @@ void Bloom::RebuildDescriptors() {
 	md3dDevice->CreateRenderTargetView(mAdditionalMap.Get(), &rtvDesc, mhAdditionalMapCpuRtv);
 }
 
-void Bloom::ComputeBloom(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
+void Bloom::ComputeBloom(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount) {
 	outCmdList->SetPipelineState(mBloomPso);
 
 	outCmdList->RSSetViewports(1, &mViewport);
@@ -220,7 +220,7 @@ GameResult Bloom::BuildResources() {
 	return GameResultOk;
 }
 
-void Bloom::BlurBloomMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
+void Bloom::BlurBloomMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount) {
 	outCmdList->SetPipelineState(mBlurPso);
 
 	auto bloomCBAddress = inCurrFrame->mBloomCB.Resource()->GetGPUVirtualAddress();

@@ -73,7 +73,7 @@ public:
 	virtual void AddRenderItem(std::string& ioRenderItemName, const Mesh* inMesh) override;
 	virtual GameResult AddMaterials(const std::unordered_map<std::string, MaterialIn>& inMaterials) override;
 
-	virtual UINT AddAnimations(const std::string& inClipName, const Animation& inAnim) override;
+	virtual UINT AddAnimations(const std::string& inClipName, const Game::Animation& inAnim) override;
 	virtual GameResult UpdateAnimationsMap() override;
 
 protected:

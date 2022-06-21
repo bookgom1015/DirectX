@@ -108,7 +108,7 @@ GameResult Ssao::OnResize(UINT inNewWidth, UINT inNewHeight) {
 
 void Ssao::ComputeSsao(
 		ID3D12GraphicsCommandList* outCmdList,
-		const FrameResource* inCurrFrame,
+		const Game::FrameResource* inCurrFrame,
 		int inBlurCount) {
 	outCmdList->SetPipelineState(mSsaoPso);
 
@@ -191,7 +191,7 @@ DXGI_FORMAT Ssao::GetNormalMapFormat() const {
 	return mNormalMapFormat;
 }
 
-void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount) {
+void Ssao::BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount) {
 	outCmdList->SetPipelineState(mBlurPso);
 
 	auto ssaoCBAddress = inCurrFrame->mSsaoCB.Resource()->GetGPUVirtualAddress();

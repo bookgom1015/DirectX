@@ -44,11 +44,11 @@ void CameraComponent::LookAt(const XMFLOAT3& inPos, const XMFLOAT3& inTarget, co
 	mCamera->LookAt(inPos, inTarget, inUp);
 }
 
-DirectX::XMVECTOR CameraComponent::GetPosition() const {
+XMVECTOR CameraComponent::GetPosition() const {
 	return mCamera->GetPosition();
 }
 
-DirectX::XMFLOAT3 CameraComponent::GetPosition3f() const {
+XMFLOAT3 CameraComponent::GetPosition3f() const {
 	return mCamera->GetPosition3f();
 }
 
@@ -64,27 +64,27 @@ void CameraComponent::SetPosition(const XMFLOAT3& inV) {
 	mCamera->SetPosition(inV);
 }
 
-DirectX::XMVECTOR CameraComponent::GetRight() const {
+XMVECTOR CameraComponent::GetRight() const {
 	return mCamera->GetRight();
 }
 
-DirectX::XMFLOAT3 CameraComponent::GetRight3f() const {
+XMFLOAT3 CameraComponent::GetRight3f() const {
 	return mCamera->GetRight3f();
 }
 
-DirectX::XMVECTOR CameraComponent::GetUp() const {
+XMVECTOR CameraComponent::GetUp() const {
 	return mCamera->GetUp();
 }
 
-DirectX::XMFLOAT3 CameraComponent::GetUp3f() const {
+XMFLOAT3 CameraComponent::GetUp3f() const {
 	return mCamera->GetUp3f();
 }
 
-DirectX::XMVECTOR CameraComponent::GetLook() const {
+XMVECTOR CameraComponent::GetLook() const {
 	return mCamera->GetLook();
 }
 
-DirectX::XMFLOAT3 CameraComponent::GetLook3f() const {
+XMFLOAT3 CameraComponent::GetLook3f() const {
 	return mCamera->GetLook3f();
 }
 
@@ -124,19 +124,19 @@ float CameraComponent::GetFarWindowHeight() const {
 	return mCamera->GetFarWindowHeight();
 }
 
-DirectX::XMMATRIX CameraComponent::GetView() const {
+XMMATRIX CameraComponent::GetView() const {
 	return mCamera->GetView();
 }
 
-DirectX::XMMATRIX CameraComponent::GetProj() const {
+XMMATRIX CameraComponent::GetProj() const {
 	return mCamera->GetProj();
 }
 
-DirectX::XMFLOAT4X4 CameraComponent::GetView4x4f() const {
+XMFLOAT4X4 CameraComponent::GetView4x4f() const {
 	return mCamera->GetView4x4f();
 }
 
-DirectX::XMFLOAT4X4 CameraComponent::GetProj4x4f() const {
+XMFLOAT4X4 CameraComponent::GetProj4x4f() const {
 	return mCamera->GetProj4x4f();
 }
 

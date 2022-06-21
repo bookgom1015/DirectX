@@ -50,10 +50,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 	}
 }
 
-LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-	// Forward hwnd on because we can get messages (e.g., WM_CREATE)
-	// before CreateWindow returns, and thus before mhMainWnd is valid
-	return GameWorld::GetWorld()->MsgProc(hwnd, msg, wParam, lParam);
+namespace {
+#ifdef UsingVulkan
+	void GLFWProcessInputCallback(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods) {
+		auto world = reinterpret_cast<GameWorld*>(glfwGetWindowUserPointer(inMainWnd));
+		world->MsgProc(inMainWnd, inKey, inScanCode, inAction, inMods);
+	}
+
+	void GLFWResizeCallback(GLFWwindow* inMainWnd, int inWidth, int inHeight) {
+		auto world = reinterpret_cast<GameWorld*>(glfwGetWindowUserPointer(inMainWnd));
+		world->GetRenderer()->OnResize(inWidth, inHeight);
+	}
+
+	void GLFWFocusCallback(GLFWwindow* inMainWnd, int inState) {
+		auto world = reinterpret_cast<GameWorld*>(glfwGetWindowUserPointer(inMainWnd));
+		world->OnWindowFocusChanged(static_cast<bool>(inState));
+	}
+
+	void MainWndProc(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods) {
+		return GameWorld::GetWorld()->MsgProc(inMainWnd, inKey, inScanCode, inAction, inMods);
+	}
+#else
+	LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+		// Forward hwnd on because we can get messages (e.g., WM_CREATE)
+		// before CreateWindow returns, and thus before mhMainWnd is valid
+		return GameWorld::GetWorld()->MsgProc(hwnd, msg, wParam, lParam);
+	}
+#endif
 }
 
 GameWorld* GameWorld::sWorld = nullptr;
@@ -138,10 +161,36 @@ void GameWorld::CleanUp() {
 GameResult GameWorld::LoadData() {
 	mMusicEvent = mAudioSystem->PlayEvent("event:/Over the Waves");
 
-#ifndef UsingVulkan
+#ifdef UsingVulkan
+	//TpsActor* tpsActor = new TpsActor();
+	//tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
+
+	XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
+
+	//Actor* leoniActor = new Actor();
+	//leoniActor->SetPosition(0.0f, 0.0f, -2.0f);
+	//leoniActor->SetQuaternion(rotateYPi);
+	//SkeletalMeshComponent* leoniMeshComp = new SkeletalMeshComponent(leoniActor);
+	//CheckGameResult(leoniMeshComp->LoadMesh("leoni", "leoni.fbx"));
+	//leoniMeshComp->SetClipName("Idle");
+	//leoniMeshComp->SetSkeleletonVisible(false);
+
+	Actor* monkeyActor = new Actor();
+	monkeyActor->SetPosition(0.0f, 4.0f, 0.0f);
+	monkeyActor->SetQuaternion(rotateYPi);
+	std::function<void(const GameTimer&, Actor*)> funcTurnY = [](const GameTimer& gt, Actor* actor) -> void {
+		XMVECTOR rot = XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), gt.TotalTime() * 2.0f);
+		actor->SetQuaternion(rot);
+	};
+	monkeyActor->AddFunction(std::make_shared<std::function<void(const GameTimer&, Actor*)>>(funcTurnY));
+	MeshComponent* monkeyMeshComp = new MeshComponent(monkeyActor);
+	CheckGameResult(monkeyMeshComp->LoadMesh("monkey", "monkey.fbx"));
+#endif
+
+#ifndef UsingVulkan	
 	TpsActor* tpsActor = new TpsActor();
 	tpsActor->SetPosition(0.0f, 0.0f, -5.0f);
-	
+
 	XMVECTOR rotateYPi = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XM_PI);
 
 	Actor* monkeyActor = new Actor();
@@ -333,17 +382,18 @@ GameResult GameWorld::LoadData() {
 
 	for (auto& actors : mActors) {
 		for (auto& actor : actors)
-			actor->OnLoadingData();
+			CheckGameResult(actor->OnLoadingData());
 	}
 
-	return true;
+	Logln("End LoadData");
+	return GameResultOk;
 }
 
 void GameWorld::UnloadData() {
 	for (auto& actors : mActors) {
 		for (auto actor : actors)
 			actor->OnUnloadingData();
-
+	
 		while (!actors.empty())
 			actors.pop_back();
 	}
@@ -369,10 +419,8 @@ GameResult GameWorld::GameLoop() {
 	mTimer.Reset();
 	
 #ifdef UsingVulkan
-	while (!glfwWindowShouldClose(mMainGLFWWindow)) {
+	while (!glfwWindowShouldClose(mMainGLFWWindow) && mGameState != GameState::ETerminated) {
 		glfwPollEvents();
-		if (glfwGetKey(mMainGLFWWindow, GLFW_KEY_ESCAPE))
-			break;
 
 		mTimer.Tick();
 
@@ -381,10 +429,13 @@ GameResult GameWorld::GameLoop() {
 
 		if (elapsedTime > mTimer.GetLimitFrameRate()) {
 			beginTime = endTime;
+
 			if (!mAppPaused) {
 				ProcessInput(mTimer);
 			}
+
 			UpdateGame(mTimer);
+
 			if (!mAppPaused)
 				Draw(mTimer);
 		}
@@ -477,30 +528,25 @@ GameResult GameWorld::GameLoop() {
 
 	for (UINT i = 0, end = mNumProcessors - 1; i < end; ++i)
 		mThreads[i].join();
-#endif
+#endif // UsingVulkan
 
 	return GameResult(static_cast<HRESULT>(msg.wParam));
 }
 
 void GameWorld::AddActor(Actor* inActor) {
-	mAddingActorMutex.lock();
-
-	inActor->SetOwnerThreadID(mNextThreadId);
-
+	inActor->SetOwnerThreadId(mNextThreadId);
+	
 	if (bUpdatingActors[mNextThreadId])
 		mPendingActors[mNextThreadId].push_back(inActor);
 	else
 		mActors[mNextThreadId].push_back(inActor);
-
+	
 	++mNextThreadId;
-	if (mNextThreadId >= mThreads.size())
-		mNextThreadId = 0;
-
-	mAddingActorMutex.unlock();
+	if (mNextThreadId >= mThreads.size()) mNextThreadId = 0;
 }
 
 void GameWorld::RemoveActor(Actor* inActor) {
-	UINT tid = inActor->GetOwnerThreadID();
+	UINT tid = inActor->GetOwnerThreadId();
 	auto& actors = mActors[tid];
 	auto iter = std::find(actors.begin(), actors.end(), inActor);
 	if (iter != actors.end()) {
@@ -510,6 +556,7 @@ void GameWorld::RemoveActor(Actor* inActor) {
 }
 
 GameResult GameWorld::AddMesh(const std::string& inFileName, Mesh*& outMeshPtr, bool inIsSkeletal, bool inNeedToBeAligned) {
+	Logln("Begin AddMesh");
 	auto iter = mMeshes.find(inFileName);
 	if (iter != mMeshes.end()) {
 		outMeshPtr = iter->second.get();
@@ -517,11 +564,14 @@ GameResult GameWorld::AddMesh(const std::string& inFileName, Mesh*& outMeshPtr, 
 	}
 
 	auto mesh = std::make_unique<Mesh>(inIsSkeletal, inNeedToBeAligned);
+	Logln("Begin mesh load");
 	CheckGameResult(mesh->Load(inFileName));
+	Logln("End mesh load");
 
 	outMeshPtr = mesh.get();
 	mMeshes.emplace(inFileName, std::move(mesh));
 
+	Logln("End AddMesh");
 	return GameResultOk;
 }
 
@@ -563,156 +613,44 @@ HWND GameWorld::GetMainWindowsHandle() const {
 	return mhMainWnd;
 }
 
-void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
-	if (inTid == 0) {
-		mInputSystem->PrepareForUpdate();
-		mInputSystem->SetRelativeMouseMode(true);
-		mInputSystem->Update();
+#ifdef UsingVulkan
+void GameWorld::MsgProc(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods) {
+	if (inKey == GLFW_KEY_ESCAPE && inAction == GLFW_PRESS) {
+		mGameState = GameState::ETerminated;
 	}
+	else if (inKey == GLFW_KEY_MINUS && (inAction == GLFW_PRESS || inAction == GLFW_REPEAT)) {
+		// Reduce master volume
+		float volume = mAudioSystem->GetBusVolume("bus:/");
+		volume -= 0.1f;
+		if (volume < 0.0f) volume = 0.0f;
+		mAudioSystem->SetBusVolume("bus:/", volume);
+	}
+	else if (inKey == GLFW_KEY_EQUAL && (inAction == GLFW_PRESS || inAction == GLFW_REPEAT)) {
+		// Increase master volume
+		float volume = mAudioSystem->GetBusVolume("bus:/");
+		volume += 0.1f;
+		if (volume > 1.0f) volume = 1.0f;
+		mAudioSystem->SetBusVolume("bus:/", volume);
+	}
+}
 
-#ifndef UsingVulkan
-	mCVBarrier->Wait();
-#endif
-
-	const InputState& state = mInputSystem->GetState();
-
-	if (mGameState == GameState::EPlay) {
-		auto& actors = mActors[inTid];
-
-		for (auto& actor : actors) {
-			if (actor->GetState() == Actor::ActorState::EActive)
-				actor->ProcessInput(state);
-		}
+void GameWorld::OnWindowFocusChanged(bool inState) {
+	mAppPaused = !inState;
+	if (inState) {
+		mGameState = GameState::EPlay;
+		mTimer.SetLimitFrameRate(mLimitFrameRate);
+		mAudioSystem->SetBusVolume("bus:/", mPrevBusVolume);
+		mInputSystem->IgnoreMouseInput();
 	}
 	else {
-		// To do for UI.
+		mGameState = GameState::EPaused;
+		mTimer.SetLimitFrameRate(GameTimer::ELimitFrameRate30f);
+		mPrevBusVolume = mAudioSystem->GetBusVolume("bus:/");
+		mAudioSystem->SetBusVolume("bus:/", 0.0f);
+		mInputSystem->IgnoreMouseInput();
 	}
 }
-
-GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
-	auto& actors = mActors[inTid];
-	auto& pendingActors = mPendingActors[inTid];
-
-	// Update all actors.
-	bUpdatingActors[inTid] = true;
-	for (auto actor : actors)
-		actor->Update(gt);
-	bUpdatingActors[inTid] = false;
-
-	// Move any pending actors to mActors.
-	for (auto actor : pendingActors)
-		actors.push_back(actor);
-
-	pendingActors.clear();
-
-	// Add any dead actors to a temp vector.
-	std::vector<Actor*> deadActors;
-	for (auto actor : actors) {
-		if (actor->GetState() == Actor::ActorState::EDead)
-			deadActors.push_back(actor);
-	}
-
-	// Delete dead actors(which removes them from mActors).
-	for (auto actor : deadActors)
-		delete actor;
-
-	CheckGameResult(mRenderer->Update(gt, inTid));
-
-	if (inTid == 0)
-		mAudioSystem->Update(gt);
-
-	return GameResult(S_OK);
-}
-
-GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
-	CheckGameResult(mRenderer->Draw(gt, inTid));
-	
-	return GameResult(S_OK);
-}
-
-#ifdef UsingVulkan
-namespace {
-	void GLFWProcessInput(GLFWwindow* inMainWnd, int inKey, int inScanCode, int inAction, int inMods) {
-		if (inAction == GLFW_PRESS) {
-			WLogln(L"[Key callback] Pressed key: ", std::to_wstring(inKey));
-		}
-		else {
-			WLogln(L"[Key callback] Released key: ", std::to_wstring(inKey));
-		}
-	}
-
-	void GLFWResizeCallback(GLFWwindow* inMainWnd, int inWidth, int inHeight) {
-		auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(inMainWnd));
-		renderer->OnResize(inWidth, inHeight);
-	}
-}
-#endif
-
-GameResult GameWorld::InitMainWindow() {
-#ifdef UsingVulkan
-	glfwInit();
-
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
-	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
-
-	auto primaryMonitor = glfwGetPrimaryMonitor();
-	const auto vidmode = glfwGetVideoMode(primaryMonitor);
-
-	mPrimaryMonitorWidth = static_cast<UINT>(vidmode->width);
-	mPrimaryMonitorHeight = static_cast<UINT>(vidmode->height);
-
-	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
-	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
-
-	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
-
-	glfwSetWindowUserPointer(mMainGLFWWindow, GetRenderer());
-
-	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInput);
-	glfwSetFramebufferSizeCallback(mMainGLFWWindow, GLFWResizeCallback);
 #else
-	WNDCLASS wc;
-	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.lpfnWndProc = MainWndProc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = mhInst;
-	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
-	wc.lpszMenuName = 0;
-	wc.lpszClassName = L"MainWnd";
-
-	if (!RegisterClass(&wc))
-		ReturnGameResult(S_FALSE, L"RegisterClass Failed");
-
-	// Compute window rectangle dimensions based on requested client area dimensions.
-	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
-	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
-	int width = R.right - R.left;
-	int height = R.bottom - R.top;
-
-	mPrimaryMonitorWidth = GetSystemMetrics(SM_CXSCREEN);
-	mPrimaryMonitorHeight = GetSystemMetrics(SM_CYSCREEN);
-
-	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
-	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
-
-	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
-		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
-	if (!mhMainWnd)
-		ReturnGameResult(S_FALSE, L"CreateWindow Failed");
-
-	ShowWindow(mhMainWnd, SW_SHOW);
-	UpdateWindow(mhMainWnd);
-#endif
-
-	return GameResult(S_OK);
-}
-
 LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
 		// WM_ACTIVATE is sent when the window is activated or deactivated.  
@@ -729,7 +667,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		}
 		else {
 			mAppPaused = false;
-			mGameState = GameState::EPlay;			
+			mGameState = GameState::EPlay;
 			mTimer.SetLimitFrameRate(mLimitFrameRate);
 			mAudioSystem->SetBusVolume("bus:/", mPrevBusVolume);
 			mInputSystem->IgnoreMouseInput();
@@ -745,13 +683,13 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			HRESULT hr = S_OK;
 			if (mRenderer->IsValid()) {
 				if (wParam == SIZE_MINIMIZED) {
-					mAppPaused = true;					
+					mAppPaused = true;
 					mMinimized = true;
 					mMaximized = false;
 					mGameState = GameState::EPaused;
 				}
 				else if (wParam == SIZE_MAXIMIZED) {
-					mAppPaused = false;					
+					mAppPaused = false;
 					mMinimized = false;
 					mMaximized = true;
 					mGameState = GameState::EPlay;
@@ -760,7 +698,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				else if (wParam == SIZE_RESTORED) {
 					// Restoring from minimized state?
 					if (mMinimized) {
-						mAppPaused = false;						
+						mAppPaused = false;
 						mMinimized = false;
 						mGameState = GameState::EPlay;
 						hr = OnResize().hr;
@@ -768,7 +706,7 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 					// Restoring from maximized state?
 					else if (mMaximized) {
-						mAppPaused = false;						
+						mAppPaused = false;
 						mMaximized = false;
 						mGameState = GameState::EPlay;
 						hr = OnResize().hr;
@@ -860,13 +798,6 @@ LRESULT GameWorld::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-GameResult GameWorld::OnResize() {
-	if (bFinishedInit)
-		CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
-
-	return GameResult(S_OK);
-}
-
 void GameWorld::OnMouseDown(WPARAM inBtnState, int inX, int inY) {}
 
 void GameWorld::OnMouseUp(WPARAM inBtnState, int inX, int inY) {}
@@ -874,8 +805,7 @@ void GameWorld::OnMouseUp(WPARAM inBtnState, int inX, int inY) {}
 void GameWorld::OnMouseMove(WPARAM inBtnState, int inX, int inY) {}
 
 void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
-
-	if (msg != WM_KEYUP) {
+	if (msg == WM_KEYDOWN) {
 		if (wParam == VK_OEM_PLUS) {
 			// Increase master volume
 			float volume = mAudioSystem->GetBusVolume("bus:/");
@@ -920,4 +850,153 @@ void GameWorld::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
 		if (wParam == VK_ESCAPE)
 			PostQuitMessage(0);
 	}
+}
+#endif // UsingVulkan
+
+void GameWorld::ProcessInput(const GameTimer& gt, UINT inTid) {
+	if (inTid == 0) {
+		mInputSystem->PrepareForUpdate();
+		mInputSystem->SetRelativeMouseMode(true);
+		mInputSystem->Update();
+	}
+
+#ifndef UsingVulkan
+	mCVBarrier->Wait();
+#endif
+
+	const InputState& state = mInputSystem->GetState();
+
+	if (mGameState == GameState::EPlay) {
+		auto& actors = mActors[inTid];
+		
+		for (auto& actor : actors) {
+			if (actor->GetState() == Actor::ActorState::EActive)
+				actor->ProcessInput(state);
+		}
+	}
+	else {
+		// To do for UI.
+	}
+}
+
+GameResult GameWorld::UpdateGame(const GameTimer& gt, UINT inTid) {
+	auto& actors = mActors[inTid];
+	auto& pendingActors = mPendingActors[inTid];
+	
+	// Update all actors.
+	bUpdatingActors[inTid] = true;
+	for (auto actor : actors)
+		actor->Update(gt);
+	bUpdatingActors[inTid] = false;
+	
+	// Move any pending actors to mActors.
+	for (auto actor : pendingActors)
+		actors.push_back(actor);
+	
+	pendingActors.clear();
+	
+	// Add any dead actors to a temp vector.
+	std::vector<Actor*> deadActors;
+	for (auto actor : actors) {
+		if (actor->GetState() == Actor::ActorState::EDead)
+			deadActors.push_back(actor);
+	}
+
+	for (auto deadActor : deadActors) {
+		auto iter = std::find(actors.begin(), actors.end(), deadActor);
+		if (iter != actors.end()) {
+			std::iter_swap(iter, actors.end() - 1);
+			actors.pop_back();
+		}
+	}
+	
+	// Delete dead actors(which removes them from mActors).
+	for (auto deadActor : deadActors)
+		delete deadActor;
+
+	CheckGameResult(mRenderer->Update(gt, inTid));
+
+	if (inTid == 0)
+		mAudioSystem->Update(gt);
+
+	return GameResult(S_OK);
+}
+
+GameResult GameWorld::Draw(const GameTimer& gt, UINT inTid) {
+	CheckGameResult(mRenderer->Draw(gt, inTid));
+	
+	return GameResult(S_OK);
+}
+
+GameResult GameWorld::InitMainWindow() {
+#ifdef UsingVulkan
+	glfwInit();
+
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+	mMainGLFWWindow = glfwCreateWindow(mClientWidth, mClientHeight, "VkGame", nullptr, nullptr);
+	mhMainWnd = glfwGetWin32Window(mMainGLFWWindow);
+
+	auto primaryMonitor = glfwGetPrimaryMonitor();
+	const auto vidmode = glfwGetVideoMode(primaryMonitor);
+
+	mPrimaryMonitorWidth = static_cast<UINT>(vidmode->width);
+	mPrimaryMonitorHeight = static_cast<UINT>(vidmode->height);
+
+	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
+	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
+
+	glfwSetWindowPos(mMainGLFWWindow, clientPosX, clientPosY);
+
+	glfwSetWindowUserPointer(mMainGLFWWindow, this);
+
+	glfwSetKeyCallback(mMainGLFWWindow, GLFWProcessInputCallback);
+	glfwSetFramebufferSizeCallback(mMainGLFWWindow, GLFWResizeCallback);
+	glfwSetWindowFocusCallback(mMainGLFWWindow, GLFWFocusCallback);
+#else
+	WNDCLASS wc;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.lpfnWndProc = MainWndProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = mhInst;
+	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wc.hCursor = LoadCursor(0, IDC_ARROW);
+	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
+	wc.lpszMenuName = 0;
+	wc.lpszClassName = L"MainWnd";
+
+	if (!RegisterClass(&wc))
+		ReturnGameResult(S_FALSE, L"RegisterClass Failed");
+
+	// Compute window rectangle dimensions based on requested client area dimensions.
+	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
+	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
+	int width = R.right - R.left;
+	int height = R.bottom - R.top;
+
+	mPrimaryMonitorWidth = GetSystemMetrics(SM_CXSCREEN);
+	mPrimaryMonitorHeight = GetSystemMetrics(SM_CYSCREEN);
+
+	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
+	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
+
+	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
+		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
+	if (!mhMainWnd)
+		ReturnGameResult(S_FALSE, L"CreateWindow Failed");
+
+	ShowWindow(mhMainWnd, SW_SHOW);
+	UpdateWindow(mhMainWnd);
+#endif
+
+	return GameResult(S_OK);
+}
+
+GameResult GameWorld::OnResize() {
+	if (bFinishedInit)
+		CheckGameResult(mRenderer->OnResize(mClientWidth, mClientHeight));
+
+	return GameResult(S_OK);
 }

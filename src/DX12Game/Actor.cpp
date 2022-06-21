@@ -20,10 +20,10 @@ Actor::~Actor() {
 void Actor::Update(const GameTimer& gt) {
 	if (mState == ActorState::EActive) {
 		ComputeWorldTransform();
-
+	
 		UpdateComponents(gt);
 		UpdateActor(gt);
-
+	
 		ComputeWorldTransform();
 	}
 }
@@ -50,8 +50,8 @@ void Actor::OnUnloadingData() {}
 
 void Actor::AddComponent(Component* inComponent) {
 	int myOrder = inComponent->GetUpdateOrder();
-	auto iter = mComponents.cbegin();
-	for (; iter != mComponents.cend(); ++iter) {
+	auto iter = mComponents.begin();
+	for (; iter != mComponents.end(); ++iter) {
 		if (myOrder < (*iter)->GetUpdateOrder())
 			break;
 	}
@@ -60,8 +60,8 @@ void Actor::AddComponent(Component* inComponent) {
 }
 
 void Actor::RemoveComponent(Component* inComponent) {
-	auto iter = std::find(mComponents.cbegin(), mComponents.cend(), inComponent);
-	if (iter != mComponents.cend())
+	auto iter = std::find(mComponents.begin(), mComponents.end(), inComponent);
+	if (iter != mComponents.end())
 		mComponents.erase(iter);
 }
 
@@ -206,10 +206,10 @@ void Actor::SetActorClean() {
 	mIsDirty = false;
 }
 
-UINT Actor::GetOwnerThreadID() const {
-	return mOwnerId;
+UINT Actor::GetOwnerThreadId() const {
+	return mOwnerTid;
 }
 
-void Actor::SetOwnerThreadID(UINT inId) {
-	mOwnerId = inId;
+void Actor::SetOwnerThreadId(UINT inTid) {
+	mOwnerTid = inTid;
 }

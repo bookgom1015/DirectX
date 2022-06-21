@@ -428,7 +428,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -1085,7 +1085,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -1905,7 +1905,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -2726,7 +2726,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -3547,7 +3547,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -4367,7 +4367,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -5188,7 +5188,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {
@@ -6008,7 +6008,7 @@
           "lib/uap10.0/Microsoft.UI.Xaml.winmd": {}
         },
         "build": {
-          "build/_._": {}
+          "buildTransitive/Microsoft.UI.Xaml.props": {}
         }
       },
       "Microsoft.Xaml.Behaviors.Uwp.Managed/2.0.1": {

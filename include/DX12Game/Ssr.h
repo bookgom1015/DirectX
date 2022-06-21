@@ -37,7 +37,7 @@ public:
 
 	void ComputeSsr(
 		ID3D12GraphicsCommandList* outCmdList,
-		const FrameResource* inCurrFrame,
+		const Game::FrameResource* inCurrFrame,
 		int inBlurCount);
 
 	void SetPSOs(ID3D12PipelineState* inSsrPso, ID3D12PipelineState* inSsaoBlurPso);
@@ -55,7 +55,7 @@ public:
 	float GetEdgeFadeLength() const;
 
 private:
-	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount);
 	void BlurAmbientMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);
 
 	GameResult BuildResources();

@@ -12,10 +12,11 @@ namespace {
 	const UINT InvalidBoneIndex = std::numeric_limits<UINT>::max();
 }
 
-DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */, 
-						 DirectX::XMFLOAT3 inNormal		/* = { 0.0f, 0.0f, 0.0f } */,
-						 DirectX::XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
-						 DirectX::XMFLOAT3 inTangentU	/* = { 0.0f, 0.0f, 0.0f } */) {
+Game::FbxVertex::FbxVertex(
+		XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */, 
+		XMFLOAT3 inNormal	/* = { 0.0f, 0.0f, 0.0f } */,
+		XMFLOAT2 inTexC		/* = { 0.0f, 0.0f } */, 
+		XMFLOAT3 inTangentU	/* = { 0.0f, 0.0f, 0.0f } */) {
 	mPos = inPos;
 	mNormal = inNormal;
 	mTexC = inTexC;
@@ -26,7 +27,7 @@ DxFbxVertex::DxFbxVertex(DirectX::XMFLOAT3 inPos		/* = { 0.0f, 0.0f, 0.0f } */,
 		index = -1;
 }
 
-bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
+bool Game::operator==(const Game::FbxVertex& lhs, const Game::FbxVertex& rhs) {
 	bool bResult = MathHelper::IsEqual(lhs.mPos,		rhs.mPos)		&&
 				   MathHelper::IsEqual(lhs.mNormal,		rhs.mNormal)	&&
 				   MathHelper::IsEqual(lhs.mTexC,		rhs.mTexC)		&&
@@ -42,14 +43,14 @@ bool operator==(const DxFbxVertex& lhs, const DxFbxVertex& rhs) {
 	return true;
 }
 
-DxFbxMaterial::DxFbxMaterial() {
+Game::FbxMaterial::FbxMaterial() {
 	mMatTransform = MathHelper::Identity4x4();
 	mDiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
 	mFresnelR0 = { 0.5f, 0.5f, 0.5f };
 	mRoughness = 0.5f;
 }
-
-DxFbxBone::DxFbxBone() {
+Game::
+FbxBone::FbxBone() {
 	mParentIndex = -1;
 
 	mLocalBindPose = MathHelper::Identity4x4();
@@ -57,37 +58,37 @@ DxFbxBone::DxFbxBone() {
 	mGlobalInvBindPose = MathHelper::Identity4x4();
 }
 
-const std::vector<DxFbxBone>& DxFbxSkeleton::GetBones() const {
+const std::vector<Game::FbxBone>& Game::FbxSkeleton::GetBones() const {
 	return mBones;
 }
 
-size_t DxFbxSkeleton::GetNumBones() const {
+size_t Game::FbxSkeleton::GetNumBones() const {
 	return mBones.size();
 }
 
-size_t DxFbxAnimation::GetNumFrames() const {
+size_t Game::FbxAnimation::GetNumFrames() const {
 	return mNumFrames;
 }
 
-float DxFbxAnimation::GetDuration() const {
+float Game::FbxAnimation::GetDuration() const {
 	return mDuration;
 }
 
-float DxFbxAnimation::GetFrameDuration() const {
+float Game::FbxAnimation::GetFrameDuration() const {
 	return mFrameDuration;
 }
 
-const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& DxFbxAnimation::GetCurves() const {
+const std::unordered_map<UINT, std::vector<DirectX::XMFLOAT4X4>>& Game::FbxAnimation::GetCurves() const {
 	return mCurves;
 }
 
-DxFbxImporter::DxFbxImporter() {
+Game::FbxImporter::FbxImporter() {
 	mFbxManager = nullptr;
 	mFbxIos = nullptr;
 	mFbxScene = nullptr;
 }
 
-DxFbxImporter::~DxFbxImporter() {
+Game::FbxImporter::~FbxImporter() {
 	if (mFbxScene != nullptr)
 		mFbxScene->Destroy();
 
@@ -98,7 +99,7 @@ DxFbxImporter::~DxFbxImporter() {
 		mFbxManager->Destroy();
 }
 
-bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName) {
+bool Game::FbxImporter::LoadDataFromFile(const std::string& inFileName) {
 	if (!LoadFbxScene(inFileName)) {
 		WErrln(L"Failed to load fbx scnene");
 		return false;
@@ -158,41 +159,41 @@ bool DxFbxImporter::LoadDataFromFile(const std::string& inFileName) {
 	return true;
 }
 
-const std::vector<DxFbxVertex>& DxFbxImporter::GetVertices() const {
+const std::vector<Game::FbxVertex>& Game::FbxImporter::GetVertices() const {
 	return mVertices;
 }
 
-const std::vector<std::uint32_t>& DxFbxImporter::GetIndices() const {
+const std::vector<std::uint32_t>& Game::FbxImporter::GetIndices() const {
 	return mIndices;
 }
 
-const std::vector<std::string>& DxFbxImporter::GetSubsetNames() const {
+const std::vector<std::string>& Game::FbxImporter::GetSubsetNames() const {
 	return mSubsetNames;
 }
 
-const std::vector<std::pair<UINT, UINT>>& DxFbxImporter::GetSubsets() const {
+const std::vector<std::pair<UINT, UINT>>& Game::FbxImporter::GetSubsets() const {
 	return mSubsets;
 }
 
-const std::unordered_map<std::string, DxFbxMaterial>& DxFbxImporter::GetMaterials() const {
+const std::unordered_map<std::string, Game::FbxMaterial>& Game::FbxImporter::GetMaterials() const {
 	return mMaterials;
 }
 
-const DxFbxSkeleton& DxFbxImporter::GetSkeleton() const {
+const Game::FbxSkeleton& Game::FbxImporter::GetSkeleton() const {
 	return mSkeleton;
 }
 
-const std::unordered_map<std::string, DxFbxAnimation>& DxFbxImporter::GetAnimations() const {
+const std::unordered_map<std::string, Game::FbxAnimation>& Game::FbxImporter::GetAnimations() const {
 	return mAnimations;
 }
 
-bool DxFbxImporter::LoadFbxScene(const std::string& inFileName) {
+bool Game::FbxImporter::LoadFbxScene(const std::string& inFileName) {
 	mFbxManager = FbxManager::Create();
 	mFbxIos = FbxIOSettings::Create(mFbxManager, IOSROOT);
 
 	mFbxManager->SetIOSettings(mFbxIos);
 
-	auto fbxImporter = FbxImporter::Create(mFbxManager, "importer");
+	auto fbxImporter = fbxsdk::FbxImporter::Create(mFbxManager, "importer");
 
 	bool status = fbxImporter->Initialize(inFileName.c_str(), -1, mFbxManager->GetIOSettings());
 
@@ -365,7 +366,7 @@ namespace {
 	}
 }
 
-int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
+int Game::FbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	auto fbxMesh = inNode->GetMesh();
 	std::string meshName = fbxMesh->GetName();
 
@@ -397,7 +398,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 			const XMFLOAT2 texC = ReadUV(fbxMesh, controlPointIndex, vertexCounter);
 			const XMFLOAT3 tangent = ReadTangent(fbxMesh, controlPointIndex, vertexCounter);
 
-			DxFbxVertex vertex = { pos, normal, texC, tangent };
+			FbxVertex vertex = { pos, normal, texC, tangent };
 			const auto& boneIdxWeights = mControlPointsWeights[meshName][controlPointIndex];
 			for (size_t i = 0, end = boneIdxWeights.size(); i < end; ++i) {
 				vertex.mBoneIndices[i] = boneIdxWeights[i].mBoneIndex;
@@ -408,7 +409,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 				mUniqueVertices[vertex] = static_cast<std::uint32_t>(mVertices.size());
 				mVertices.push_back(vertex);
 			}
-
+			
 			mIndices.push_back(mUniqueVertices[vertex]);
 			++vertexCounter;
 		}
@@ -419,7 +420,7 @@ int DxFbxImporter::LoadDataFromMesh(FbxNode* inNode, UINT inPrevNumVertices) {
 	return vertexCounter + inPrevNumVertices;
 }
 
-void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
+void Game::FbxImporter::LoadMaterials(FbxNode* inNode) {
 	int materialCount = inNode->GetMaterialCount();
 
 	for (int i = 0; i < materialCount; ++i) {
@@ -487,20 +488,20 @@ void DxFbxImporter::LoadMaterials(FbxNode* inNode) {
 	}
 }
 
-void DxFbxImporter::LoadSkeletonHierarchy(FbxNode* inRootNode) {
+void Game::FbxImporter::LoadSkeletonHierarchy(FbxNode* inRootNode) {
 	for (int childIndex = 0; childIndex < inRootNode->GetChildCount(); ++childIndex) {
 		FbxNode* currNode = inRootNode->GetChild(childIndex);
 		LoadSkeletonHierarchyRecurcively(currNode, 0, 0, -1);
 	}
 }
 
-void DxFbxImporter::LoadSkeletonHierarchyRecurcively(FbxNode* inNode, int inDepth, int inMyIndex, int inParentIndex) {
+void Game::FbxImporter::LoadSkeletonHierarchyRecurcively(FbxNode* inNode, int inDepth, int inMyIndex, int inParentIndex) {
 	bool bResult = false;
 
 	if (inNode->GetNodeAttribute() && inNode->GetNodeAttribute()->GetAttributeType() &&
 		inNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton) {
 
-		DxFbxBone bone;
+		FbxBone bone;
 		bone.mParentIndex = inParentIndex;
 		bone.mName = inNode->GetName();
 		mSkeleton.mBones.push_back(bone);
@@ -563,7 +564,7 @@ namespace {
 	}
 }
 
-bool DxFbxImporter::LoadBones(FbxNode* inNode) {
+bool Game::FbxImporter::LoadBones(FbxNode* inNode) {
 	auto currMesh = inNode->GetMesh();
 	std::string meshName = currMesh->GetName();
 
@@ -606,7 +607,7 @@ bool DxFbxImporter::LoadBones(FbxNode* inNode) {
 	return true;
 }
 
-void DxFbxImporter::NormalizeWeigths() {
+void Game::FbxImporter::NormalizeWeigths() {
 	for (auto skelIter = mControlPointsWeights.begin(), skelEnd = mControlPointsWeights.end(); skelIter != skelEnd; ++skelIter) {
 		auto& skel = skelIter->second;
 		for (auto cpIdxIter = skel.begin(), cpIdxEnd = skel.end(); cpIdxIter != cpIdxEnd; ++cpIdxIter) {
@@ -729,7 +730,7 @@ namespace {
 	}
 }
 
-void DxFbxImporter::MoveDataFromFbxAMatrixToDirectXMath() {
+void Game::FbxImporter::MoveDataFromFbxAMatrixToDirectXMath() {
 	for (auto& bone : mSkeleton.mBones) {
 		FbxAMatrixToXMFloat4x4(bone.mLocalBindPose,		bone.mFbxLocalBindPose);
 		FbxAMatrixToXMFloat4x4(bone.mGlobalBindPose,	bone.mFbxGlobalBindPose);
@@ -737,7 +738,7 @@ void DxFbxImporter::MoveDataFromFbxAMatrixToDirectXMath() {
 	}
 }
 
-UINT DxFbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
+UINT Game::FbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
 	const auto& bones = mSkeleton.mBones;
 	for (auto iter = bones.cbegin(), end = bones.cend(); iter != end; ++iter) {
 		if (iter->mName == inBoneName)
@@ -747,12 +748,12 @@ UINT DxFbxImporter::FindBoneIndexUsingName(const std::string& inBoneName) {
 	return { InvalidBoneIndex };
 }
 
-void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster*		inCluster, 
+void Game::FbxImporter::BuildBindPoseData(fbxsdk::FbxCluster*		inCluster,
 									  const fbxsdk::FbxAMatrix&	inGeometryTransform,										
 									  UINT						inClusterIndex, 
 									  int						inParentIndex,										
-									  const DxFbxSkeleton&		inSkeleton,
-									  DxFbxBone&				outBone) {
+									  const FbxSkeleton&		inSkeleton,
+									  FbxBone&				outBone) {
 	// For compability with other softwares... (usually identity matrix)
 	FbxAMatrix transformMatrix;
 	inCluster->GetTransformMatrix(transformMatrix);
@@ -777,7 +778,7 @@ void DxFbxImporter::BuildBindPoseData(fbxsdk::FbxCluster*		inCluster,
 	outBone.mFbxGlobalInvBindPose = transformLinkMatrix.Inverse() * inGeometryTransform;
 }
 
-void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClusterIndex, const std::string& inMeshName) {
+void Game::FbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClusterIndex, const std::string& inMeshName) {
 	UINT indexCount = inCluster->GetControlPointIndicesCount();
 	auto controlPointIndices = inCluster->GetControlPointIndices();
 	auto controlPointWeights = inCluster->GetControlPointWeights();
@@ -793,7 +794,7 @@ void DxFbxImporter::BuildControlPointsWeigths(FbxCluster* inCluster, UINT inClus
 	}
 }
 
-void DxFbxImporter::BuildAnimations(FbxNode* inNode, 
+void Game::FbxImporter::BuildAnimations(FbxNode* inNode,
 									FbxCluster* inCluster,
 									const FbxAMatrix& inGeometryTransform, 		
 									UINT inClusterIndex,
@@ -821,7 +822,7 @@ void DxFbxImporter::BuildAnimations(FbxNode* inNode,
 				//	inGeometryTransform, animation, inClusterIndex, inParentIndex);
 			}
 			else {
-				DxFbxAnimation animation;				
+				FbxAnimation animation;				
 				BuildAnimationKeyFrames(animLayer, inNode, inCluster,
 					inGeometryTransform, takeInfo, animation, inClusterIndex, inParentIndex);
 				//BuildAnimationKeyFrames(takeInfo, inCluster, inNode,
@@ -833,12 +834,12 @@ void DxFbxImporter::BuildAnimations(FbxNode* inNode,
 	}
 }
 
-void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer*		inAnimLayer,
+void Game::FbxImporter::BuildAnimationKeyFrames(FbxAnimLayer*		inAnimLayer,
 											FbxNode*			inNode, 
 											FbxCluster*			inCluster, 
 											const FbxAMatrix&	inGeometryTransform, 
 											FbxTakeInfo*		inTakeInfo, 
-											DxFbxAnimation&		outAnimation, 
+											FbxAnimation&		outAnimation, 
 											UINT				inClusterIndex, 
 											int					inParentIndex) {
 	auto timeMode = mFbxScene->GetGlobalSettings().GetTimeMode();
@@ -909,11 +910,11 @@ void DxFbxImporter::BuildAnimationKeyFrames(FbxAnimLayer*		inAnimLayer,
 	}
 }
 
-void DxFbxImporter::BuildAnimationKeyFrames(FbxTakeInfo*	inTakeInfo, 
+void Game::FbxImporter::BuildAnimationKeyFrames(FbxTakeInfo*	inTakeInfo,
 											FbxCluster*		inCluster, 
 											FbxNode*		inNode,
 											FbxAMatrix		inGeometryTransform,
-											DxFbxAnimation&	outAnimation, 
+											FbxAnimation&	outAnimation, 
 											UINT			inClusterIndex,
 											int				inParentIndex) {
 	auto timeMode = mFbxScene->GetGlobalSettings().GetTimeMode();

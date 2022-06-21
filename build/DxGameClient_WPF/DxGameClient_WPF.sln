@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32126.315
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DxGameClient_WPF", "DxGameClient_WPF.csproj", "{04082513-A29F-44D7-9365-DF6E69BCAC7E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{04082513-A29F-44D7-9365-DF6E69BCAC7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04082513-A29F-44D7-9365-DF6E69BCAC7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04082513-A29F-44D7-9365-DF6E69BCAC7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04082513-A29F-44D7-9365-DF6E69BCAC7E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {63ABA663-4C3F-4560-9DB2-629DC723FFF4}
+	EndGlobalSection
+EndGlobal

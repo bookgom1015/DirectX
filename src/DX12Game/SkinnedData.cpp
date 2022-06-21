@@ -3,7 +3,7 @@
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-Bone::Bone(const std::string inName, int inParentIndex,
+Game::Bone::Bone(const std::string inName, int inParentIndex,
 			const DirectX::XMFLOAT4X4& inLocalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalBindPose,
 			const DirectX::XMFLOAT4X4& inGlobalInvBindPose) {
@@ -14,7 +14,7 @@ Bone::Bone(const std::string inName, int inParentIndex,
 	GlobalInvBindPose = inGlobalInvBindPose;
 }
 
-float SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
+float Game::SkinnedData::GetTimePosition(const std::string& inClipName, float inTime) const{
 	auto animtIter = mAnimations.find(inClipName);
 	if (animtIter == mAnimations.cend())
 		return 0.0f;

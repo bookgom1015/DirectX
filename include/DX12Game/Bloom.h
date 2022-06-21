@@ -27,7 +27,7 @@ public:
 
 	void RebuildDescriptors();
 
-	void ComputeBloom(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void ComputeBloom(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount);
 
 	void SetPSOs(ID3D12PipelineState* inBloomPso, ID3D12PipelineState* inBloomBlurPso);
 
@@ -44,7 +44,7 @@ public:
 private:
 	GameResult BuildResources();
 
-	void BlurBloomMap(ID3D12GraphicsCommandList* outCmdList, const FrameResource* inCurrFrame, int inBlurCount);
+	void BlurBloomMap(ID3D12GraphicsCommandList* outCmdList, const Game::FrameResource* inCurrFrame, int inBlurCount);
 	void BlurBloomMap(ID3D12GraphicsCommandList* outCmdList, bool inHorzBlur);
 
 public:

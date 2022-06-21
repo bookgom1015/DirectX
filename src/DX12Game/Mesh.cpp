@@ -10,28 +10,28 @@ using namespace DirectX::PackedVector;
 namespace {
 	const std::string fileNamePrefix = "./../../../../Assets/Models/";
 
-	void LoadVertices(const DxFbxImporter& inImporter, std::vector<Vertex>& outVertices) {
+	void LoadVertices(const Game::FbxImporter& inImporter, std::vector<Game::Vertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
-		std::vector<Vertex> vertices(fbxVertices.size());
-
+		std::vector<Game::Vertex> vertices(fbxVertices.size());
+		
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
 			auto& vert = vertices[i];
 			vert.mPos		= fbxVertices[i].mPos;
 			vert.mNormal	= fbxVertices[i].mNormal;
 			vert.mTexC		= fbxVertices[i].mTexC;
 			vert.mTangentU	= fbxVertices[i].mTangentU;
-
+		
 			vert.mPos.x		 *= -1.0f;
 			vert.mNormal.x	 *= -1.0f;
 			vert.mTangentU.x *= -1.0f;
 		}
-
+		
 		outVertices.swap(vertices);
 	}
 
-	void LoadSkinnedVertices(const DxFbxImporter& inImporter, std::vector<SkinnedVertex>& outVertices) {
+	void LoadSkinnedVertices(const Game::FbxImporter& inImporter, std::vector<Game::SkinnedVertex>& outVertices) {
 		const auto& fbxVertices = inImporter.GetVertices();
-		std::vector<SkinnedVertex> vertices(fbxVertices.size());
+		std::vector<Game::SkinnedVertex> vertices(fbxVertices.size());
 
 		for (size_t i = 0; i < fbxVertices.size(); ++i) {
 			vertices[i].mPos		= fbxVertices[i].mPos;
@@ -67,20 +67,20 @@ namespace {
 		outVertices.swap(vertices);
 	}
 
-	void LoadIndices(const DxFbxImporter& inImporter, std::vector<std::uint32_t>& outIndices) {
+	void LoadIndices(const Game::FbxImporter& inImporter, std::vector<std::uint32_t>& outIndices) {
 		const auto& fbxIndices = inImporter.GetIndices();
 		std::vector<std::uint32_t> indices(fbxIndices.size());
-
+		
 		for (UINT i = 0; i < fbxIndices.size(); i += 3) {
 			indices[i]		= fbxIndices[i + 2];
 			indices[i + 1]	= fbxIndices[i + 1];
 			indices[i + 2]	= fbxIndices[i];
 		}
-
+		
 		outIndices.swap(indices);
 	}
 
-	void LoadDrawArgs(const DxFbxImporter& inImporter, const std::string& inMeshName, std::vector<std::string>& outDrawArgs) {
+	void LoadDrawArgs(const Game::FbxImporter& inImporter, const std::string& inMeshName, std::vector<std::string>& outDrawArgs) {
 		const auto& subsetNames = inImporter.GetSubsetNames();
 		for (const auto& subsetName : subsetNames) {
 			std::stringstream sstream;
@@ -89,13 +89,13 @@ namespace {
 		}
 	}
 
-	void LoadSubsets(const DxFbxImporter& inImporter, std::vector<std::pair<UINT, UINT>>& outSubsets) {
+	void LoadSubsets(const Game::FbxImporter& inImporter, std::vector<std::pair<UINT, UINT>>& outSubsets) {
 		const auto& subsets = inImporter.GetSubsets();
 		for (const auto& subset : subsets)
 			outSubsets.push_back(subset);
 	}
 
-	void LoadSkeletons(const DxFbxImporter& inImporter, Skeleton& outSkeleton) {
+	void LoadSkeletons(const Game::FbxImporter& inImporter, Game::Skeleton& outSkeleton) {
 		const auto& skeleton = inImporter.GetSkeleton();
 		for (const auto& bone : skeleton.GetBones()) {
 			outSkeleton.mBones.emplace_back(
@@ -108,7 +108,7 @@ namespace {
 		}
 	}
 
-	void LoadAnimations(const DxFbxImporter& inImporter, std::unordered_map<std::string, Animation>& outAnimations) {
+	void LoadAnimations(const Game::FbxImporter& inImporter, std::unordered_map<std::string, Game::Animation>& outAnimations) {
 		const auto& animations = inImporter.GetAnimations();
 		for (auto animIter = animations.cbegin(), animEnd = animations.cend(); animIter != animEnd; ++animIter) {
 			auto& anim = outAnimations[animIter->first];
@@ -125,7 +125,7 @@ namespace {
 		}
 	}
 
-	void LoadMaterials(const DxFbxImporter& inImporter, const std::string& inMeshName, 
+	void LoadMaterials(const Game::FbxImporter& inImporter, const std::string& inMeshName,
 		std::unordered_map<std::string, MaterialIn>& outMaterials, Renderer*& inRenderer) {
 
 		const auto& fbxMaterials = inImporter.GetMaterials();
@@ -189,61 +189,59 @@ namespace {
 }
 
 Mesh::Mesh(bool inIsSkeletal, bool inNeedToBeAligned)
-	: mIsSkeletal(inIsSkeletal), 
-	  mNeedToBeAligned(inNeedToBeAligned) {
+	: bIsSkeletal(inIsSkeletal), 
+	  bNeedToBeAligned(inNeedToBeAligned) {
 	mRenderer = GameWorld::GetWorld()->GetRenderer();
 }
 
 GameResult Mesh::Load(const std::string& inFileName) {
 	size_t extIndex = inFileName.find_last_of('.', inFileName.length());
 	mMeshName = inFileName.substr(0, extIndex);
-
+	
 	TaskTimer timer;
 	timer.SetBeginTime();
-	DxFbxImporter importer;
+	Game::FbxImporter importer;
 	{
 		std::stringstream fileNameSstream;
 		fileNameSstream << fileNamePrefix << inFileName;
-
+	
 		if (!importer.LoadDataFromFile(fileNameSstream.str())) {
 			std::wstring wstr;
 			wstr.assign(inFileName.begin(), inFileName.end());
-			ReturnGameResult(S_FALSE, L"Failed to load data from file: " + wstr);
+			ReturnGameResult(E_FAIL, L"Failed to load data from file: " + wstr);
 		}
 	}
-	timer.SetEndTime();
-
-	LoadSkinnedVertices(std::ref(importer), std::ref(mSkinnedVertices));
-	LoadVertices(std::ref(importer), std::ref(mVertices));
-
-	LoadSkeletons(std::ref(importer), std::ref(mSkinnedData.mSkeleton));
+	
+	if (bIsSkeletal) {
+		LoadSkinnedVertices(std::ref(importer), std::ref(mSkinnedVertices));
+		LoadSkeletons(std::ref(importer), std::ref(mSkinnedData.mSkeleton));
+		GenerateSkeletonData();
+	}
+	else {
+		LoadVertices(importer, std::ref(mVertices));
+	}
+	
 	LoadIndices(std::ref(importer), std::ref(mIndices));
 	LoadDrawArgs(std::ref(importer), mMeshName, std::ref(mDrawArgs));
 	LoadSubsets(std::ref(importer), std::ref(mSubsets));
 	LoadAnimations(std::ref(importer), std::ref(mSkinnedData.mAnimations));
 	LoadMaterials(std::ref(importer), mMeshName, std::ref(mMaterials), std::ref(mRenderer));
-
-	GenerateSkeletonData();
-
-	Logln("Mesh Name: ", mMeshName);
-	Logln("  Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds");
-	if (mIsSkeletal) {
-		GenerateSkeletonData();
-
-		OutputSkinnedDataInfo();
-	}
-
 	mRenderer->AddGeometry(this);
-
+	
 	const auto& anims = mSkinnedData.mAnimations;
 	if (!anims.empty()) {
 		for (const auto& anim : anims) {
 			UINT idx = mRenderer->AddAnimations(anim.first, anim.second);
-
+	
 			mClipsIndex[anim.first] = idx;
 		}
 		mRenderer->UpdateAnimationsMap();
 	}
+	
+	timer.SetEndTime();
+	Logln("Mesh Name: ", mMeshName);
+	Logln("  Loading Time: ", std::to_string(timer.GetElapsedTime()), " seconds");
+	if (bIsSkeletal) OutputSkinnedDataInfo();
 
 	return GameResultOk;
 }
@@ -256,11 +254,11 @@ const std::vector<std::string>& Mesh::GetDrawArgs() const {
 	return mDrawArgs;
 }
 
-const std::vector<Vertex>& Mesh::GetVertices() const {
+const std::vector<Game::Vertex>& Mesh::GetVertices() const {
 	return mVertices;
 }
 
-const std::vector<SkinnedVertex>& Mesh::GetSkinnedVertices() const {
+const std::vector<Game::SkinnedVertex>& Mesh::GetSkinnedVertices() const {
 	return mSkinnedVertices;
 }
 
@@ -277,14 +275,14 @@ const std::unordered_map<std::string, MaterialIn>& Mesh::GetMaterials() const {
 }
 
 bool Mesh::GetIsSkeletal() const {
-	return mIsSkeletal;
+	return bIsSkeletal;
 }
 
-const SkinnedData& Mesh::GetSkinnedData() const {
+const Game::SkinnedData& Mesh::GetSkinnedData() const {
 	return mSkinnedData;
 }
 
-const std::vector<Vertex>& Mesh::GetSkeletonVertices() const {
+const std::vector<Game::Vertex>& Mesh::GetSkeletonVertices() const {
 	return mSkeletonVertices;
 }
 
@@ -299,12 +297,12 @@ UINT Mesh::GetClipIndex(const std::string& inClipName) const {
 
 void Mesh::GenerateSkeletonData() {
 	const auto& bones = mSkinnedData.mSkeleton.mBones;
-	for (auto boneIter = bones.cbegin(), boneEnd = bones.cend(); boneIter != boneEnd; ++boneIter) {
-		int index = static_cast<int>(boneIter - bones.cbegin());
+	for (auto boneIter = bones.begin(), boneEnd = bones.end(); boneIter != boneEnd; ++boneIter) {
+		int index = static_cast<int>(boneIter - bones.begin());
 		int parentIndex = boneIter->ParentIndex;
 
 		XMMATRIX globalTransform;
-		if (mNeedToBeAligned) {
+		if (bNeedToBeAligned) {
 			globalTransform = XMMatrixMultiply(XMLoadFloat4x4(&boneIter->GlobalBindPose),
 				XMMatrixRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XM_PIDIV2));
 		}
@@ -319,9 +317,10 @@ void Mesh::GenerateSkeletonData() {
 		XMFLOAT4 transf;
 		XMStoreFloat4(&transf, trans);
 
-		Vertex vert;
+		Game::Vertex vert;
 		vert.mPos = { transf.x, transf.y, transf.z };
 		vert.mTexC = { static_cast<float>(index), static_cast<float>(parentIndex) };
+		
 		AddSkeletonVertex(vert);
 
 		if (parentIndex != -1) {
@@ -334,21 +333,31 @@ void Mesh::GenerateSkeletonData() {
 		}
 		else {
 			vert.mPos = { 0.0f, 0.0f, 0.0f };
-			vert.mTexC = { -1.0f, 0.0f };
+			vert.mTexC = { 0.0f, 0.0f };
 		}
+
 		AddSkeletonVertex(vert);
 	}
 }
 
-void Mesh::AddSkeletonVertex(const Vertex& inVertex) {
-	auto vertIter = std::find(mSkeletonVertices.cbegin(), mSkeletonVertices.cend(), inVertex);
-	if (vertIter != mSkeletonVertices.cend()) {
-		std::uint32_t index = static_cast<std::uint32_t>(vertIter - mSkeletonVertices.cbegin());
-		mSkeletonIndices.push_back(index);
+void Mesh::AddSkeletonVertex(const Game::Vertex& inVertex) {
+	try {
+		//Logln("Hi");
+		auto vertIter = std::find(mSkeletonVertices.begin(), mSkeletonVertices.end(), inVertex);
+		//Logln("Bye");
+		if (vertIter != mSkeletonVertices.end()) {
+			std::uint32_t index = static_cast<std::uint32_t>(vertIter - mSkeletonVertices.begin());
+			mSkeletonIndices.push_back(index);
+			//Logln("Overlapped");
+		}
+		else {
+			mSkeletonIndices.push_back(static_cast<std::uint32_t>(mSkeletonVertices.size()));
+			mSkeletonVertices.push_back(inVertex);
+			//Logln("Unique");
+		}
 	}
-	else {		
-		mSkeletonIndices.push_back(static_cast<std::uint32_t>(mSkeletonVertices.size()));
-		mSkeletonVertices.push_back(inVertex);
+	catch (std::exception& e) {
+		Logln(e.what());
 	}
 }
 

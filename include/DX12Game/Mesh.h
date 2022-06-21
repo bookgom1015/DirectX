@@ -3,9 +3,12 @@
 #include "DX12Game/SkinnedData.h"
 
 class Renderer;
-struct Vertex;
-struct SkinnedVertex;
 struct MaterialIn;
+
+namespace Game {
+	struct Vertex;
+	struct SkinnedVertex;
+}
 
 class Mesh {
 public:
@@ -18,18 +21,18 @@ public:
 	const std::string& GetMeshName() const;
 	const std::vector<std::string>& GetDrawArgs() const;
 
-	const std::vector<Vertex>& GetVertices() const;
-	const std::vector<SkinnedVertex>& GetSkinnedVertices() const;
+	const std::vector<Game::Vertex>& GetVertices() const;
+	const std::vector<Game::SkinnedVertex>& GetSkinnedVertices() const;
 	const std::vector<std::uint32_t>& GetIndices() const;
 
 	const std::vector<std::pair<UINT, UINT>>& GetSubsets() const;
 	const std::unordered_map<std::string, MaterialIn>& GetMaterials() const;
 
-	const SkinnedData& GetSkinnedData() const;
+	const Game::SkinnedData& GetSkinnedData() const;
 
 	bool GetIsSkeletal() const;
 
-	const std::vector<Vertex>& GetSkeletonVertices() const;
+	const std::vector<Game::Vertex>& GetSkeletonVertices() const;
 	const std::vector<std::uint32_t> GetSkeletonIndices() const;
 
 	UINT GetClipIndex(const std::string& inClipName) const;
@@ -39,7 +42,7 @@ private:
 	//* It's organized as line-lists.
 	void GenerateSkeletonData();
 	//* Helper class for the fuction GenerateSkeletonData.
-	void AddSkeletonVertex(const Vertex& inVertex);
+	void AddSkeletonVertex(const Game::Vertex& inVertex);
 
 	//* Outputs information consisting of text for skinned data to ./log.txt
 	void OutputSkinnedDataInfo();
@@ -50,20 +53,20 @@ protected:
 	std::string mMeshName;
 	std::vector<std::string> mDrawArgs;
 
-	std::vector<Vertex> mVertices;
-	std::vector<SkinnedVertex> mSkinnedVertices;
+	std::vector<Game::Vertex> mVertices;
+	std::vector<Game::SkinnedVertex> mSkinnedVertices;
 	std::vector<std::uint32_t> mIndices;
 
 	std::vector<std::pair<UINT /* Index count */, UINT /* Start index */>> mSubsets;
 
 	std::unordered_map<std::string /* Geometry name */, MaterialIn> mMaterials;
 
-	SkinnedData mSkinnedData;
+	Game::SkinnedData mSkinnedData;
 
-	bool mIsSkeletal;
-	bool mNeedToBeAligned;
+	bool bIsSkeletal;
+	bool bNeedToBeAligned;
 
-	std::vector<Vertex> mSkeletonVertices;
+	std::vector<Game::Vertex> mSkeletonVertices;
 	std::vector<std::uint32_t> mSkeletonIndices;
 
 	std::unordered_map<std::string /* Clip name */, UINT /* Index */> mClipsIndex;

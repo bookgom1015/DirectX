@@ -243,13 +243,13 @@ GameResult DxLowRenderer::CreateSwapChain() {
 
 GameResult DxLowRenderer::OnResize() {
 	if (!md3dDevice)
-		ReturnGameResult(S_FALSE, L"ID3D12Device does not exist");
+		ReturnGameResult(E_POINTER, L"ID3D12Device does not exist");
 	if (!mSwapChain)
-		ReturnGameResult(S_FALSE, L"IDXGISwapChain does not exist");
+		ReturnGameResult(E_POINTER, L"IDXGISwapChain does not exist");
 
 	for (UINT i = 0; i < mNumThreads; ++i) {
 		if (!mCommandAllocators[i])
-			ReturnGameResult(S_FALSE, L"ID3D12CommandAllocator(idx: " + std::to_wstring(i) + L" does not exist");
+			ReturnGameResult(E_POINTER, L"ID3D12CommandAllocator(idx: " + std::to_wstring(i) + L" does not exist");
 	}
 
 	// Flush before changing any resources.
