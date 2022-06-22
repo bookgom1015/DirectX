@@ -4,9 +4,313 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DxGameClient_WPF"
+        xmlns:gif="http://wpfanimatedgif.codeplex.com"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Width="1600" Height="900"
+        WindowStyle="None"
+        Background="Transparent"
+        AllowsTransparency="True">
     <Grid>
-        
+        <Border Background="Black">
+            <Image Source="/Assets/Images/client_background_3840x2160.png" Stretch="UniformToFill">
+                <Image.Effect>
+                    <BlurEffect Radius="32" KernelType="Gaussian" />
+                </Image.Effect>
+            </Image>
+        </Border>
+        <Border>
+            <Border.Resources>
+                <Style x:Key="NoMouseOverEffect" TargetType="{x:Type Button}">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type Button}">
+                                <Border Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+                <Style x:Key="SysButton" TargetType="{x:Type Button}">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type Button}">
+                                <Border Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#66000000"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Resources>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="40" />
+                    <RowDefinition Height="1*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Thumb x:Name="HeaderThumb"
+                           DragDelta="HeaderThumb_DragDelta"
+                           Opacity="0"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="1*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0"
+                                    Orientation="Horizontal">
+                            <Button x:Name="ConfigureButton"
+                                    Style="{StaticResource SysButton}"
+                                    Click="ConfigureButton_Click"
+                                    Width="40" Height="40">
+                                <Image Width="20" Height="20" Source="/Assets/Images/configure_icon.png" />
+                            </Button>
+                        </StackPanel>                    
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    HorizontalAlignment="Right">
+                            <StackPanel.Resources>
+                                <Style TargetType="{x:Type Image}">
+                                    <Setter Property="Width" Value="20" />
+                                    <Setter Property="Height" Value="20" />
+                                </Style>
+                            </StackPanel.Resources>
+                            <Button Name="CloseButton" 
+                                    Style="{StaticResource SysButton}"
+                                    Click="CloseButton_Click"
+                                    Width="40" Height="40">
+                                <Image Source="/Assets/Images/close_icon.png" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*" />
+                        <RowDefinition Height="100" />
+                        <RowDefinition Height="100" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid x:Name="LeftSubPamphletGrid"
+                              Margin="0, 80, 920, 0"
+                              Width="320" Height="320">
+                            <Border Background="White"
+                                    CornerRadius="8">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="16"
+                                                      ShadowDepth="24"
+                                                      Color="Gray"
+                                                      Opacity="0.5" />
+
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="LeftSubPahphletMask"
+                                    Background="White"
+                                    CornerRadius="8" />
+                            <StackPanel>
+                                <StackPanel.OpacityMask>
+                                    <VisualBrush Visual="{Binding ElementName=LeftSubPahphletMask}" />
+                                </StackPanel.OpacityMask>
+                                <Frame x:Name="LeftSubFrame"
+                                       Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
+                                       Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
+                            </StackPanel>
+                        </Grid>
+                        <Border Width="80" Height="80"
+                                Margin="0, 0, 1400, 0">
+                            <Image Source="/Assets/Images/left_arrow.png" />
+                        </Border>
+                        <Grid x:Name="RightSubPamphletGrid"
+                              Margin="920, 80, 0, 0"
+                              Width="320" Height="320">
+                            <Border Background="White"
+                                    CornerRadius="8">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="16"
+                                                      ShadowDepth="24"
+                                                      Color="Gray"
+                                                      Opacity="0.5" />
+
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="RightSubPahphletMask"
+                                    Background="White"
+                                    CornerRadius="8" />
+                            <StackPanel>
+                                <StackPanel.OpacityMask>
+                                    <VisualBrush Visual="{Binding ElementName=RightSubPahphletMask}" />
+                                </StackPanel.OpacityMask>
+                                <Frame x:Name="RightSubFrame"
+                                       Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
+                                       Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
+                            </StackPanel>
+                        </Grid>
+                        <Border Width="80" Height="80"
+                                Margin="1400, 0, 0, 0">
+                            <Image Source="/Assets/Images/right_arrow.png" />
+                        </Border>
+                        <Grid x:Name="MainPamphletGrid"
+                              Width="480" Height="480">
+                            <Border Background="White"
+                                    CornerRadius="8">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="16"
+                                                      ShadowDepth="48"
+                                                      Color="Gray"
+                                                      Opacity="0.5" />
+
+                                </Border.Effect>
+                            </Border>
+                            <Border x:Name="MainPahphletMask"
+                                    Background="White"
+                                    CornerRadius="8" />                        
+                            <StackPanel>
+                                <StackPanel.OpacityMask>
+                                    <VisualBrush Visual="{Binding ElementName=MainPahphletMask}" />
+                                </StackPanel.OpacityMask>
+                                <Frame x:Name="MainFrame"
+                                       Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
+                                       Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
+                            </StackPanel>
+                        </Grid>                    
+                    </Grid>
+                    <Grid Grid.Row="1">
+                        <StackPanel Orientation="Horizontal" 
+                                    HorizontalAlignment="Center">
+                            <StackPanel.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect BlurRadius="8"
+                                                      ShadowDepth="0"
+                                                      Color="Black"
+                                                      Opacity="0.5" />
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </StackPanel.Resources>
+                            <Border Width="20" Height="20" 
+                                    CornerRadius="20"
+                                    Background="Gray" />
+                            <Border Width="20" />
+                            <Border Width="20" Height="20" 
+                                    CornerRadius="20"
+                                    Background="White">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="8"
+                                                      ShadowDepth="0"
+                                                      Color="White"
+                                                      Opacity="0.5" />
+                                </Border.Effect>
+                            </Border>
+                            <Border Width="20" />
+                            <Border Width="20" Height="20" 
+                                    CornerRadius="20"
+                                    Background="Gray" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Grid.Row="2">
+                        <Border CornerRadius="0, 0, 8, 8">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0, 0" EndPoint="0, 0.1">
+                                    <GradientStop Color="Gray" Offset=" 0.0" />
+                                    <GradientStop Color="White" Offset=" 1.0" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="160" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0">
+
+                            </Border>
+                            <Button x:Name="PlayButton"
+                                Grid.Column="1"
+                                Style="{StaticResource NoMouseOverEffect}"
+                                Click="PlayButton_Click"
+                                BorderThickness="0"
+                                Margin="10, 20, 20, 20"
+                                FontSize="24">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Button.Resources>
+                                <Button.Triggers>
+                                    <EventTrigger RoutedEvent="Button.MouseEnter">
+                                        <BeginStoryboard>
+                                            <Storyboard TargetProperty="FontSize">
+                                                <DoubleAnimation Duration="0:0:0.01" From="24" To="32" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                    <EventTrigger RoutedEvent="Button.MouseLeave">
+                                        <BeginStoryboard>
+                                            <Storyboard TargetProperty="FontSize">
+                                                <DoubleAnimation Duration="0:0:0.01" From="32" To="24" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Button.Triggers>
+                                <Button.Background>
+                                    <VisualBrush>
+                                        <VisualBrush.Visual>
+                                            <Image gif:ImageBehavior.AnimatedSource="/Assets/Images/nyan_cat.gif"
+                                               gif:ImageBehavior.AutoStart="True"
+                                               gif:ImageBehavior.RepeatBehavior="1" />
+                                        </VisualBrush.Visual>
+                                    </VisualBrush>
+                                </Button.Background>
+                                <Button.Effect>
+                                    <DropShadowEffect BlurRadius="8"
+                                                  ShadowDepth="4"
+                                                  Color="Gray"
+                                                  Opacity="1" />
+                                </Button.Effect>
+                                <Button.Content>
+                                    <Grid>
+                                        <TextBlock Text="PLAY" Foreground="Black">
+                                            <TextBlock.RenderTransform>
+                                                <TranslateTransform X="-2" Y="-2" />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock Text="PLAY" Foreground="Black">
+                                            <TextBlock.RenderTransform>
+                                                <TranslateTransform X="2" Y="2" />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock Text="PLAY" Foreground="Black">
+                                            <TextBlock.RenderTransform>
+                                                <TranslateTransform X="2" Y="-2" />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock Text="PLAY" Foreground="Black">
+                                            <TextBlock.RenderTransform>
+                                                <TranslateTransform X="-2" Y="2" />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock Text="PLAY" Foreground="White" />
+                                    </Grid>
+                                </Button.Content>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
