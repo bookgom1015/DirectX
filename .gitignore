@@ -25,3 +25,6 @@ build/**/*.pfx
 # ignore manuals and devlog
 devlog/
 manuals/
+
+# ignore DxGameClient's assets
+build/DxGameClient_WPF/Assets/

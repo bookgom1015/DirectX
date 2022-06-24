@@ -25,6 +25,8 @@ namespace DxGameClient_WPF {
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window {
+        private MainWindowViewModel ViewModel;
+
         public MainWindow() {
             InitializeComponent();
 
@@ -100,6 +102,12 @@ namespace DxGameClient_WPF {
 
         }
 
-        private MainWindowViewModel ViewModel;
+        private void LeftArrowButton_Click(object sender, RoutedEventArgs e) {
+
+        }
+
+        private void RightArrowButton_Click(object sender, RoutedEventArgs e) {
+
+        }
     }
 }

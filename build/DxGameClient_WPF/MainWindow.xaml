@@ -103,88 +103,111 @@
                         <RowDefinition Height="100" />
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0">
-                        <Grid x:Name="LeftSubPamphletGrid"
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="120" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="LeftArrowButton" 
+                                Grid.Column="0" 
+                                Click="LeftArrowButton_Click"
+                                Style="{StaticResource SysButton}"
+                                Width="90" Height="120">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8" />
+                                </Style>
+                            </Button.Resources>
+                            <Image Width="80" Height="80" Source="/Assets/Images/left_arrow.png" />
+                        </Button>
+                        <Grid Grid.Column="1">
+                            <Grid x:Name="LeftSubPamphletGrid"
                               Margin="0, 80, 920, 0"
                               Width="320" Height="320">
-                            <Border Background="White"
+                                <Border Background="White"
                                     CornerRadius="8">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16"
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="16"
                                                       ShadowDepth="24"
                                                       Color="Gray"
                                                       Opacity="0.5" />
 
-                                </Border.Effect>
-                            </Border>
-                            <Border x:Name="LeftSubPahphletMask"
+                                    </Border.Effect>
+                                </Border>
+                                <Border x:Name="LeftSubPahphletMask"
                                     Background="White"
                                     CornerRadius="8" />
-                            <StackPanel>
-                                <StackPanel.OpacityMask>
-                                    <VisualBrush Visual="{Binding ElementName=LeftSubPahphletMask}" />
-                                </StackPanel.OpacityMask>
-                                <Frame x:Name="LeftSubFrame"
+                                <StackPanel>
+                                    <StackPanel.OpacityMask>
+                                        <VisualBrush Visual="{Binding ElementName=LeftSubPahphletMask}" />
+                                    </StackPanel.OpacityMask>
+                                    <Frame x:Name="LeftSubFrame"
                                        Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
                                        Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
-                            </StackPanel>
-                        </Grid>
-                        <Border Width="80" Height="80"
-                                Margin="0, 0, 1400, 0">
-                            <Image Source="/Assets/Images/left_arrow.png" />
-                        </Border>
-                        <Grid x:Name="RightSubPamphletGrid"
+                                </StackPanel>
+                            </Grid>
+                            <Grid x:Name="RightSubPamphletGrid"
                               Margin="920, 80, 0, 0"
                               Width="320" Height="320">
-                            <Border Background="White"
+                                <Border Background="White"
                                     CornerRadius="8">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16"
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="16"
                                                       ShadowDepth="24"
                                                       Color="Gray"
                                                       Opacity="0.5" />
 
-                                </Border.Effect>
-                            </Border>
-                            <Border x:Name="RightSubPahphletMask"
+                                    </Border.Effect>
+                                </Border>
+                                <Border x:Name="RightSubPahphletMask"
                                     Background="White"
                                     CornerRadius="8" />
-                            <StackPanel>
-                                <StackPanel.OpacityMask>
-                                    <VisualBrush Visual="{Binding ElementName=RightSubPahphletMask}" />
-                                </StackPanel.OpacityMask>
-                                <Frame x:Name="RightSubFrame"
+                                <StackPanel>
+                                    <StackPanel.OpacityMask>
+                                        <VisualBrush Visual="{Binding ElementName=RightSubPahphletMask}" />
+                                    </StackPanel.OpacityMask>
+                                    <Frame x:Name="RightSubFrame"
                                        Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
                                        Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
-                            </StackPanel>
-                        </Grid>
-                        <Border Width="80" Height="80"
-                                Margin="1400, 0, 0, 0">
-                            <Image Source="/Assets/Images/right_arrow.png" />
-                        </Border>
-                        <Grid x:Name="MainPamphletGrid"
+                                </StackPanel>
+                            </Grid>
+                            <Grid x:Name="MainPamphletGrid"
                               Width="480" Height="480">
-                            <Border Background="White"
+                                <Border Background="White"
                                     CornerRadius="8">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16"
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="16"
                                                       ShadowDepth="48"
                                                       Color="Gray"
                                                       Opacity="0.5" />
 
-                                </Border.Effect>
-                            </Border>
-                            <Border x:Name="MainPahphletMask"
+                                    </Border.Effect>
+                                </Border>
+                                <Border x:Name="MainPahphletMask"
                                     Background="White"
-                                    CornerRadius="8" />                        
-                            <StackPanel>
-                                <StackPanel.OpacityMask>
-                                    <VisualBrush Visual="{Binding ElementName=MainPahphletMask}" />
-                                </StackPanel.OpacityMask>
-                                <Frame x:Name="MainFrame"
+                                    CornerRadius="8" />
+                                <StackPanel>
+                                    <StackPanel.OpacityMask>
+                                        <VisualBrush Visual="{Binding ElementName=MainPahphletMask}" />
+                                    </StackPanel.OpacityMask>
+                                    <Frame x:Name="MainFrame"
                                        Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Width}" 
                                        Height="{Binding RelativeSource={RelativeSource AncestorType={x:Type Grid}}, Path=Height}" />
-                            </StackPanel>
-                        </Grid>                    
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                        <Button x:Name="RightArrowButton"
+                                Grid.Column="2" 
+                                Click="RightArrowButton_Click"
+                                Style="{StaticResource SysButton}"
+                                Width="90" Height="120">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8" />
+                                </Style>
+                            </Button.Resources>
+                            <Image Width="80" Height="80" Source="/Assets/Images/right_arrow.png" />
+                        </Button>
                     </Grid>
                     <Grid Grid.Row="1">
                         <StackPanel Orientation="Horizontal" 
