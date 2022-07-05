@@ -1,11 +1,6 @@
 #pragma once
 
-#pragma comment(lib, "d3dcompiler.lib")
-#pragma comment(lib, "D3D12.lib")
-#pragma comment(lib, "dxgi.lib")
-
-#include "common/d3dUtil.h"
-#include "DX12Game/StringUtil.h"
+#include "DX12Game/GameCore.h"
 
 class LowRenderer {
 protected:
@@ -21,37 +16,43 @@ public:
 	virtual ~LowRenderer();
 
 public:
-	virtual bool Initialize(HWND hMainWnd, UINT inClientWidth = 800, UINT inClientHeight = 600);
+	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth = 800, UINT inClientHeight = 600);
 	virtual void CleanUp();
 
-	virtual bool OnResize(UINT inClientWidth, UINT inClientHeight);
+	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
 
-	bool FlushCommandQueue();
+	GameResult FlushCommandQueue();
 
+	ID3D12Resource* BackBuffer(int index) const;
 	ID3D12Resource* CurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	bool IsValid() const;
+	GameResult GetDeviceRemovedReason() const;
+
+	float AspectRatio() const;
+
+protected:
+	virtual GameResult CreateRtvAndDsvDescriptorHeaps();
 
 private:
 	void LogAdapters();
 	void LogAdapterOutputs(IDXGIAdapter* inAdapter);
 	void LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFormat);
 
-	bool InitDirect3D();
+	GameResult InitDirect3D();
 
-	bool CreateCommandObjects();
-	bool CreateSwapChain();
-	virtual bool CreateRtvAndDsvDescriptorHeaps();
+	GameResult CreateCommandObjects();
+	GameResult CreateSwapChain();
 
-	bool OnResize();
+	GameResult OnResize();
 
 protected:
 	static const int SwapChainBufferCount = 2;
 
-	bool bIsCleanedUp;
-	bool bIsValid;
+	bool bIsCleanedUp = false;
+	bool bIsValid = false;
 
 	Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
 	Microsoft::WRL::ComPtr<ID3D12Device5> md3dDevice;

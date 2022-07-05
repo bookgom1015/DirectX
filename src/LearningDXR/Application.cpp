@@ -1,19 +1,40 @@
 #include "LearningDXR/Application.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd) {
-	Application app;
+	try {
+		Application app;
 
-	bool status = app.Initialize();
-	if (!status) {
-		WErrln(L"Failed to intialize application");
+		auto result = app.Initialize();
+		if (FAILED(result.hr)) {
+			GameResult reason = app.GetRenderer()->GetDeviceRemovedReason();
+			std::wstringstream wsstream;
+			wsstream << L"Device removed reason code: 0x" << std::hex << reason.hr;
+			WLogln(wsstream.str());
+			return static_cast<int>(result.hr);
+		}
+
+		result = app.RunLoop();
+		if (result.hr != S_OK) {
+			GameResult reason = app.GetRenderer()->GetDeviceRemovedReason();
+			std::wstringstream wsstream;
+			wsstream << L"Device removed reason code: 0x" << std::hex << reason.hr;
+			WLogln(wsstream.str());
+			return static_cast<int>(result.hr);
+		}
+
+		app.CleanUp();
+
+		WLogln(L"The game has been succeesfully cleaned up");
+
+		return static_cast<int>(result.hr);
+	}
+	catch (const std::exception& e) {
+		std::wstringstream wsstream;
+		wsstream << e.what();
+		WErrln(wsstream.str());
+		WLogln(L"Catched");
 		return -1;
 	}
-
-	int msg = app.RunLoop();
-
-	app.CleanUp();
-
-	return msg;
 }
 
 namespace {
@@ -42,21 +63,14 @@ Application::~Application() {
 		CleanUp();
 }
 
-bool Application::Initialize() {
-	if (!InitMainWindow()) {
-		WErrln(L"Failed to initialize main window");
-		return false;
-	}
+GameResult Application::Initialize() {
+	CheckGameResult(InitMainWindow());
+	CheckGameResult(mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight));
 
-	if (!mRenderer->Initialize(mhMainWnd, mClientWidth, mClientHeight)) {
-		WErrln(L"Failed to intialize renderer");
-		return false;
-	}
-
-	return true;
+	return GameResultOk;
 }
 
-int Application::RunLoop() {
+GameResult Application::RunLoop() {
 	MSG msg = { 0 };
 
 	mTimer.Reset();
@@ -72,8 +86,8 @@ int Application::RunLoop() {
 			mTimer.Tick();
 
 			if (!mAppPaused) {
-				Update();
-				Draw();
+				BreakIfFailed(Update());
+				BreakIfFailed(Draw());
 			}
 			else {
 				Sleep(100);
@@ -81,7 +95,7 @@ int Application::RunLoop() {
 		}
 	}
 
-	return static_cast<int>(msg.wParam);
+	return GameResult(static_cast<HRESULT>(msg.wParam));
 }
 
 void Application::CleanUp() {
@@ -91,7 +105,7 @@ void Application::CleanUp() {
 	bIsCleanedUp = true;
 }
 
-bool Application::InitMainWindow() {
+GameResult Application::InitMainWindow() {
 	WNDCLASS wc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 	wc.lpfnWndProc = MainWndProc;
@@ -103,11 +117,7 @@ bool Application::InitMainWindow() {
 	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
 	wc.lpszMenuName = 0;
 	wc.lpszClassName = L"MainWnd";
-
-	if (!RegisterClass(&wc)) {
-		WErrln(L"Failed to register window class");
-		return false;
-	}
+	if (!RegisterClass(&wc))  ReturnGameResult(E_FAIL, L"Failed to register window class");
 
 	// Compute window rectangle dimensions based on requested client area dimensions.
 	RECT R = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
@@ -121,37 +131,66 @@ bool Application::InitMainWindow() {
 	int clientPosX = static_cast<int>((mPrimaryMonitorWidth - mClientWidth) * 0.5f);
 	int clientPosY = static_cast<int>((mPrimaryMonitorHeight - mClientHeight) * 0.5f);
 
-	mhMainWnd = CreateWindow(L"MainWnd", L"DXR Application",
-		WS_OVERLAPPEDWINDOW, clientPosX, clientPosY, width, height, 0, 0, mhInst, 0);
-	if (!mhMainWnd) {
-		WErrln(L"Failed to create window");
-		return false;
-	}
+	mhMainWnd = CreateWindow(
+		L"MainWnd", L"DXR Application",
+		WS_OVERLAPPEDWINDOW, 
+		clientPosX, clientPosY, 
+		width, height, 
+		0, 0, mhInst, 0);
+	if (!mhMainWnd) ReturnGameResult(E_FAIL, L"Failed to create window");
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
 
-	return true;
+	return GameResultOk;
 }
 
 void Application::OnResize() {
 	mRenderer->OnResize(mClientWidth, mClientHeight);
 }
 
-bool Application::Update() {
-	mRenderer->Update(mTimer);
+GameResult Application::Update() {
+	CheckGameResult(mRenderer->Update(mTimer));
 
-	return true;
+	return GameResultOk;
 }
 
-bool Application::Draw() {
-	mRenderer->Draw();
+GameResult Application::Draw() {
+	CheckGameResult(mRenderer->Draw());
 
-	return true;
+	return GameResultOk;
+}
+
+void Application::OnMouseDown(WPARAM inBtnState, int inX, int inY) {
+
+}
+
+void Application::OnMouseUp(WPARAM inBtnState, int inX, int inY) {
+
+}
+
+void Application::OnMouseMove(WPARAM inBtnState, int inX, int inY) {
+
+}
+
+void Application::OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam) {
+	if (msg == WM_KEYDOWN) {
+		if (wParam == VK_SPACE) {
+			bool state = mRenderer->GetRenderType();
+			mRenderer->SetRenderType(!state);
+		}
+	}
+	else {
+
+	}
 }
 
 Application* Application::GetApp() {
 	return sApp;
+}
+
+Renderer* Application::GetRenderer() {
+	return mRenderer.get();
 }
 
 LRESULT Application::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -253,23 +292,28 @@ LRESULT Application::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 	case WM_LBUTTONDOWN:
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
+		OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 
 	case WM_LBUTTONUP:
 	case WM_MBUTTONUP:
 	case WM_RBUTTONUP:
+		OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 
 	case WM_MOUSEMOVE:
+		OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 
 	case WM_MOUSEWHEEL:
 		return 0;
 
 	case WM_KEYUP:
+		OnKeyboardInput(WM_KEYUP, wParam, lParam);
 		return 0;
 
 	case WM_KEYDOWN:
+		OnKeyboardInput(WM_KEYDOWN, wParam, lParam);
 		return 0;
 	}
 

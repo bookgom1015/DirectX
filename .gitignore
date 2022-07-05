@@ -3,6 +3,8 @@
 # ignore object files
 obj/
 build/**/obj/
+build/**/x64/
+build/**/x86/
 
 # ignore batch files
 .bat

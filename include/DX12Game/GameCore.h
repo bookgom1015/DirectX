@@ -1,15 +1,17 @@
 #pragma once
 
-#define UsingVulkan
+//#define UsingVulkan
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "DirectXTK12.lib")
-// Link necessary vulkan libraries.
-#pragma comment(lib, "glfw3.lib")
-#pragma comment(lib, "vulkan-1.lib")
+#ifdef UsingVulkan
+	// Link necessary vulkan libraries.
+	#pragma comment(lib, "glfw3.lib")
+	#pragma comment(lib, "vulkan-1.lib")
+#endif
 
 const int gNumFrameResources = 3;
 
@@ -44,7 +46,7 @@ const int gNumFrameResources = 3;
 	
 	#define GLFW_EXPOSE_NATIVE_WIN32
 	#include <GLFW/glfw3native.h>
-#endif
+#endif 
 
 const std::wstring TextureFilePathW = L"./../../../../Assets/Textures/";
 const std::string TextureFilePath = "./../../../../Assets/Textures/";

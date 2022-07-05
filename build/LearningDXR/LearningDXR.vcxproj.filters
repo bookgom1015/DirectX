@@ -22,8 +22,17 @@
     <Filter Include="Common Files\Private">
       <UniqueIdentifier>{c420692f-0e0a-4cc9-88c1-636d530a257e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\DX12Game">
-      <UniqueIdentifier>{d2d637e9-198e-43e6-93c3-54c8cbf88508}</UniqueIdentifier>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{78f151da-1af7-4224-840c-da21d771538c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files">
+      <UniqueIdentifier>{f12d4c0a-e252-4c1a-b0a0-63a0107aa9c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files\RayTracing">
+      <UniqueIdentifier>{4b12c8d8-d782-47fa-8716-99fca2271285}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files\Rasterization">
+      <UniqueIdentifier>{6b752504-f92c-4304-8a56-6291154aaf07}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -93,7 +102,36 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
-      <Filter>Source Files\DX12Game</Filter>
+      <Filter>Source Files\Util</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp">
+      <Filter>Source Files\Util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\ClosestHit.hlsl">
+      <Filter>Shader Files\RayTracing</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Miss.hlsl">
+      <Filter>Shader Files\RayTracing</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\RayGen.hlsl">
+      <Filter>Shader Files\RayTracing</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Default.hlsl">
+      <Filter>Shader Files\Rasterization</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\LightingUtil.hlsl">
+      <Filter>Shader Files\Rasterization</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\RTXCommon.hlsl">
+      <Filter>Shader Files\RayTracing</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Common.hlsl">
+      <Filter>Shader Files\Rasterization</Filter>
+    </None>
   </ItemGroup>
 </Project>

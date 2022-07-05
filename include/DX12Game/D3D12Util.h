@@ -7,6 +7,9 @@
 #include <dxgi1_4.h>
 #include <D3Dcompiler.h>
 #include <d3d12.h>
+#include <dxgi1_6.h>
+#include <dxc/dxcapi.h>
+#include <dxc/Support/dxcapi.use.h>
 #include <SimpleMath.h>
 #include <wrl.h>
 #include <unordered_map>
@@ -17,41 +20,6 @@
 #include "DX12Game/GameResult.h"
 
 extern const int gNumFrameResources;
-
-class D3D12Util {
-public:
-	static UINT CalcConstantBufferByteSize(UINT byteSize) {
-		// Constant buffers must be a multiple of the minimum hardware
-		// allocation size (usually 256 bytes).  So round up to nearest
-		// multiple of 256.  We do this by adding 255 and then masking off
-		// the lower 2 bytes which store all bits < 256.
-		// Example: Suppose byteSize = 300.
-		// (300 + 255) & ~255
-		// 555 & ~255
-		// 0x022B & ~0x00ff
-		// 0x022B & 0xff00
-		// 0x0200
-		// 512
-		return (byteSize + 255) & ~255;
-	}
-
-	static GameResult LoadBinary(const std::wstring& inFilename, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob);
-
-	static GameResult CreateDefaultBuffer(
-		ID3D12Device* inDevice,
-		ID3D12GraphicsCommandList* inCmdList,
-		const void* inInitData,
-		UINT64 inByteSize,
-		Microsoft::WRL::ComPtr<ID3D12Resource>& outUploadBuffer,
-		Microsoft::WRL::ComPtr<ID3D12Resource>& outDefaultBuffer);
-
-	static GameResult CompileShader(
-		const std::wstring& inFilename,
-		const D3D_SHADER_MACRO* inDefines,
-		const std::string& inEntrypoint,
-		const std::string& inTarget,
-		Microsoft::WRL::ComPtr<ID3DBlob>& outByteCode);
-};
 
 // Defines a subrange of geometry in a MeshGeometry.  This is for when multiple
 // geometries are stored in one vertex and index buffer.  It provides the offsets
@@ -204,6 +172,154 @@ struct Texture {
 	Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
 };
 
+struct D3D12BufferCreateInfo {
+	UINT64					Size		= 0;
+	UINT64					Alignment	= 0;
+	D3D12_HEAP_TYPE			HeapType	= D3D12_HEAP_TYPE_DEFAULT;
+	D3D12_RESOURCE_FLAGS	Flags		= D3D12_RESOURCE_FLAG_NONE;
+	D3D12_RESOURCE_STATES	State		= D3D12_RESOURCE_STATE_COMMON;
+
+	D3D12BufferCreateInfo() {}
+	D3D12BufferCreateInfo(UINT64 InSize, D3D12_RESOURCE_FLAGS InFlags) : 
+		Size(InSize), 
+		Flags(InFlags) {}
+	D3D12BufferCreateInfo(UINT64 InSize, D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_STATES InState) :
+		Size(InSize),
+		HeapType(InHeapType),
+		State(InState) {}
+	D3D12BufferCreateInfo(UINT64 InSize, D3D12_RESOURCE_FLAGS InFlags, D3D12_RESOURCE_STATES InState) :
+		Size(InSize),
+		Flags(InFlags),
+		State(InState) {}
+	D3D12BufferCreateInfo(UINT64 InSize, UINT64 InAlignment, D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InFlags, D3D12_RESOURCE_STATES InState) :
+		Size(InSize),
+		Alignment(InAlignment),
+		HeapType(InHeapType),
+		Flags(InFlags),
+		State(InState) {}
+};
+
+struct D3D12ShaderCompilerInfo {
+	dxc::DxcDllSupport	DxcDllHelper;
+	IDxcCompiler*		Compiler	= nullptr;
+	IDxcLibrary*		Library		= nullptr;
+};
+
+struct D3D12ShaderInfo {
+	LPCWSTR		FileName		= nullptr;
+	LPCWSTR		EntryPoint		= nullptr;
+	LPCWSTR		TargetProfile	= nullptr;
+	LPCWSTR*	Arguments		= nullptr;
+	DxcDefine*	Defines			= nullptr;
+	UINT32		ArgCount		= 0;
+	UINT32		DefineCount		= 0;
+
+	D3D12ShaderInfo() {}
+	D3D12ShaderInfo(LPCWSTR inFileName, LPCWSTR inEntryPoint, LPCWSTR inProfile) {
+		FileName = inFileName;
+		EntryPoint = inEntryPoint;
+		TargetProfile = inProfile;
+	}
+};
+
+struct RaytracingProgram {
+	D3D12ShaderInfo								Info			= {};
+	Microsoft::WRL::ComPtr<IDxcBlob>			Blob			= nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature>	RootSignature	= nullptr;
+
+	D3D12_DXIL_LIBRARY_DESC DxilLibDesc;
+	D3D12_EXPORT_DESC		ExportDesc;
+	D3D12_STATE_SUBOBJECT	Subobject;
+	std::wstring			ExportName;
+
+	RaytracingProgram() {
+		ExportDesc.ExportToRename = nullptr;
+	}
+
+	RaytracingProgram(D3D12ShaderInfo inInfo) {
+		Info = inInfo;
+		Subobject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
+		ExportName = inInfo.EntryPoint;
+		ExportDesc.ExportToRename = nullptr;
+		ExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+	}
+
+	void SetBytecode() {
+		ExportDesc.Name = ExportName.c_str();
+
+		DxilLibDesc.NumExports = 1;
+		DxilLibDesc.pExports = &ExportDesc;
+		DxilLibDesc.DXILLibrary.BytecodeLength = Blob->GetBufferSize();
+		DxilLibDesc.DXILLibrary.pShaderBytecode = Blob->GetBufferPointer();
+
+		Subobject.pDesc = &DxilLibDesc;
+	}
+};
+
+class D3D12Util {
+public:
+	static UINT CalcConstantBufferByteSize(UINT byteSize) {
+		// Constant buffers must be a multiple of the minimum hardware
+		// allocation size (usually 256 bytes).  So round up to nearest
+		// multiple of 256.  We do this by adding 255 and then masking off
+		// the lower 2 bytes which store all bits < 256.
+		// Example: Suppose byteSize = 300.
+		// (300 + 255) & ~255
+		// 555 & ~255
+		// 0x022B & ~0x00ff
+		// 0x022B & 0xff00
+		// 0x0200
+		// 512
+		return (byteSize + 255) & ~255;
+	}
+
+	static GameResult LoadBinary(const std::wstring& inFilename, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob);
+
+	static GameResult CreateDefaultBuffer(
+		ID3D12Device* inDevice,
+		ID3D12GraphicsCommandList* inCmdList,
+		const void* inInitData,
+		UINT64 inByteSize,
+		Microsoft::WRL::ComPtr<ID3D12Resource>& outUploadBuffer,
+		Microsoft::WRL::ComPtr<ID3D12Resource>& outDefaultBuffer);
+
+	static GameResult CompileShader(
+		const std::wstring& inFilename,
+		const D3D_SHADER_MACRO* inDefines,
+		const std::string& inEntrypoint,
+		const std::string& inTarget,
+		Microsoft::WRL::ComPtr<ID3DBlob>& outByteCode);
+
+	static GameResult CompileShader(
+		D3D12ShaderCompilerInfo& inCompilerInfo, 
+		D3D12ShaderInfo& inInfo, 
+		IDxcBlob** ppBlob);
+
+	static GameResult AllocateUavBuffer(
+		ID3D12Device* pDevice,
+		UINT64 inBufferSize,
+		ID3D12Resource** ppResource,
+		D3D12_RESOURCE_STATES inInitState = D3D12_RESOURCE_STATE_COMMON,
+		const D3D12_CLEAR_VALUE* pOptimizedClearValue = nullptr,
+		const wchar_t* pResourceName = nullptr);
+
+	static GameResult AllocateUploadBuffer(
+		ID3D12Device* pDevice,
+		void* pData,
+		UINT64 inDataSize,
+		ID3D12Resource** ppResource,
+		const D3D12_CLEAR_VALUE* pOptimizedClearValue = nullptr,
+		const wchar_t* pResourceName = nullptr);
+
+	static GameResult CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource);
+
+	static GameResult CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC& inRootSignatureDesc, ID3D12RootSignature** ppRootSignature);
+};
+
 #ifndef ReleaseCom
-	#define ReleaseCom(x) { if (x){ x->Release(); x = 0; } }
+	#define ReleaseCom(x) { if (x){ x->Release(); x = NULL; } }
+#endif
+
+#ifndef Align
+	#define Align(alignment, val) (((val + alignment - 1) / alignment) * alignment)
 #endif

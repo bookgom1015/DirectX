@@ -83,13 +83,14 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -109,11 +110,12 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -152,10 +154,47 @@
     <ClCompile Include="..\..\src\common\GameTimer.cpp" />
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp" />
+    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp" />
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\RayGen.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\RTXCommon.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Miss.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\ClosestHit.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Default.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\LightingUtil.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Common.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

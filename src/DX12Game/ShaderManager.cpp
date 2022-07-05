@@ -15,9 +15,7 @@ namespace {
 	};
 }
 
-GameResult ShaderManager::Initialize(const std::wstring& inFilePath) {
-	mFilePath = inFilePath;
-
+GameResult ShaderManager::Initialize() {
 	return GameResultOk;
 }
 
@@ -33,4 +31,30 @@ GameResult ShaderManager::CompileShader(
 
 ComPtr<ID3DBlob>& ShaderManager::GetShader(const std::string& inName) {
 	return mShaders[inName];
+}
+
+DxcShaderManager::~DxcShaderManager() {
+	if (!bIsCleanedUp)
+		CleanUp();
+}
+
+GameResult DxcShaderManager::Initialize() {
+	CheckGameResult(mShaderCompiler.DxcDllHelper.Initialize());
+	CheckGameResult(mShaderCompiler.DxcDllHelper.CreateInstance(CLSID_DxcCompiler, &mShaderCompiler.Compiler));
+	CheckGameResult(mShaderCompiler.DxcDllHelper.CreateInstance(CLSID_DxcLibrary, &mShaderCompiler.Library));
+	return GameResultOk;
+}
+
+void DxcShaderManager::CleanUp() {
+	ReleaseCom(mShaderCompiler.Compiler);
+	ReleaseCom(mShaderCompiler.Library);
+	mShaderCompiler.DxcDllHelper.Cleanup();
+
+	bIsCleanedUp = true;
+}
+
+GameResult DxcShaderManager::CompileShaader(RaytracingProgram& inProgram) {
+	CheckGameResult(D3D12Util::CompileShader(mShaderCompiler, inProgram.Info, &inProgram.Blob));
+	inProgram.SetBytecode();
+	return GameResultOk;
 }

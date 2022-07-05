@@ -88,7 +88,7 @@ GameResult DxRenderer::Initialize(
 		ReturnIfFailed(mCommandLists[i]->Reset(mCommandAllocators[i].Get(), nullptr));
 	
 	CheckGameResult(mPsoManager.Initialize(md3dDevice.Get()));
-	CheckGameResult(mShaderManager.Initialize(L".\\..\\..\\..\\..\\Assets\\Shaders\\"));
+	CheckGameResult(mShaderManager.Initialize());
 	
 	CheckGameResult(
 		mGBuffer.Initialize(
@@ -336,7 +336,7 @@ GameResult DxRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	return GameResultOk;
 }
 
-GameResult DxRenderer::GetDeviceRemovedReason() {
+GameResult DxRenderer::GetDeviceRemovedReason() const {
 	return GameResult(md3dDevice->GetDeviceRemovedReason());
 }
 

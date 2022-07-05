@@ -55,7 +55,7 @@ public:
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) = 0;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) = 0;
 
-	virtual GameResult GetDeviceRemovedReason() = 0;
+	virtual GameResult GetDeviceRemovedReason() const = 0;
 
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName, 
 				const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) = 0;

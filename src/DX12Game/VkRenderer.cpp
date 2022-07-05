@@ -632,7 +632,7 @@ GameResult VkRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	return GameResultOk;
 }
 
-GameResult VkRenderer::GetDeviceRemovedReason() {
+GameResult VkRenderer::GetDeviceRemovedReason() const {
 	return GameResultOk;
 }
 

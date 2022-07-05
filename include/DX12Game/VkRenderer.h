@@ -59,7 +59,7 @@ public:
 	virtual GameResult Draw(const GameTimer& gt, UINT inTid = 0) override;
 	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
 
-	virtual GameResult GetDeviceRemovedReason() override;
+	virtual GameResult GetDeviceRemovedReason() const override;
 
 	virtual void UpdateWorldTransform(const std::string& inRenderItemName,
 		const DirectX::XMMATRIX& inTransform, bool inIsSkeletal) override;

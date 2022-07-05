@@ -8,7 +8,7 @@ public:
 	virtual ~ShaderManager() = default;
 
 public:
-	GameResult Initialize(const std::wstring& inFilePath);
+	GameResult Initialize();
 
 	GameResult CompileShader(
 		const std::wstring& inFilePath, 
@@ -21,6 +21,21 @@ public:
 
 private:
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
+};
 
-	std::wstring mFilePath;
+class DxcShaderManager {
+public:
+	DxcShaderManager() = default;
+	virtual ~DxcShaderManager();
+
+public:
+	GameResult Initialize();
+	void CleanUp();
+
+	GameResult CompileShaader(RaytracingProgram& inProgram);
+
+private:
+	bool bIsCleanedUp = false;
+
+	D3D12ShaderCompilerInfo mShaderCompiler;
 };

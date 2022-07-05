@@ -83,7 +83,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Git\tinyobjloader;$(VS2017_LIB)stb;$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;D:\Git\tinyobjloader;$(VS2017_LIB)stb;$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -137,7 +137,7 @@ powershell -c (New-Object Media.SoundPlayer "C:\WINDOWS\Media\Alarm03.wav").Play
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Git\tinyobjloader;$(VS2017_LIB)stb;$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;D:\Git\tinyobjloader;$(VS2017_LIB)stb;$(VULKAN_SDK)\include;$(VS2017_LIB)glm;$(VS2017_LIB)glfw-3.3.4\include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include;$(FBX_SDK_PATH)include;$(SolutionDir)include;$(FMOD_CORE_PATH)inc;$(FMOD_PATH)inc</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>

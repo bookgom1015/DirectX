@@ -90,6 +90,20 @@ static GameResult __STATIC_GAMERESULT_FAIL(E_FAIL);
 		}
 #endif
 
+#ifndef ReturnIfFalse
+	#define ReturnIfFalse(__statement, __msg)											\
+		{																				\
+			bool __result = (__statement);												\
+			if (!__result) {															\
+				std::wstringstream __wsstream_RIFM;										\
+				__wsstream_RIFM <<  __FILE__ << L"; line: " << __LINE__ << L"; " <<		\
+					L#__statement << L" is invalid; message: " << __msg;				\
+				WLogln(__wsstream_RIFM.str());											\
+				return GameResult(E_FAIL);												\
+			}																			\
+		}
+#endif
+
 #ifndef BreakIfFailed
 	#define BreakIfFailed(__statement)				\
 		{											\

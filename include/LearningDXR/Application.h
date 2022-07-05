@@ -14,20 +14,27 @@ private:
 	Application& operator=(Application&& inRVal) = delete;
 
 public:
-	bool Initialize();
-	int RunLoop();
+	GameResult Initialize();
+	GameResult RunLoop();
 	void CleanUp();
 
 	static Application* GetApp();
+	Renderer* GetRenderer();
 
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-	bool InitMainWindow();
+	GameResult InitMainWindow();
 	void OnResize();
 
-	bool Update();
-	bool Draw();
+	GameResult Update();
+	GameResult Draw();
+
+	void OnMouseDown(WPARAM inBtnState, int inX, int inY);
+	void OnMouseUp(WPARAM inBtnState, int inX, int inY);
+	void OnMouseMove(WPARAM inBtnState, int inX, int inY);
+
+	void OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
 	static Application* sApp;

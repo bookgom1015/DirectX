@@ -106,7 +106,7 @@ float3 BoxCubeMapLookup(float3 rayOrigin, float3 unitRayDir, float3 boxCenter, f
 	return p + t * unitRayDir;
 }
 
-float4 PS(VertexOut pin) : SV_Target{
+float4 PS(VertexOut pin) : SV_Target {
 	// Get viewspace normal and z-coord of this pixel.  
 	float pz = gDepthMap.Sample(gsamDepthMap, pin.TexC).r;
 	pz = NdcDepthToViewDepth(pz);
