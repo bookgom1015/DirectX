@@ -97,7 +97,7 @@ private:
 	void BuildShadersAndInputLayout();
 	void BuildShapeGeometry();
 	void BuildSkullGeometry();
-	void BuildFbxGeometry();
+	//void BuildFbxGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();

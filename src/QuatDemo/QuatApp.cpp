@@ -1,5 +1,5 @@
 #include "QuatDemo/QuatApp.h"
-#include "DX12Game/FbxImporter.h"
+//#include "DX12Game/FbxImporter.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -90,7 +90,7 @@ bool QuatApp::Initialize() {
 		BuildShadersAndInputLayout();
 		BuildShapeGeometry(); 
 		BuildSkullGeometry();
-		BuildFbxGeometry();
+		//BuildFbxGeometry();
 		BuildMaterials();
 		BuildRenderItems();
 		BuildFrameResources();
@@ -164,8 +164,16 @@ void QuatApp::Update(const GameTimer& gt) {
 		mAnimTimePos = 0.0f;
 	}
 
-	mSkullAnimation.Interpolate(mAnimTimePos, mSkullWorld);
-	mSkullRitem->World = mSkullWorld;
+	//mSkullAnimation.Interpolate(mAnimTimePos, mSkullWorld);
+	//mSkullRitem->World = mSkullWorld;
+	auto P = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	auto Zero = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	auto T = XMFLOAT3(0.0f, 2.0f, 0.0f);
+	XMStoreFloat4x4(&mSkullRitem->World, XMMatrixAffineTransformation(
+		XMLoadFloat3(&P), 
+		XMLoadFloat3(&Zero), 
+		XMQuaternionRotationAxis(XMVector4Normalize(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)), 90.0f), 
+		XMLoadFloat3(&T)));
 	mSkullRitem->NumFramesDirty = gNumFrameResources;
 
 	// Cycle through the circular frame resource array.
@@ -553,10 +561,14 @@ void QuatApp::DefineSkullAnimation() {
 	// Define the animation keyframes
 	//
 
-	XMVECTOR q0 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(30.0f));
-	XMVECTOR q1 = XMQuaternionRotationAxis(XMVectorSet(1.0f, 1.0f, 2.0f, 0.0f), XMConvertToRadians(45.0f));
-	XMVECTOR q2 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(-30.0f));
-	XMVECTOR q3 = XMQuaternionRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMConvertToRadians(70.0f));
+	//XMVECTOR q0 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(30.0f));
+	//XMVECTOR q1 = XMQuaternionRotationAxis(XMVectorSet(1.0f, 1.0f, 2.0f, 0.0f), XMConvertToRadians(45.0f));
+	//XMVECTOR q2 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(-30.0f));
+	//XMVECTOR q3 = XMQuaternionRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XMConvertToRadians(70.0f));
+	XMVECTOR q0 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(45.0f));
+	XMVECTOR q1 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(90.0f));
+	XMVECTOR q2 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(135.0f));
+	XMVECTOR q3 = XMQuaternionRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), XMConvertToRadians(179.0f));
 
 	mSkullAnimation.Keyframes.resize(5);
 	mSkullAnimation.Keyframes[0].TimePos = 0.0f;
@@ -1095,74 +1107,74 @@ void QuatApp::BuildSkullGeometry() {
 	mGeometries[geo->Name] = std::move(geo);
 }
 
-void QuatApp::BuildFbxGeometry() {
-	DxFbxImporter fbxImporter;
-	
-	fbxImporter.LoadFile("./../../../../Models/monkey.fbx");
-	
-	const std::vector<DxFbxVertex>& fbxVertices = std::as_const(fbxImporter).GetVertices();
-	
-	std::vector<Vertex> vertices;
-	
-	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
-	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
-	
-	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
-	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
-	
-	for (UINT i = 0; i < fbxVertices.size(); ++i) {
-		Vertex v;
-		v.Pos = fbxVertices[i].Pos;
-		v.Normal = fbxVertices[i].Normal;
-		v.TexC = fbxVertices[i].TexC;
-	
-		vertices.push_back(v);
-	
-		XMVECTOR P = XMLoadFloat3(&v.Pos);
-	
-		vMin = XMVectorMin(vMin, P);
-		vMax = XMVectorMax(vMax, P);
-	}
-	
-	BoundingBox bounds;
-	XMStoreFloat3(&bounds.Center, 0.5f*(vMin + vMax));
-	XMStoreFloat3(&bounds.Extents, 0.5f*(vMax - vMin));
-	
-	auto& indices = std::as_const(fbxImporter).GetIndices();
-	
-	const UINT vbByteSize = static_cast<UINT>(vertices.size() * sizeof(Vertex));
-	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
-	
-	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "fbxGeo";
-	
-	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-	
-	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-	
-	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
-	
-	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
-		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
-	
-	geo->VertexByteStride = sizeof(Vertex);
-	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
-	geo->IndexBufferByteSize = ibByteSize;
-	
-	SubmeshGeometry submesh;
-	submesh.IndexCount = (UINT)indices.size();
-	submesh.StartIndexLocation = 0;
-	submesh.BaseVertexLocation = 0;
-	submesh.AABB = bounds;
-	
-	geo->DrawArgs["fbx"] = submesh;
-	
-	mGeometries[geo->Name] = std::move(geo);
-}
+//void QuatApp::BuildFbxGeometry() {
+//	Game::FbxImporter fbxImporter;
+//	
+//	fbxImporter.LoadDataFromFile("./../../../../Models/monkey.fbx");
+//	
+//	const std::vector<Game::FbxVertex>& fbxVertices = std::as_const(fbxImporter).GetVertices();
+//	
+//	std::vector<Vertex> vertices;
+//	
+//	XMFLOAT3 vMinf3(+MathHelper::Infinity, +MathHelper::Infinity, +MathHelper::Infinity);
+//	XMFLOAT3 vMaxf3(-MathHelper::Infinity, -MathHelper::Infinity, -MathHelper::Infinity);
+//	
+//	XMVECTOR vMin = XMLoadFloat3(&vMinf3);
+//	XMVECTOR vMax = XMLoadFloat3(&vMaxf3);
+//	
+//	for (UINT i = 0; i < fbxVertices.size(); ++i) {
+//		Vertex v;
+//		v.Pos = fbxVertices[i].mPos;
+//		v.Normal = fbxVertices[i].mNormal;
+//		v.TexC = fbxVertices[i].mTexC;
+//	
+//		vertices.push_back(v);
+//	
+//		XMVECTOR P = XMLoadFloat3(&v.Pos);
+//	
+//		vMin = XMVectorMin(vMin, P);
+//		vMax = XMVectorMax(vMax, P);
+//	}
+//	
+//	BoundingBox bounds;
+//	XMStoreFloat3(&bounds.Center, 0.5f*(vMin + vMax));
+//	XMStoreFloat3(&bounds.Extents, 0.5f*(vMax - vMin));
+//	
+//	auto& indices = std::as_const(fbxImporter).GetIndices();
+//	
+//	const UINT vbByteSize = static_cast<UINT>(vertices.size() * sizeof(Vertex));
+//	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
+//	
+//	auto geo = std::make_unique<MeshGeometry>();
+//	geo->Name = "fbxGeo";
+//	
+//	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+//	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+//	
+//	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+//	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+//	
+//	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+//		mCommandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+//	
+//	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+//		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+//	
+//	geo->VertexByteStride = sizeof(Vertex);
+//	geo->VertexBufferByteSize = vbByteSize;
+//	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
+//	geo->IndexBufferByteSize = ibByteSize;
+//	
+//	SubmeshGeometry submesh;
+//	submesh.IndexCount = (UINT)indices.size();
+//	submesh.StartIndexLocation = 0;
+//	submesh.BaseVertexLocation = 0;
+//	submesh.AABB = bounds;
+//	
+//	geo->DrawArgs["fbx"] = submesh;
+//	
+//	mGeometries[geo->Name] = std::move(geo);
+//}
 
 void QuatApp::BuildPSOs() {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -1401,19 +1413,19 @@ void QuatApp::BuildRenderItems() {
 	mRitemLayer[(int)RenderLayer::Sky].push_back(skyRitem.get());
 	mAllRitems.push_back(std::move(skyRitem));
 
-	auto fbxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&fbxRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * 
-		XMMatrixRotationZ(XM_PIDIV2) * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(0.0f, 1.0f, 0.0f));	
-	fbxRitem->TexTransform = MathHelper::Identity4x4();
-	fbxRitem->ObjCBIndex = objCount++;
-	fbxRitem->Mat = mMaterials["fbxMat"].get();
-	fbxRitem->Geo = mGeometries["fbxGeo"].get();
-	fbxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	fbxRitem->IndexCount = fbxRitem->Geo->DrawArgs["fbx"].IndexCount;
-	fbxRitem->StartIndexLocation = fbxRitem->Geo->DrawArgs["fbx"].StartIndexLocation;
-	fbxRitem->BaseVertexLocation = fbxRitem->Geo->DrawArgs["fbx"].BaseVertexLocation;
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(fbxRitem.get());
-	mAllRitems.push_back(std::move(fbxRitem));
+	//auto fbxRitem = std::make_unique<RenderItem>();
+	//XMStoreFloat4x4(&fbxRitem->World, XMMatrixScaling(1.0f, 1.0f, 1.0f) * 
+	//	XMMatrixRotationZ(XM_PIDIV2) * XMMatrixRotationX(-XM_PIDIV2) * XMMatrixTranslation(0.0f, 1.0f, 0.0f));	
+	//fbxRitem->TexTransform = MathHelper::Identity4x4();
+	//fbxRitem->ObjCBIndex = objCount++;
+	//fbxRitem->Mat = mMaterials["fbxMat"].get();
+	//fbxRitem->Geo = mGeometries["fbxGeo"].get();
+	//fbxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	//fbxRitem->IndexCount = fbxRitem->Geo->DrawArgs["fbx"].IndexCount;
+	//fbxRitem->StartIndexLocation = fbxRitem->Geo->DrawArgs["fbx"].StartIndexLocation;
+	//fbxRitem->BaseVertexLocation = fbxRitem->Geo->DrawArgs["fbx"].BaseVertexLocation;
+	//mRitemLayer[(int)RenderLayer::Opaque].push_back(fbxRitem.get());
+	//mAllRitems.push_back(std::move(fbxRitem));
 
 	auto quadRitem = std::make_unique<RenderItem>();
 	quadRitem->World = MathHelper::Identity4x4();

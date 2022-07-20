@@ -1,66 +1,17 @@
 #pragma once
 
+const int gNumFrameResources = 3;
+
 #include "LearningDXR/LowRenderer.h"
-#include "DX12Game/GameUploadBuffer.h"
-#include "DX12Game/ShaderManager.h"
+#include "LearningDXR/GameTimer.h"
+#include "LearningDXR/ShaderManager.h"
+#include "LearningDXR/FrameResource.h"
+#include "LearningDXR/Mesh.h"
+#include "LearningDXR/RTXStructures.h"
+#include "common/MathHelper.h"
 
-struct Vertex {
-	DirectX::XMFLOAT3 Pos;
-	DirectX::XMFLOAT3 Normal;
-	DirectX::XMFLOAT2 TexC;
-	DirectX::XMFLOAT3 Tangent;
-};
-
-struct ObjectConstants {
-	DirectX::XMFLOAT4X4 World;
-	DirectX::XMFLOAT4X4 TexTransform;
-};
-
-struct PassConstants {
-	DirectX::XMFLOAT4X4 View;
-	DirectX::XMFLOAT4X4 InvView;
-	DirectX::XMFLOAT4X4 Proj;
-	DirectX::XMFLOAT4X4 InvProj;
-	DirectX::XMFLOAT4X4 ViewProj;
-	DirectX::XMFLOAT4X4 InvViewProj;
-	DirectX::XMFLOAT3 EyePosW;
-	float CBPerObjectPad1;
-	DirectX::XMFLOAT4 AmbientLight;
-	Light Lights[MaxLights];
-};
-
-struct FrameResource {
-public:
-	FrameResource(
-		ID3D12Device* inDevice, 
-		UINT inPassCount,
-		UINT inObjectCount, 
-		UINT inMaterialCount);
-	virtual ~FrameResource() = default;
-
-private:
-	FrameResource(const FrameResource& src) = delete;
-	FrameResource(FrameResource&& src) = delete;
-	FrameResource& operator=(const FrameResource& rhs) = delete;
-	FrameResource& operator=(FrameResource&& rhs) = delete;
-
-public:
-	GameResult Initialize();
-
-public:
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdListAlloc;
-
-	GameUploadBuffer<PassConstants> PassCB;
-	GameUploadBuffer<ObjectConstants> ObjectCB;
-	GameUploadBuffer<MaterialConstants> MaterialCB;
-
-	UINT64 Fence = 0;
-
-	ID3D12Device* Device;
-	UINT PassCount;
-	UINT ObjectCount;
-	UINT MaterialCount;
-};
+const std::wstring ShaderFilePathW = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
+const std::string ShaderFilePath = ".\\..\\..\\..\\..\\Assets\\Shaders\\";
 
 struct RenderItem {
 	RenderItem() = default;
@@ -122,8 +73,8 @@ protected:
 	GameResult BuildGeometries();
 
 	// Raterization
-	GameResult CompileShader();
-	GameResult BuildRootSignature();
+	GameResult CompileShaders();
+	GameResult BuildRootSignatures();
 	GameResult BuildResources();
 	GameResult BuildDescriptorHeaps();
 	GameResult BuildDescriptors();
@@ -133,6 +84,16 @@ protected:
 	GameResult BuildRenderItems();
 
 	// Raytracing
+	GameResult CompileDXRShaders();
+	GameResult BuildBLAS();
+	GameResult BuildTLAS();
+	GameResult BuildLocalRootSignature();
+	GameResult BuildGlobalRootSignature();
+	GameResult BuildDXRResources();
+	GameResult BuildDXRDescriptorHeaps();
+	GameResult BuildDXRPSOs();
+	GameResult BuildShaderBindingTables();
+	//GameResult BuildRTXFrameResources();
 
 	GameResult UpdateCamera(const GameTimer& gt);
 	GameResult UpdateObjectCB(const GameTimer& gt);
@@ -147,7 +108,6 @@ private:
 	bool bIsCleanedUp = false;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-	std::unordered_map<std::string, D3D12_RAYTRACING_GEOMETRY_DESC> mGeoDescs;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mBlasScratch;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mBlasResult;
@@ -157,23 +117,19 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> mTlasResult;
 
 	ShaderManager mShaderManager;
-	DxcShaderManager mDxcShaderManager;
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mGlobalRootSignature = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> mLocalRootSignature = nullptr;
 
-	RaytracingProgram mRayGenShader;
-	RaytracingProgram mMissShader;
-	RaytracingProgram mClosestHitShader;
-
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
-	Microsoft::WRL::ComPtr<ID3D12StateObject> mRtPso;
-	Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> mRtPsoInfo;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObject>> mDXRPSOs;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObjectProperties>> mDXRPSOProps;
 
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
+	//std::vector<std::unique_ptr<RTXFrameResource>> mRTXFrameResources;
 	FrameResource* mCurrFrameResource = nullptr;
 	int mCurrFrameResourceIndex = 0;
 
@@ -191,6 +147,22 @@ private:
 
 	bool bRaytracing = false;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mCbvSrvUavDescriptorHeaps = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDescriptorHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDXRDescriptorHeap = nullptr;
 	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> mMainRenderTargets;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> mShaderTable;
+	std::uint32_t mShaderTableRecordSize;
+
+	AccelerationStructureBuffer mBLAS;
+	AccelerationStructureBuffer mTLAS;
+	std::uint64_t mTLASSize;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDXRPassCB = nullptr;
+	DXRPassConstants mDXRPassCBData;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDXRMaterialCB = nullptr;
+	DXRMaterialConstants mDXRMaterialCBData;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> mDXROutput = nullptr;
 };

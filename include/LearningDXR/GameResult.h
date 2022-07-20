@@ -3,8 +3,6 @@
 #include "DX12Game/StringUtil.h"
 
 #include <comdef.h>
-#include <sstream>
-#include <string>
 #include <windows.h>
 
 struct GameResult {

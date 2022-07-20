@@ -1,4 +1,5 @@
 #include "LearningDXR/LowRenderer.h"
+#include "LearningDXR/Macros.h"
 
 using namespace Microsoft::WRL;
 
@@ -130,10 +131,12 @@ void LowRenderer::LogAdapters() {
 		++i;
 	}
 
+#ifndef SKIP_LOG_OUTPUTS
 	for (size_t i = 0; i < adapterList.size(); ++i) {
 		LogAdapterOutputs(adapterList[i]);
 		ReleaseCom(adapterList[i]);
 	}
+#endif
 }
 
 void LowRenderer::LogAdapterOutputs(IDXGIAdapter* inAdapter) {
@@ -176,12 +179,19 @@ void LowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFor
 }
 
 GameResult LowRenderer::InitDirect3D() {
-	CreateDXGIFactory1(IID_PPV_ARGS(&mdxgiFactory));
-
-#if defined(_DEBUG)
-	LogAdapters();
+#ifdef _DEBUG
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
+		mDebugController->EnableDebugLayer();
+		mDXGIFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+	}
 #endif
 
+	ReturnIfFailed(CreateDXGIFactory2(mDXGIFactoryFlags, IID_PPV_ARGS(&mdxgiFactory)));
+
+#ifdef _DEBUG
+	LogAdapters();
+#endif
+	
 	// Try to create hardware device.
 	HRESULT hardwareResult =  D3D12CreateDevice(
 		nullptr,
@@ -211,9 +221,16 @@ GameResult LowRenderer::InitDirect3D() {
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	CheckGameResult(CreateDebugObjects());
 	CheckGameResult(CreateCommandObjects());
 	CheckGameResult(CreateSwapChain());
 	CheckGameResult(CreateRtvAndDsvDescriptorHeaps());
+
+	return GameResultOk;
+}
+
+GameResult LowRenderer::CreateDebugObjects() {
+	ReturnIfFailed(md3dDevice->QueryInterface(IID_PPV_ARGS(&mInfoQueue)));
 
 	return GameResultOk;
 }

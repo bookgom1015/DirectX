@@ -3,10 +3,10 @@
 //#define UsingVulkan
 
 // Link necessary d3d12 libraries.
+#pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "d3dcompiler.lib")
-#pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "DirectXTK12.lib")
+//#pragma comment(lib, "DirectXTK12.lib")
 #ifdef UsingVulkan
 	// Link necessary vulkan libraries.
 	#pragma comment(lib, "glfw3.lib")

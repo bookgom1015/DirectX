@@ -20,6 +20,8 @@ using DxGameClient_WPF.Models;
 using DxGameClient_WPF.ModelViews;
 using DxGameClient_WPF.Views;
 
+using Microsoft.Toolkit.Uwp.Notifications;
+
 namespace DxGameClient_WPF {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -59,7 +61,6 @@ namespace DxGameClient_WPF {
 
         protected override void OnClosing(CancelEventArgs e) {
             base.OnClosing(e);
-
             ViewModel.CleanUp();
         }
 
@@ -69,6 +70,15 @@ namespace DxGameClient_WPF {
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e) {
+            if (ViewModel.FirstClose) {
+                new ToastContentBuilder()
+                .AddArgument("action", "viewConversation")
+                .AddArgument("conversationId", 9813)
+                .AddText("The app is still running")
+                .AddText("in the background.")
+                .Show();
+                ViewModel.FirstClose = false;
+            }
             Visibility = Visibility.Hidden;
         }
 

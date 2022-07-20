@@ -32,10 +32,16 @@ public:
 	GameResult Initialize();
 	void CleanUp();
 
-	GameResult CompileShaader(RaytracingProgram& inProgram);
+	GameResult CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName);
+
+	IDxcBlob* GetShader(const std::string& inName);
 
 private:
 	bool bIsCleanedUp = false;
 
-	D3D12ShaderCompilerInfo mShaderCompiler;
+	dxc::DxcDllSupport mDxcDllHelper;
+	IDxcCompiler* mCompiler = nullptr;
+	IDxcLibrary* mLibrary = nullptr;
+
+	std::unordered_map<std::string, IDxcBlob*> mShaders;
 };

@@ -39,22 +39,24 @@ DxcShaderManager::~DxcShaderManager() {
 }
 
 GameResult DxcShaderManager::Initialize() {
-	CheckGameResult(mShaderCompiler.DxcDllHelper.Initialize());
-	CheckGameResult(mShaderCompiler.DxcDllHelper.CreateInstance(CLSID_DxcCompiler, &mShaderCompiler.Compiler));
-	CheckGameResult(mShaderCompiler.DxcDllHelper.CreateInstance(CLSID_DxcLibrary, &mShaderCompiler.Library));
+	ReturnIfFailed(mDxcDllHelper.Initialize());
+	ReturnIfFailed(mDxcDllHelper.CreateInstance(CLSID_DxcCompiler, &mCompiler));
+	ReturnIfFailed(mDxcDllHelper.CreateInstance(CLSID_DxcLibrary, &mLibrary));
 	return GameResultOk;
 }
 
 void DxcShaderManager::CleanUp() {
-	ReleaseCom(mShaderCompiler.Compiler);
-	ReleaseCom(mShaderCompiler.Library);
-	mShaderCompiler.DxcDllHelper.Cleanup();
-
+	ReleaseCom(mCompiler);
+	ReleaseCom(mLibrary);
+	mDxcDllHelper.Cleanup();
 	bIsCleanedUp = true;
 }
 
-GameResult DxcShaderManager::CompileShaader(RaytracingProgram& inProgram) {
-	CheckGameResult(D3D12Util::CompileShader(mShaderCompiler, inProgram.Info, &inProgram.Blob));
-	inProgram.SetBytecode();
+GameResult DxcShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName) {
+	CheckGameResult(D3D12Util::CompileShader(mCompiler, mLibrary, inShaderInfo, &mShaders[inName]));
 	return GameResultOk;
+}
+
+IDxcBlob* DxcShaderManager::GetShader(const std::string& inName) {
+	return mShaders[inName];
 }

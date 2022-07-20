@@ -81,7 +81,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.1.1\include;$(SolutionDir)include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.2.1\include;$(SolutionDir)include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.1.1\lib\vs2017\x64\release</AdditionalLibraryDirectories>
@@ -119,7 +119,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.1.1\include;$(SolutionDir)include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\Autodesk\FBX\FBX SDK\2020.2.1\include;$(SolutionDir)include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -135,8 +135,6 @@
     <ClCompile Include="..\..\src\common\GameTimer.cpp" />
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\AnimationHelper.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\FrameResource.cpp" />
     <ClCompile Include="..\..\src\QuatDemo\QuatApp.cpp" />

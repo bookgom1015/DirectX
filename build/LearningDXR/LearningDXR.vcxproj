@@ -83,14 +83,16 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(VS2017_LIB)dxc-artifacts\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxgi.lib;d3d12.lib;d3dcompiler.lib;dxcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>dxgi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -110,12 +112,14 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include;$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(VS2017_LIB)dxc-artifacts\include;$(SolutionDir)include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\directxtk12_desktop_2017.2021.4.7.2\native\lib\$(Platform)\$(Configuration);$(VS2017_LIB)dxc-artifacts\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxgi.lib;d3d12.lib;d3dcompiler.lib;dxcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>dxgi.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -134,32 +138,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\common\Camera.h" />
-    <ClInclude Include="..\..\include\common\d3dUtil.h" />
     <ClInclude Include="..\..\include\common\d3dx12.h" />
-    <ClInclude Include="..\..\include\common\DDSTextureLoader.h" />
-    <ClInclude Include="..\..\include\common\GameTimer.h" />
     <ClInclude Include="..\..\include\common\GeometryGenerator.h" />
     <ClInclude Include="..\..\include\common\MathHelper.h" />
-    <ClInclude Include="..\..\include\common\UploadBuffer.h" />
-    <ClInclude Include="..\..\include\common\Utilities.h" />
     <ClInclude Include="..\..\include\LearningDXR\Application.h" />
+    <ClInclude Include="..\..\include\LearningDXR\D3D12Util.h" />
+    <ClInclude Include="..\..\include\LearningDXR\FrameResource.h" />
+    <ClInclude Include="..\..\include\LearningDXR\GameResult.h" />
+    <ClInclude Include="..\..\include\LearningDXR\GameTimer.h" />
     <ClInclude Include="..\..\include\LearningDXR\LowRenderer.h" />
+    <ClInclude Include="..\..\include\LearningDXR\Macros.h" />
+    <ClInclude Include="..\..\include\LearningDXR\Mesh.h" />
     <ClInclude Include="..\..\include\LearningDXR\Renderer.h" />
+    <ClInclude Include="..\..\include\LearningDXR\RTXStructures.h" />
+    <ClInclude Include="..\..\include\LearningDXR\ShaderManager.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\common\Camera.cpp" />
-    <ClCompile Include="..\..\src\common\d3dUtil.cpp" />
-    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp" />
-    <ClCompile Include="..\..\src\common\GameTimer.cpp" />
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp" />
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\D3D12Util.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\FrameResource.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\GameResult.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\GameTimer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\ShaderManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\LearningDXR\RayGen.hlsl">

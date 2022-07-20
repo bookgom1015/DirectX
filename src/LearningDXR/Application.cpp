@@ -1,5 +1,7 @@
 #include "LearningDXR/Application.h"
 
+#include <windowsx.h>
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd) {
 	try {
 		Application app;

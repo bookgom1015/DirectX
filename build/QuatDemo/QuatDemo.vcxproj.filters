@@ -60,12 +60,6 @@
     <ClCompile Include="..\..\src\QuatDemo\Ssao.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\FbxImporter.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\ThreadUtil.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\QuatDemo\QuatApp.h">

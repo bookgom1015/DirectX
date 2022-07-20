@@ -1,6 +1,23 @@
 #pragma once
 
-#include "DX12Game/GameCore.h"
+#define NOMINMAX
+#include <Windows.h>
+#include <DirectXColors.h>
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <wrl.h>
+
+#include <dxgi1_6.h>
+#include <dxc/dxcapi.h>
+#include <dxc/Support/dxcapi.use.h>
+
+#include <string>
+#include <vector>
+
+#include "common/d3dx12.h"
+#include "GameResult.h"
+
+#define SKIP_LOG_OUTPUTS
 
 class LowRenderer {
 protected:
@@ -43,6 +60,7 @@ private:
 
 	GameResult InitDirect3D();
 
+	GameResult CreateDebugObjects();
 	GameResult CreateCommandObjects();
 	GameResult CreateSwapChain();
 
@@ -52,8 +70,13 @@ protected:
 	static const int SwapChainBufferCount = 2;
 
 	bool bIsCleanedUp = false;
-	bool bIsValid = false;
+	bool bIsValid = false; 
 
+	Microsoft::WRL::ComPtr<ID3D12Debug> mDebugController;
+	UINT mDXGIFactoryFlags = 0;
+
+	Microsoft::WRL::ComPtr<ID3D12InfoQueue> mInfoQueue;
+	
 	Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
 	Microsoft::WRL::ComPtr<ID3D12Device5> md3dDevice;
 

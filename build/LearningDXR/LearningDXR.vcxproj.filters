@@ -13,18 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Common Files">
-      <UniqueIdentifier>{b9ce027e-45cd-44fa-9570-c7a6a77f6856}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Common Files\Public">
-      <UniqueIdentifier>{0841622d-3685-4d2b-8a09-70ef0581077b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Common Files\Private">
-      <UniqueIdentifier>{c420692f-0e0a-4cc9-88c1-636d530a257e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Util">
-      <UniqueIdentifier>{78f151da-1af7-4224-840c-da21d771538c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Shader Files">
       <UniqueIdentifier>{f12d4c0a-e252-4c1a-b0a0-63a0107aa9c1}</UniqueIdentifier>
     </Filter>
@@ -34,35 +22,17 @@
     <Filter Include="Shader Files\Rasterization">
       <UniqueIdentifier>{6b752504-f92c-4304-8a56-6291154aaf07}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Common Files">
+      <UniqueIdentifier>{76bc6ee4-fbc2-4ca0-bd60-764763ac5382}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Public">
+      <UniqueIdentifier>{4ea56e45-c0e1-4e82-bf11-59c514382be4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common Files\Private">
+      <UniqueIdentifier>{8dc60926-834c-4244-9e22-45b5f578c984}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\common\Camera.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\d3dUtil.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\d3dx12.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\DDSTextureLoader.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\GameTimer.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\MathHelper.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\UploadBuffer.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\common\Utilities.h">
-      <Filter>Common Files\Public</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\LearningDXR\Application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -72,26 +42,41 @@
     <ClInclude Include="..\..\include\LearningDXR\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\GameResult.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\d3dx12.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\MathHelper.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\GameTimer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\ShaderManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\D3D12Util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\common\GeometryGenerator.h">
+      <Filter>Common Files\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\FrameResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\RTXStructures.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\common\Camera.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\common\d3dUtil.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\common\DDSTextureLoader.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\common\GameTimer.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\common\MathHelper.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -101,14 +86,29 @@
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\GameResult.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\common\MathHelper.cpp">
+      <Filter>Common Files\Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\GameTimer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\ShaderManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\D3D12Util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
-      <Filter>Source Files\Util</Filter>
+      <Filter>Common Files\Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\D3D12Util.cpp">
-      <Filter>Source Files\Util</Filter>
+    <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
+      <Filter>Common Files\Private</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\ShaderManager.cpp">
-      <Filter>Source Files\Util</Filter>
+    <ClCompile Include="..\..\src\LearningDXR\FrameResource.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

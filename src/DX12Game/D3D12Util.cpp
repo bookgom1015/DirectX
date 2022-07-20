@@ -1,6 +1,7 @@
 #include "DX12Game/D3D12Util.h"
 
 #include <fstream>
+#include <atlcomcli.h>
 
 using namespace Microsoft::WRL;
 
@@ -100,18 +101,19 @@ GameResult D3D12Util::CompileShader(
 }
 
 GameResult D3D12Util::CompileShader(
-		D3D12ShaderCompilerInfo& inCompilerInfo,
-		D3D12ShaderInfo& inInfo,
-		IDxcBlob** ppBlob) {
+		IDxcCompiler* pCompiler,
+		IDxcLibrary* pLibrary,
+		const D3D12ShaderInfo& inInfo,
+		IDxcBlob** outByteCode) {
 	UINT32 code = 0;
 	IDxcBlobEncoding* shaderText = nullptr;
-	ReturnIfFailed(inCompilerInfo.Library->CreateBlobFromFile(inInfo.FileName, &code, &shaderText));
+	ReturnIfFailed(pLibrary->CreateBlobFromFile(inInfo.FileName, &code, &shaderText));
 
-	ComPtr<IDxcIncludeHandler> includeHandler;
-	ReturnIfFailed(inCompilerInfo.Library->CreateIncludeHandler(&includeHandler));
+	CComPtr<IDxcIncludeHandler> includeHandler;
+	ReturnIfFailed(pLibrary->CreateIncludeHandler(&includeHandler));
 
 	IDxcOperationResult* result;
-	ReturnIfFailed(inCompilerInfo.Compiler->Compile(
+	ReturnIfFailed(pCompiler->Compile(
 		shaderText,
 		inInfo.FileName,
 		inInfo.EntryPoint,
@@ -120,7 +122,7 @@ GameResult D3D12Util::CompileShader(
 		inInfo.ArgCount,
 		inInfo.Defines,
 		inInfo.DefineCount,
-		includeHandler.Get(),
+		includeHandler,
 		&result
 	));
 
@@ -144,7 +146,7 @@ GameResult D3D12Util::CompileShader(
 		ReturnGameResult(E_FAIL, errorMsgW);
 	}
 
-	ReturnIfFailed(result->GetResult(ppBlob));
+	ReturnIfFailed(result->GetResult(outByteCode));
 
 	return GameResultOk;
 }

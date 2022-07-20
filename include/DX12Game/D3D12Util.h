@@ -1,18 +1,18 @@
 #pragma once
 
+#include <d3d12.h>
+#include <d3d12sdklayers.h>
+#include <D3Dcompiler.h>
 #include <DirectXCollision.h>
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
-#include <dxgi1_4.h>
-#include <D3Dcompiler.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
 #include <dxc/dxcapi.h>
 #include <dxc/Support/dxcapi.use.h>
+#include <dxgi1_6.h>
 #include <SimpleMath.h>
-#include <wrl.h>
 #include <unordered_map>
+#include <wrl.h>
 
 #include "common/d3dx12.h"
 #include "common/MathHelper.h"
@@ -223,36 +223,12 @@ struct D3D12ShaderInfo {
 };
 
 struct RaytracingProgram {
-	D3D12ShaderInfo								Info			= {};
-	Microsoft::WRL::ComPtr<IDxcBlob>			Blob			= nullptr;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature>	RootSignature	= nullptr;
+	D3D12ShaderInfo	Info = {};
+	IDxcBlob*		Blob = nullptr;
 
-	D3D12_DXIL_LIBRARY_DESC DxilLibDesc;
-	D3D12_EXPORT_DESC		ExportDesc;
-	D3D12_STATE_SUBOBJECT	Subobject;
-	std::wstring			ExportName;
-
-	RaytracingProgram() {
-		ExportDesc.ExportToRename = nullptr;
-	}
-
+	RaytracingProgram() = default;
 	RaytracingProgram(D3D12ShaderInfo inInfo) {
 		Info = inInfo;
-		Subobject.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
-		ExportName = inInfo.EntryPoint;
-		ExportDesc.ExportToRename = nullptr;
-		ExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
-	}
-
-	void SetBytecode() {
-		ExportDesc.Name = ExportName.c_str();
-
-		DxilLibDesc.NumExports = 1;
-		DxilLibDesc.pExports = &ExportDesc;
-		DxilLibDesc.DXILLibrary.BytecodeLength = Blob->GetBufferSize();
-		DxilLibDesc.DXILLibrary.pShaderBytecode = Blob->GetBufferPointer();
-
-		Subobject.pDesc = &DxilLibDesc;
 	}
 };
 
@@ -291,9 +267,10 @@ public:
 		Microsoft::WRL::ComPtr<ID3DBlob>& outByteCode);
 
 	static GameResult CompileShader(
-		D3D12ShaderCompilerInfo& inCompilerInfo, 
-		D3D12ShaderInfo& inInfo, 
-		IDxcBlob** ppBlob);
+		IDxcCompiler* pCompiler,
+		IDxcLibrary* pLibrary,
+		const D3D12ShaderInfo& inInfo,
+		IDxcBlob** outByteCode);
 
 	static GameResult AllocateUavBuffer(
 		ID3D12Device* pDevice,

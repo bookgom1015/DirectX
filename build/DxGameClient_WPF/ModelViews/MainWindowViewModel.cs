@@ -66,5 +66,11 @@ namespace DxGameClient_WPF.ModelViews {
 
         private NotifyIcon _notifyIcon;
         private ContextMenu _contextMenu;
+
+        private bool _firstClose = true;
+        public bool FirstClose {
+            get => _firstClose;
+            set => _firstClose = value;
+        }
     }
 }
