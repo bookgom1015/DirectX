@@ -18,8 +18,11 @@ lib/
 # ignore pdf files
 .pdf
 
-# ignore asset files
-Assets/
+# ignore asset files without shader files
+Assets/Banks
+Assets/Fonts
+Assets/Models
+Assets/Textures
 
 # ignore temporary key files
 build/**/*.pfx
