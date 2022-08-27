@@ -21,7 +21,7 @@ GameResult ShaderManager::Initialize() {
 void ShaderManager::CleanUp() {
 	ReleaseCom(mCompiler);
 	ReleaseCom(mLibrary);
-	mDxcDllHelper.Cleanup();
+	//mDxcDllHelper.Cleanup();
 	bIsCleanedUp = true;
 }
 

@@ -86,7 +86,6 @@ struct Light {
 
 struct ObjectConstants {
 	DirectX::XMFLOAT4X4 World;
-	DirectX::XMFLOAT4X4 TexTransform;
 };
 
 struct PassConstants {
@@ -143,13 +142,24 @@ public:
 };
 
 struct DXRPassConstants {
-	DirectX::XMMATRIX View = DirectX::XMMatrixIdentity();
-	DirectX::XMFLOAT4 ViewOriginAndTanHalfFovY = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-	DirectX::XMFLOAT2 Resolution = DirectX::XMFLOAT2(800, 600);
+	DirectX::XMFLOAT4X4	View;
+	DirectX::XMFLOAT4X4 InvView;
+	DirectX::XMFLOAT4X4 Proj;
+	DirectX::XMFLOAT4X4 InvProj;
+	DirectX::XMFLOAT4X4 ViewProj;
+	DirectX::XMFLOAT4X4 InvViewProj;
+	DirectX::XMFLOAT3	EyePosW;
+	float				PassConsantPad0;
+	DirectX::XMFLOAT2	Resolution;
+	float				PassConsantPad1;
+	float				PassConsantPad2;
 };
 
 struct DXRMaterialConstants {
-	DirectX::XMFLOAT4 Resolution;
+	DirectX::XMFLOAT4	DiffuseAlbedo;
+	DirectX::XMFLOAT3	FresnelR0;
+	float				Roughness;
+	DirectX::XMFLOAT4	Resolution;
 };
 
 struct DXRFrameResource {
