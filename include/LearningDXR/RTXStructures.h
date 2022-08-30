@@ -4,8 +4,13 @@
 #include <wrl.h>
 
 struct AccelerationStructureBuffer {
-	Microsoft::WRL::ComPtr<ID3D12Resource> Scratch		= nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> Result		= nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> InstanceDesc	= nullptr;	// only used in top-level AS
+	Microsoft::WRL::ComPtr<ID3D12Resource> Scratch;
+	Microsoft::WRL::ComPtr<ID3D12Resource> Result;
+	Microsoft::WRL::ComPtr<ID3D12Resource> InstanceDesc;	// only used in top-level AS
 	UINT64 ResultDataMaxSizeInBytes;
+};
+
+struct ShaderTable {
+	Microsoft::WRL::ComPtr<ID3D12Resource> Resource;
+	UINT ShaderRecordSize = 0;
 };

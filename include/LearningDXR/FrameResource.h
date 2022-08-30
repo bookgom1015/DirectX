@@ -86,6 +86,7 @@ struct Light {
 
 struct ObjectConstants {
 	DirectX::XMFLOAT4X4 World;
+	DirectX::XMFLOAT4X4 TexTransform;
 };
 
 struct PassConstants {
@@ -106,6 +107,19 @@ struct MaterialConstants {
 	DirectX::XMFLOAT3 FresnelR0;
 	float Roughness;
 	DirectX::XMFLOAT4X4 MatTransform;
+};
+
+struct DXRPassConstants {
+	DirectX::XMFLOAT2	Resolution;
+	float				PassConsantPad1;
+	float				PassConsantPad2;
+};
+
+struct DXRMaterialConstants {
+	DirectX::XMFLOAT4	DiffuseAlbedo;
+	DirectX::XMFLOAT3	FresnelR0;
+	float				Roughness;
+	DirectX::XMFLOAT4	Resolution;
 };
 
 struct FrameResource {
@@ -138,56 +152,5 @@ public:
 	ID3D12Device* Device;
 	UINT PassCount;
 	UINT ObjectCount;
-	UINT MaterialCount;
-};
-
-struct DXRPassConstants {
-	DirectX::XMFLOAT4X4	View;
-	DirectX::XMFLOAT4X4 InvView;
-	DirectX::XMFLOAT4X4 Proj;
-	DirectX::XMFLOAT4X4 InvProj;
-	DirectX::XMFLOAT4X4 ViewProj;
-	DirectX::XMFLOAT4X4 InvViewProj;
-	DirectX::XMFLOAT3	EyePosW;
-	float				PassConsantPad0;
-	DirectX::XMFLOAT2	Resolution;
-	float				PassConsantPad1;
-	float				PassConsantPad2;
-};
-
-struct DXRMaterialConstants {
-	DirectX::XMFLOAT4	DiffuseAlbedo;
-	DirectX::XMFLOAT3	FresnelR0;
-	float				Roughness;
-	DirectX::XMFLOAT4	Resolution;
-};
-
-struct DXRFrameResource {
-public:
-	DXRFrameResource(
-		ID3D12Device* inDevice,
-		UINT inPassCount,
-		UINT inMaterialCount);
-	virtual ~DXRFrameResource() = default;
-
-private:
-	DXRFrameResource(const FrameResource& src) = delete;
-	DXRFrameResource(FrameResource&& src) = delete;
-	DXRFrameResource& operator=(const FrameResource& rhs) = delete;
-	DXRFrameResource& operator=(FrameResource&& rhs) = delete;
-
-public:
-	GameResult Initialize();
-
-public:
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdListAlloc;
-
-	UploadBuffer<DXRPassConstants> PassCB;
-	UploadBuffer<DXRMaterialConstants> MaterialCB;
-
-	UINT64 Fence = 0;
-
-	ID3D12Device* Device;
-	UINT PassCount;
 	UINT MaterialCount;
 };

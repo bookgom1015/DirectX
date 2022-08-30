@@ -88,8 +88,8 @@ bool LowRenderer::IsValid() const {
 	return bIsValid;
 }
 
-GameResult LowRenderer::GetDeviceRemovedReason() const {
-	return GameResult(md3dDevice->GetDeviceRemovedReason());
+HRESULT LowRenderer::GetDeviceRemovedReason() const {
+	return md3dDevice->GetDeviceRemovedReason();
 }
 
 float LowRenderer::AspectRatio() const {

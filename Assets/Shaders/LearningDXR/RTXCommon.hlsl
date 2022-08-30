@@ -1,21 +1,39 @@
 #ifndef __RTXCOMMON_HLSL__
 #define __RTXCOMMON_HLSL__
 
-RWTexture2D<float4> RTOutput				: register(u0);
-RaytracingAccelerationStructure SceneBVH	: register(t0);
-//ByteAddressBuffer Vertices				: register(t1);
-//ByteAddressBuffer Indices					: register(t2);
+//
+// Global root signature
+//
+RWTexture2D<float4> gRTOutput				: register(u0);
+RaytracingAccelerationStructure gSceneBVH	: register(t0);
+ByteAddressBuffer gVertices					: register(t1);
+ByteAddressBuffer gIndices					: register(t2);
 
+cbuffer cbPass : register(b0) {
+	float2	gResolution;
+	float	gPassConstantPad0;
+	float	gPassConstantPad1;
+}
+
+//
+// Local root signature
+//
+cbuffer cbMaterial : register(b1) {
+	float4		lDiffuseAlbedo;
+	float3		lFresnelR0;
+	float		lRoughness;
+	float4x4	lMatTransform;
+};
+
+//
+// Shader attributes
+//
 struct HitInfo {
 	float4 ShadedColorAndHitT;
 };
 
 struct Attributes {
 	float2 TexC;
-};
-
-cbuffer cbObject : register(b0) {
-	float4x4	gWorld;
 };
 
 struct VertexAttributes {
@@ -26,7 +44,7 @@ struct VertexAttributes {
 uint3 GetIndices(uint triangleIndex) {
 	uint baseIndex = (triangleIndex * 3);
 	int address = (baseIndex * 4);
-	return Indices.Load3(address);
+	return gIndices.Load3(address);
 }
 
 VertexAttributes GetVertexAttributes(uint triangleIndex, float3 barycentrics) {
@@ -37,9 +55,9 @@ VertexAttributes GetVertexAttributes(uint triangleIndex, float3 barycentrics) {
 
 	for (uint i = 0; i < 3; ++i) {
 		int address = (indices[i] * 5) * 4;
-		v.PosL += asfloat(Vertices.Load3(address)) * barycentrics[i];
+		v.PosL += asfloat(gVertices.Load3(address)) * barycentrics[i];
 		address += (3 * 4);
-		v.TexC += asfloat(Vertices.Load2(address)) * barycentrics[i];
+		v.TexC += asfloat(gVertices.Load2(address)) * barycentrics[i];
 	}
 
 	return v;

@@ -46,14 +46,16 @@ struct RenderItem {
 
 class Renderer : public LowRenderer {
 protected:
-	enum GlobalRootSignatureParams {
+	enum class GlobalRootSignatureParams : unsigned long long {
 		EOutput = 0,
 		EAcclerationStructure,
+		EPassCB,
 		Count
 	};
 
-	enum LocalRootSignatureParams {
-		EObjectCB = 0,
+	enum class LocalRootSignatureParams : unsigned long long {
+		EGeometry = 0,
+		EMaterialCB,
 		Count
 	};
 
@@ -96,12 +98,19 @@ protected:
 	GameResult BuildRenderItems();
 
 	// Raytracing
-	GameResult BuildGlobalRootSignature();
-	GameResult BuildLocalRootSignature();
+	GameResult BuildDXRShaders();
+	GameResult BuildGlobalRootSignatures();
+	GameResult BuildLocalRootSignatures();
 	GameResult BuildDXRResources();
+	GameResult BuildDXRDescriptorHeaps();
+	GameResult BuildDXRDescriptors();
+	GameResult BuildBLASs();
+	GameResult BuildTLASs();
+	GameResult BuildDXRPSOs();
+	GameResult BuildShaderTables();
 
 	GameResult UpdateCamera(const GameTimer& gt);
-	
+
 	GameResult UpdateObjectCB(const GameTimer& gt);
 	GameResult UpdatePassCB(const GameTimer& gt);
 	GameResult UpdateMaterialCB(const GameTimer& gt);
@@ -137,9 +146,9 @@ private:
 
 	float mTheta = 1.5f * DirectX::XM_PI;
 	float mPhi = 0.5f * DirectX::XM_PI;
-	float mRadius = 15.0f;	
+	float mRadius = 15.0f;
 
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDescriptorHeap = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDescriptorHeap;
 	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> mMainRenderTargets;
 
 	//
@@ -149,9 +158,19 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mDXROutput;
 
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mGlobalRootSignature = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mLocalRootSignature = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> mGlobalRootSignature;
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> mLocalRootSignature;
 
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObject>> mDXRPSOs;
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObjectProperties>> mDXRPSOProps;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDXRDescriptorHeap;
+
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> mVertexBufferSrv;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> mIndexBufferSrv;
+
+	AccelerationStructureBuffer mBLAS = {};
+	AccelerationStructureBuffer mTLAS = {};
+
+	std::unordered_map<std::string, ShaderTable> mShaderTables;
 };

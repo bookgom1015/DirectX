@@ -46,7 +46,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
 	bool IsValid() const;
-	GameResult GetDeviceRemovedReason() const;
+	HRESULT GetDeviceRemovedReason() const;
 
 	float AspectRatio() const;
 

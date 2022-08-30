@@ -14,10 +14,10 @@ void RayGen() {
 	//float2 vPos = float2(ndc.x * aspectRatio, ndc.y);	
 	//float2 vPosPrime = float2(vPos.x / gProj[0][0], vPos.y / gProj[1][1]);	
 	//float2 wPos = mul(float4(vPosPrime.x, vPosPrime.y, 1.0f, 1.0f), gInvView);
-
+	//
 	//float4 aaa = mul(float4(ndc, 1.0f, 1.0f), gInvViewProj);
 	//float3 wPos = aaa.xyz / aaa.w;
-
+	//
 	//float2 vPos = (ndc.x * aspectRatio, ndc.y);
 	//float2 vPosPrime = (vPos.x * gProj[0][0], vPos.y * gProj[1][1]);
 	//float3 wPos = mul(float4(vPosPrime, 1.0f, 1.0f), gInvView).xyz;
@@ -25,8 +25,6 @@ void RayGen() {
 	RayDesc ray;
 	ray.Origin = float3(ndc.x, -ndc.y, -15.0f);
 	ray.Direction = float3(0.0f, 0.0f, 1.0f);
-	//ray.Origin = gEyePosW;
-	//ray.Direction = normalize(wPos - gEyePosW);
 	ray.TMin = 0.1f;
 	ray.TMax = 1000.0f;
 
@@ -35,7 +33,7 @@ void RayGen() {
 	payload.ShadedColorAndHitT = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
 	TraceRay(
-		SceneBVH,
+		gSceneBVH,
 		RAY_FLAG_NONE,
 		0xFF,
 		0,
@@ -44,7 +42,7 @@ void RayGen() {
 		ray,
 		payload);
 
-	RTOutput[launchIndex.xy] = float4(payload.ShadedColorAndHitT.rgb, 1.0f);
+	gRTOutput[launchIndex.xy] = float4(payload.ShadedColorAndHitT.rgb, 1.0f);
 }
 
 #endif // __RAYGEN_HLSL__

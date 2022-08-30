@@ -38,7 +38,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib) {
 	//float3 barycentrics = float3((1.0f - attrib.TexC.x - attrib.TexC.y), attrib.TexC.x, attrib.TexC.y);
 	//VertexAttributes vertex = GetVertexAttributes(triangleIndex, barycentrics);
 
-	float3 color = gDiffuseAlbedo.rgb;
+	float3 color = lDiffuseAlbedo.rgb;
 
 	payload.ShadedColorAndHitT = float4(color, 1.0f) * (1.0f - ((RayTCurrent() - 0.1f) / (1000.0f - 0.1f)));
 }

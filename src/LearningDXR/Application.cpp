@@ -8,19 +8,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, in
 
 		auto result = app.Initialize();
 		if (FAILED(result.hr)) {
-			GameResult reason = app.GetRenderer()->GetDeviceRemovedReason();
-			std::wstringstream wsstream;
-			wsstream << L"Device removed reason code: 0x" << std::hex << reason.hr;
-			WLogln(wsstream.str());
+			ShowRemovedReason(app.GetRenderer());
+			WLogln(L"Error Occured");
 			return static_cast<int>(result.hr);
 		}
 
 		result = app.RunLoop();
-		if (result.hr != S_OK) {
-			GameResult reason = app.GetRenderer()->GetDeviceRemovedReason();
-			std::wstringstream wsstream;
-			wsstream << L"Device removed reason code: 0x" << std::hex << reason.hr;
-			WLogln(wsstream.str());
+		if (FAILED(result.hr)) {
+			ShowRemovedReason(app.GetRenderer());
+			WLogln(L"Error Occured");
 			return static_cast<int>(result.hr);
 		}
 

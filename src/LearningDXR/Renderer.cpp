@@ -102,9 +102,16 @@ GameResult Renderer::Initialize(HWND hMainWnd, UINT inClientWidth /* = 800 */, U
 	CheckGameResult(BuildRenderItems());
 
 	// Ray-tracing
-	CheckGameResult(BuildGlobalRootSignature());
-	CheckGameResult(BuildLocalRootSignature());
+	CheckGameResult(BuildDXRShaders());
+	CheckGameResult(BuildGlobalRootSignatures());
+	CheckGameResult(BuildLocalRootSignatures());
 	CheckGameResult(BuildDXRResources());
+	CheckGameResult(BuildDXRDescriptorHeaps());
+	CheckGameResult(BuildDXRDescriptors());
+	CheckGameResult(BuildBLASs());
+	CheckGameResult(BuildTLASs());
+	CheckGameResult(BuildDXRPSOs());
+	//CheckGameResult(BuildShaderTables());
 
 	ReturnIfFailed(mCommandList->Close());
 	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };	
@@ -177,6 +184,9 @@ GameResult Renderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
 	CheckGameResult(BuildResources());
 	CheckGameResult(BuildDescriptors());
 
+	CheckGameResult(BuildDXRResources());
+	CheckGameResult(BuildDXRDescriptors());
+
 	return GameResultOk;
 }
 
@@ -211,7 +221,7 @@ GameResult Renderer::BuildGeometries() {
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(1.0f, 32, 32);
 
 	SubmeshGeometry sphereSubmesh;
-	sphereSubmesh.IndexCount = static_cast<UINT>(sphere.GetIndices16().size());
+	sphereSubmesh.IndexCount = static_cast<UINT>(sphere.Indices32.size());
 	sphereSubmesh.BaseVertexLocation = 0;
 	sphereSubmesh.StartIndexLocation = 0;
 
@@ -223,11 +233,11 @@ GameResult Renderer::BuildGeometries() {
 		vertices[i].Tangent = sphere.Vertices[i].TangentU;
 	}
 
-	std::vector<std::uint16_t> indices;
-	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
+	std::vector<std::uint32_t> indices;
+	indices.insert(indices.end(), std::begin(sphere.Indices32), std::end(sphere.Indices32));
 
 	const UINT vbByteSize = static_cast<UINT>(vertices.size() * sizeof(Vertex));
-	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint16_t));
+	const UINT ibByteSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
 
 	auto geo = std::make_unique<MeshGeometry>();
 	geo->Name = "sphereGeo";
@@ -258,7 +268,7 @@ GameResult Renderer::BuildGeometries() {
 
 	geo->VertexByteStride = static_cast<UINT>(sizeof(Vertex));
 	geo->VertexBufferByteSize = vbByteSize;
-	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexFormat = DXGI_FORMAT_R32_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
 	geo->DrawArgs["sphere"] = sphereSubmesh;
@@ -647,31 +657,58 @@ GameResult Renderer::BuildRenderItems() {
 //	return GameResultOk;
 //}
 
-GameResult Renderer::BuildGlobalRootSignature() {
+GameResult Renderer::BuildDXRShaders() {
+	{
+		const auto filePath = ShaderFilePathW + L"LearningDXR\\RayGen.hlsl";
+		auto rayGenInfo = D3D12ShaderInfo(filePath.c_str(), L"", L"lib_6_3");
+		CheckGameResult(mShaderManager.CompileShader(rayGenInfo, "RayGen"));
+	}
+	{
+		const auto filePath = ShaderFilePathW + L"LearningDXR\\Miss.hlsl";
+		auto rayGenInfo = D3D12ShaderInfo(filePath.c_str(), L"", L"lib_6_3");
+		CheckGameResult(mShaderManager.CompileShader(rayGenInfo, "Miss"));
+	}
+	{
+		const auto filePath = ShaderFilePathW + L"LearningDXR\\ClosestHit.hlsl";
+		auto rayGenInfo = D3D12ShaderInfo(filePath.c_str(), L"", L"lib_6_3");
+		CheckGameResult(mShaderManager.CompileShader(rayGenInfo, "ClosestHit"));
+	}
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildGlobalRootSignatures() {
 	// Global Root Signature
 	// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
-	CD3DX12_DESCRIPTOR_RANGE ranges[1];
-	ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE ranges_1[1];
+	ranges_1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
-	CD3DX12_ROOT_PARAMETER params[GlobalRootSignatureParams::Count];
-	params[GlobalRootSignatureParams::EOutput].InitAsDescriptorTable(1, ranges);
-	params[GlobalRootSignatureParams::EAcclerationStructure].InitAsShaderResourceView(0);
+	CD3DX12_ROOT_PARAMETER params[static_cast<unsigned long long>(GlobalRootSignatureParams::Count)];
+	params[static_cast<unsigned long long>(GlobalRootSignatureParams::EOutput)].InitAsDescriptorTable(1, ranges_1);
+	params[static_cast<unsigned long long>(GlobalRootSignatureParams::EAcclerationStructure)].InitAsShaderResourceView(0);
+	params[static_cast<unsigned long long>(GlobalRootSignatureParams::EPassCB)].InitAsConstantBufferView(0);
 
 	CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(_countof(params), params);
+
 	CheckGameResult(D3D12Util::CreateRootSignature(md3dDevice.Get(), globalRootSignatureDesc, mGlobalRootSignature.GetAddressOf()));
 
 	return GameResultOk;
 }
 
-GameResult Renderer::BuildLocalRootSignature() {
+GameResult Renderer::BuildLocalRootSignatures() {
 	// Local Root Signature
 	// This is a root signature that enables a shader to have unique arguments that come from shader tables.
-	CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-	rootParameters[LocalRootSignatureParams::EObjectCB].InitAsConstantBufferView(0, 0);
+	CD3DX12_DESCRIPTOR_RANGE ranges_1[1];
+	ranges_1[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);
 
-	CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+	CD3DX12_ROOT_PARAMETER params[static_cast<unsigned long long>(LocalRootSignatureParams::Count)];
+	params[static_cast<unsigned long long>(LocalRootSignatureParams::EGeometry)].InitAsDescriptorTable(1, ranges_1);
+	params[static_cast<unsigned long long>(LocalRootSignatureParams::EMaterialCB)].InitAsConstantBufferView(1);
+	
+	CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(_countof(params), params);
 	localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
-	SerializeAndCreateRaytracingRootSignature(localRootSignatureDesc, &m_raytracingLocalRootSignature);
+
+	CheckGameResult(D3D12Util::CreateRootSignature(md3dDevice.Get(), localRootSignatureDesc, mLocalRootSignature.GetAddressOf()));
 
 	return GameResultOk;
 }
@@ -708,6 +745,305 @@ GameResult Renderer::BuildDXRResources() {
 		nullptr, 
 		IID_PPV_ARGS(&mDXROutput)
 	));
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildDXRDescriptorHeaps() {
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	// 1 UAV for the RT output
+	// 2 SRV for vertex and index buffers
+	desc.NumDescriptors = 3;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	desc.NodeMask = 0;
+
+	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mDXRDescriptorHeap)));
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildDXRDescriptors() {
+	auto handle = mDXRDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
+	// Create the DXR output buffer UAV
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+	md3dDevice->CreateUnorderedAccessView(mDXROutput.Get(), nullptr, &uavDesc, handle);
+
+	// Create the vertex buffer SRV
+	auto geo = mGeometries["sphereGeo"].get();
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC vertexSrvDesc = {};
+	vertexSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	vertexSrvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	vertexSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	vertexSrvDesc.Buffer.StructureByteStride = 0;
+	vertexSrvDesc.Buffer.FirstElement = 0;
+	vertexSrvDesc.Buffer.NumElements = static_cast<UINT>(geo->VertexBufferCPU->GetBufferSize() / sizeof(float));
+	vertexSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	handle.ptr += mCbvSrvUavDescriptorSize;
+	md3dDevice->CreateShaderResourceView(mVertexBufferSrv["sphereGeo"].Get(), &vertexSrvDesc, handle);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC indexSrvDesc = {};
+	indexSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	indexSrvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+	indexSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+	indexSrvDesc.Buffer.StructureByteStride = 0;
+	indexSrvDesc.Buffer.FirstElement = 0;
+	indexSrvDesc.Buffer.NumElements = static_cast<UINT>(geo->IndexBufferCPU->GetBufferSize() / sizeof(std::uint32_t));
+	indexSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	handle.ptr += mCbvSrvUavDescriptorSize;
+	md3dDevice->CreateShaderResourceView(mIndexBufferSrv["sphereGeo"].Get(), &indexSrvDesc, handle);
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildBLASs() {
+	auto geo = mGeometries["sphereGeo"].get();
+
+	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
+	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	geometryDesc.Triangles.VertexCount = static_cast<UINT>(geo->VertexBufferCPU->GetBufferSize() / sizeof(Vertex));
+	geometryDesc.Triangles.VertexBuffer.StartAddress = geo->VertexBufferGPU->GetGPUVirtualAddress();
+	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
+	geometryDesc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+	geometryDesc.Triangles.IndexCount = static_cast<UINT>(geo->IndexBufferCPU->GetBufferSize() / sizeof(std::uint32_t));
+	geometryDesc.Triangles.IndexBuffer = geo->IndexBufferGPU->GetGPUVirtualAddress();
+	geometryDesc.Triangles.Transform3x4 = 0;
+	// Mark the geometry as opaque. 
+	// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+	// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
+	geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+
+	// Get the size requirements for the BLAS buffers
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	inputs.pGeometryDescs = &geometryDesc;
+	inputs.NumDescs = 1;
+	inputs.Flags = buildFlags;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
+	md3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);
+
+	prebuildInfo.ScratchDataSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, prebuildInfo.ScratchDataSizeInBytes);
+	prebuildInfo.ResultDataMaxSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, prebuildInfo.ResultDataMaxSizeInBytes);
+
+	// Create the BLAS scratch buffer
+	D3D12BufferCreateInfo bufferInfo(prebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	bufferInfo.Alignment = std::max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), bufferInfo, mBLAS.Scratch.GetAddressOf()));
+
+	// Create the BLAS buffer
+	bufferInfo.Size = prebuildInfo.ResultDataMaxSizeInBytes;
+	bufferInfo.State = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), bufferInfo, mBLAS.Result.GetAddressOf()));
+
+	// Describe and build the bottom level acceleration structure
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+	buildDesc.Inputs = inputs;
+	buildDesc.ScratchAccelerationStructureData = mBLAS.Scratch->GetGPUVirtualAddress();
+	buildDesc.DestAccelerationStructureData = mBLAS.Result->GetGPUVirtualAddress();
+
+	mCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
+
+	// Wait for the BLAS build to complete
+	D3D12_RESOURCE_BARRIER uavBarrier;
+	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	uavBarrier.UAV.pResource = mBLAS.Result.Get();
+	uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	mCommandList->ResourceBarrier(1, &uavBarrier);
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildTLASs() {
+	// Describe the TLAS geometry instance(s)
+	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc = {};
+	instanceDesc.InstanceID = 0;
+	instanceDesc.InstanceContributionToHitGroupIndex = 0;
+	instanceDesc.InstanceMask = 0xFF;
+	instanceDesc.Transform[0][0] = instanceDesc.Transform[1][1] = instanceDesc.Transform[2][2] = 1.0f;
+	instanceDesc.AccelerationStructure = mBLAS.Result->GetGPUVirtualAddress();
+	instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE;
+
+	// Create the TLAS instance buffer
+	D3D12BufferCreateInfo instanceBufferInfo;
+	instanceBufferInfo.Size = sizeof(instanceDesc);
+	instanceBufferInfo.HeapType = D3D12_HEAP_TYPE_UPLOAD;
+	instanceBufferInfo.Flags = D3D12_RESOURCE_FLAG_NONE;
+	instanceBufferInfo.State = D3D12_RESOURCE_STATE_GENERIC_READ;
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), instanceBufferInfo, mTLAS.InstanceDesc.GetAddressOf()));
+
+	// Copy the instance data to the buffer
+	void* pData;
+	ReturnIfFailed(mTLAS.InstanceDesc->Map(0, nullptr, &pData));
+	std::memcpy(pData, &instanceDesc, sizeof(instanceDesc));
+	mTLAS.InstanceDesc->Unmap(0, nullptr);
+
+	// Get the size requirements for the TLAS buffers
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = {};
+	inputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	inputs.InstanceDescs = mTLAS.InstanceDesc->GetGPUVirtualAddress();
+	inputs.NumDescs = 1;
+	inputs.Flags = buildFlags;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo = {};
+	md3dDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuildInfo);
+
+	prebuildInfo.ResultDataMaxSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, prebuildInfo.ResultDataMaxSizeInBytes);
+	prebuildInfo.ScratchDataSizeInBytes = Align(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, prebuildInfo.ScratchDataSizeInBytes);
+
+	// Set TLAS size
+	mTLAS.ResultDataMaxSizeInBytes = prebuildInfo.ResultDataMaxSizeInBytes;
+
+	// Create TLAS sratch buffer
+	D3D12BufferCreateInfo bufferInfo(prebuildInfo.ScratchDataSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	bufferInfo.Alignment = std::max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), bufferInfo, mTLAS.Scratch.GetAddressOf()));
+
+	// Create the TLAS buffer
+	bufferInfo.Size = prebuildInfo.ResultDataMaxSizeInBytes;
+	bufferInfo.State = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), bufferInfo, mTLAS.Result.GetAddressOf()));
+
+	// Describe and build the TLAS
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
+	buildDesc.Inputs = inputs;
+	buildDesc.ScratchAccelerationStructureData = mTLAS.Scratch->GetGPUVirtualAddress();
+	buildDesc.DestAccelerationStructureData = mTLAS.Result->GetGPUVirtualAddress();
+
+	mCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, nullptr);
+
+	// Wait for the TLAS build to complete
+	D3D12_RESOURCE_BARRIER uavBarrier;
+	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	uavBarrier.UAV.pResource = mTLAS.Result.Get();
+	uavBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	mCommandList->ResourceBarrier(1, &uavBarrier);
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildDXRPSOs() {
+	CD3DX12_STATE_OBJECT_DESC raytracingPipeline = { D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
+
+	// DXIL library
+	// This contains the shaders and their entrypoints for the state object.
+	// Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
+	auto rayGenLib = raytracingPipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+	auto rayGenShader = mShaderManager.GetRTShader("RayGen");
+	D3D12_SHADER_BYTECODE rayGenLibDxil = CD3DX12_SHADER_BYTECODE(rayGenShader->GetBufferPointer(), rayGenShader->GetBufferSize());
+	rayGenLib->SetDXILLibrary(&rayGenLibDxil);
+	rayGenLib->DefineExport(L"RayGen");
+
+	auto missLib = raytracingPipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+	auto missShader = mShaderManager.GetRTShader("Miss");
+	D3D12_SHADER_BYTECODE missLibDxil = CD3DX12_SHADER_BYTECODE(missShader->GetBufferPointer(), missShader->GetBufferSize());
+	missLib->SetDXILLibrary(&missLibDxil);
+	missLib->DefineExport(L"Miss");
+
+	auto chitLib = raytracingPipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
+	auto chitShader = mShaderManager.GetRTShader("ClosestHit");
+	D3D12_SHADER_BYTECODE chitLibDxil = CD3DX12_SHADER_BYTECODE(chitShader->GetBufferPointer(), chitShader->GetBufferSize());
+	chitLib->SetDXILLibrary(&chitLibDxil);
+	chitLib->DefineExport(L"ClosestHit");
+
+	// Triangle hit group
+	// A hit group specifies closest hit, any hit and intersection shaders to be executed when a ray intersects the geometry's triangle/AABB.
+	auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+	hitGroup->SetClosestHitShaderImport(L"ClosestHit");
+	hitGroup->SetHitGroupExport(L"HitGroup");
+	hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+	// Shader config
+	// Defines the maximum sizes in bytes for the ray payload and attribute structure.
+	auto shaderConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
+	UINT payloadSize = 4 * sizeof(float);	// float4 color
+	UINT attributeSize = 2 * sizeof(float);	// float2 barycentrics
+	shaderConfig->Config(payloadSize, attributeSize);
+
+	// Local root signature and shader association
+	// This is a root signature that enables a shader to have unique arguments that come from shader tables.
+	auto localRootSignature = raytracingPipeline.CreateSubobject<CD3DX12_LOCAL_ROOT_SIGNATURE_SUBOBJECT>();
+	localRootSignature->SetRootSignature(mLocalRootSignature.Get());
+
+	// Shader association
+	// Create a list of the shader export names that use the root signature
+	const WCHAR* localRootSignatureExports[] = { L"RayGen", L"HitGroup", L"Miss" };
+	auto localRootSignatureAssociation = raytracingPipeline.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
+	localRootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
+	localRootSignatureAssociation->AddExports(localRootSignatureExports);
+
+	// Global root signature
+	// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
+	auto globalRootSignature = raytracingPipeline.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
+	globalRootSignature->SetRootSignature(mGlobalRootSignature.Get());
+
+	// Pipeline config
+	// Defines the maximum TraceRay() recursion depth.
+	auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
+	// PERFOMANCE TIP: Set max recursion depth as low as needed 
+	// as drivers may apply optimization strategies for low recursion depths. 
+	UINT maxRecursionDepth = 1;	// Primary rays only
+	pipelineConfig->Config(maxRecursionDepth);
+
+	// Create the state object
+	ReturnIfFailedDxDebug(mInfoQueue, md3dDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&mDXRPSOs["DXRDefault"])));
+
+	// Get the state object properties
+	ReturnIfFailedDxDebug(mInfoQueue, mDXRPSOs["DXRDefault"]->QueryInterface(IID_PPV_ARGS(&mDXRPSOProps["DXRDefaultProps"])));
+
+	return GameResultOk;
+}
+
+GameResult Renderer::BuildShaderTables() {
+	/*
+		The Shader Table layout is as follows:
+			Entry 0 - Ray Generation shader
+			Entry 1 - Miss shader
+			Entry 2 - Closest Hit shader
+		All shader records in the Shader Table must have the same size, so shader record size will be based on the largest required entry.
+		The ray generation program requires the largest entry:
+			32 bytes - D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES
+			+  8 bytes - a CBV/SRV/UAV descriptor table pointer (64-bits)
+			= 40 bytes ->> aligns to 64 bytes
+		The entry size must be aligned up to D3D12_RAYTRACING_SHADER_BINDING_TABLE_RECORD_BYTE_ALIGNMENT
+	*/
+	std::uint32_t shaderIdSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+	std::uint32_t shaderTableSize = 0;
+
+	auto& shaderTable = mShaderTables["DXRDefault"];
+	shaderTable.ShaderRecordSize = shaderIdSize;
+	shaderTable.ShaderRecordSize += 8;
+	shaderTable.ShaderRecordSize = Align(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT, shaderTable.ShaderRecordSize);
+
+	shaderTableSize = (shaderTable.ShaderRecordSize * 3);	// 3 shader records in the table
+	shaderTableSize = Align(D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT, shaderTableSize);
+
+	// Create the shader table buffer
+	D3D12BufferCreateInfo bufferInfo(shaderTableSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+	CheckGameResult(D3D12Util::CreateBuffer(md3dDevice.Get(), bufferInfo, shaderTable.Resource.GetAddressOf()));
+
+	// Map the buffer
+	std::uint8_t* pData;
+	ReturnIfFailed(shaderTable.Resource->Map(0, nullptr, reinterpret_cast<void**>(&pData)));
+
+	// Shader Record 0 -  Ray generation program and local root parameter data
+	std::memcpy(pData, mDXRPSOProps["DXRDefaultProps"]->GetShaderIdentifier(L"RayGen"), shaderIdSize);
+
+
+
+	// Unmap
+	shaderTable.Resource->Unmap(0, nullptr);
 
 	return GameResultOk;
 }

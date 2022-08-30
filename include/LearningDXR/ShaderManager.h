@@ -42,8 +42,8 @@ public:
 
 	GameResult CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName);
 
-	Microsoft::WRL::ComPtr<ID3DBlob>& GetShader(const std::string& inName);
-	Microsoft::WRL::ComPtr<IDxcBlob>& GetRTShader(const std::string& inName);
+	ID3DBlob* GetShader(const std::string& inName);
+	IDxcBlob* GetRTShader(const std::string& inName);
 
 private:
 	bool bIsCleanedUp = false;

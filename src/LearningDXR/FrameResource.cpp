@@ -13,27 +13,9 @@ GameResult FrameResource::Initialize() {
 		IID_PPV_ARGS(CmdListAlloc.GetAddressOf())
 	));
 
-	PassCB.Initialize(Device, PassCount, true);
-	ObjectCB.Initialize(Device, ObjectCount, true);
-	MaterialCB.Initialize(Device, MaterialCount, false);
-
-	return GameResult(S_OK);
-}
-
-DXRFrameResource::DXRFrameResource(ID3D12Device* inDevice, UINT inPassCount, UINT inMaterialCount) :
-		PassCount(inPassCount),
-		MaterialCount(inMaterialCount) {
-	Device = inDevice;
-}
-
-GameResult DXRFrameResource::Initialize() {
-	ReturnIfFailed(Device->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(CmdListAlloc.GetAddressOf())
-	));
-
-	PassCB.Initialize(Device, PassCount, true);
-	MaterialCB.Initialize(Device, MaterialCount, false);
+	CheckGameResult(PassCB.Initialize(Device, PassCount, true));
+	CheckGameResult(ObjectCB.Initialize(Device, ObjectCount, true));
+	CheckGameResult(MaterialCB.Initialize(Device, MaterialCount, true));
 
 	return GameResult(S_OK);
 }

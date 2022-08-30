@@ -102,10 +102,10 @@ GameResult ShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, con
 	return GameResultOk;
 }
 
-ComPtr<ID3DBlob>& ShaderManager::GetShader(const std::string& inName) {
-	return mShaders[inName];
+ID3DBlob* ShaderManager::GetShader(const std::string& inName) {
+	return mShaders[inName].Get();
 }
 
-ComPtr<IDxcBlob>& ShaderManager::GetRTShader(const std::string& inName) {
-	return mRTShaders[inName];
+IDxcBlob* ShaderManager::GetRTShader(const std::string& inName) {
+	return mRTShaders[inName].Get();
 }
