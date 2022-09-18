@@ -1,79 +1,11 @@
 #pragma once
 
-#include "LearningDXR/GameResult.h"
-#include "LearningDXR/D3D12Util.h"
-#include "common/d3dx12.h"
-
 #include <DirectXMath.h>
-#include <Windows.h>
-#include <wrl.h>
+
+#include "LearningDXR/GameResult.h"
+#include "LearningDXR/UploadBuffer.h"
 
 #define MaxLights 16
-
-template<typename T>
-class UploadBuffer {
-public:
-	UploadBuffer() = default;
-	virtual ~UploadBuffer() {
-		if (mUploadBuffer != nullptr)
-			mUploadBuffer->Unmap(0, nullptr);
-
-		mMappedData = nullptr;
-	}
-
-private:
-	UploadBuffer(const UploadBuffer& inRef) = delete;
-	UploadBuffer(UploadBuffer&& inRVal) = delete;
-	UploadBuffer& operator=(const UploadBuffer& inRef) = delete;
-	UploadBuffer& operator=(UploadBuffer&& inRVal) = delete;
-
-public:
-	GameResult Initialize(ID3D12Device* inDevice, UINT inElementCount, bool inIsConstantBuffer) {
-		mIsConstantBuffer = inIsConstantBuffer;
-
-		mElementByteSize = sizeof(T);
-
-		// Constant buffer elements need to be multiples of 256 bytes.
-		// This is because the hardware can only view constant data 
-		// at m*256 byte offsets and of n*256 byte lengths. 
-		// typedef struct D3D12_CONSTANT_BUFFER_VIEW_DESC {
-		// UINT64 OffsetInBytes; // multiple of 256
-		// UINT   SizeInBytes;   // multiple of 256
-		// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-		if (inIsConstantBuffer)
-			mElementByteSize = D3D12Util::CalcConstantBufferByteSize(sizeof(T));
-
-		ReturnIfFailed(inDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(mElementByteSize * inElementCount),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&mUploadBuffer)));
-
-		ReturnIfFailed(mUploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedData)));
-
-		// We do not need to unmap until we are done with the resource.  However, we must not write to
-		// the resource while it is in use by the GPU (so we must use synchronization techniques).
-
-		return GameResult(S_OK);
-	}
-
-	ID3D12Resource* Resource() const {
-		return mUploadBuffer.Get();
-	}
-
-	void CopyData(int inElementIndex, const T& inData) {
-		std::memcpy(&mMappedData[inElementIndex * mElementByteSize], &inData, sizeof(T));
-	}
-
-private:
-	Microsoft::WRL::ComPtr<ID3D12Resource> mUploadBuffer;
-	BYTE* mMappedData = nullptr;
-
-	UINT mElementByteSize = 0;
-	bool mIsConstantBuffer = false;
-};
 
 struct Light {
 	DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
@@ -90,36 +22,35 @@ struct ObjectConstants {
 };
 
 struct PassConstants {
-	DirectX::XMFLOAT4X4 View;
-	DirectX::XMFLOAT4X4 InvView;
-	DirectX::XMFLOAT4X4 Proj;
-	DirectX::XMFLOAT4X4 InvProj;
-	DirectX::XMFLOAT4X4 ViewProj;
-	DirectX::XMFLOAT4X4 InvViewProj;
-	DirectX::XMFLOAT3 EyePosW;
-	float CBPerObjectPad1;
-	DirectX::XMFLOAT4 AmbientLight;
-	Light Lights[MaxLights];
+	DirectX::XMFLOAT4X4	View;
+	DirectX::XMFLOAT4X4	InvView;
+	DirectX::XMFLOAT4X4	Proj;
+	DirectX::XMFLOAT4X4	InvProj;
+	DirectX::XMFLOAT4X4	ViewProj;
+	DirectX::XMFLOAT4X4	InvViewProj;
+	DirectX::XMFLOAT3	EyePosW;
+	float				CBPerObjectPad1;
+	DirectX::XMFLOAT4	AmbientLight;
+	Light				Lights[MaxLights];
 };
 
 struct MaterialConstants {
-	DirectX::XMFLOAT4 DiffuseAlbedo;
-	DirectX::XMFLOAT3 FresnelR0;
-	float Roughness;
-	DirectX::XMFLOAT4X4 MatTransform;
-};
-
-struct DXRPassConstants {
-	DirectX::XMFLOAT2	Resolution;
-	float				PassConsantPad1;
-	float				PassConsantPad2;
-};
-
-struct DXRMaterialConstants {
 	DirectX::XMFLOAT4	DiffuseAlbedo;
 	DirectX::XMFLOAT3	FresnelR0;
 	float				Roughness;
-	DirectX::XMFLOAT4	Resolution;
+	DirectX::XMFLOAT4X4	MatTransform;
+};
+
+struct DXRObjectCB {
+	DirectX::XMFLOAT4 Albedo;
+};
+
+struct DXRPassConstants {
+	DirectX::XMFLOAT4X4 ProjectionToWorld;
+	DirectX::XMFLOAT4 EyePosW;
+	DirectX::XMFLOAT4 LightPosW;
+	DirectX::XMFLOAT4 LightAmbientColor;
+	DirectX::XMFLOAT4 LightDiffuseColor;
 };
 
 struct FrameResource {
@@ -146,6 +77,8 @@ public:
 	UploadBuffer<PassConstants> PassCB;
 	UploadBuffer<ObjectConstants> ObjectCB;
 	UploadBuffer<MaterialConstants> MaterialCB;
+
+	UploadBuffer<DXRPassConstants> DXRPassCB;
 
 	UINT64 Fence = 0;
 

@@ -5,44 +5,26 @@
 
 [shader("raygeneration")]
 void RayGen() {
-	uint2 launchIndex = DispatchRaysIndex().xy;
-	uint2 launchDimensions = DispatchRaysDimensions().xy;
+	float3 rayDir;
+	float3 origin;
 
-	float2 ndc = float2(((launchIndex.xy + 0.5f) / gResolution.xy) * 2.0f - 1.0f);
-	float aspectRatio = (gResolution.x / gResolution.y);
-	
-	//float2 vPos = float2(ndc.x * aspectRatio, ndc.y);	
-	//float2 vPosPrime = float2(vPos.x / gProj[0][0], vPos.y / gProj[1][1]);	
-	//float2 wPos = mul(float4(vPosPrime.x, vPosPrime.y, 1.0f, 1.0f), gInvView);
-	//
-	//float4 aaa = mul(float4(ndc, 1.0f, 1.0f), gInvViewProj);
-	//float3 wPos = aaa.xyz / aaa.w;
-	//
-	//float2 vPos = (ndc.x * aspectRatio, ndc.y);
-	//float2 vPosPrime = (vPos.x * gProj[0][0], vPos.y * gProj[1][1]);
-	//float3 wPos = mul(float4(vPosPrime, 1.0f, 1.0f), gInvView).xyz;
+	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+	GenerateCameraRay(DispatchRaysIndex().xy, origin, rayDir);
 
+	// Trace the ray.
+	// Set the ray's extents.
 	RayDesc ray;
-	ray.Origin = float3(ndc.x, -ndc.y, -15.0f);
-	ray.Direction = float3(0.0f, 0.0f, 1.0f);
-	ray.TMin = 0.1f;
-	ray.TMax = 1000.0f;
+	ray.Origin = origin;
+	ray.Direction = rayDir;
+	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
+	// TMin should be kept small to prevent missing geometry at close contact areas.
+	ray.TMin = 0.1;
+	ray.TMax = 1000.0;
+	RayPayload payload = { float4(0, 0, 0, 0) };
+	TraceRay(gBVH, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
 
-	// Trace the ray
-	HitInfo payload;
-	payload.ShadedColorAndHitT = float4(0.0f, 0.0f, 0.0f, 0.0f);
-
-	TraceRay(
-		gSceneBVH,
-		RAY_FLAG_NONE,
-		0xFF,
-		0,
-		0,
-		0,
-		ray,
-		payload);
-
-	gRTOutput[launchIndex.xy] = float4(payload.ShadedColorAndHitT.rgb, 1.0f);
+	// Write the raytraced color to the output texture.
+	gOutput[DispatchRaysIndex().xy] = payload.Color;
 }
 
 #endif // __RAYGEN_HLSL__

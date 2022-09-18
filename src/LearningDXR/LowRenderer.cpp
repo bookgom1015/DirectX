@@ -3,8 +3,73 @@
 
 using namespace Microsoft::WRL;
 
-LowRenderer::LowRenderer() {
+namespace {
+	void LogAdapters(IDXGIFactory4* pFactory) {
+		UINT i = 0;
+		IDXGIAdapter* adapter = nullptr;
+		std::vector<IDXGIAdapter*> adapterList;
+		while (pFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+			
+			std::wstring text = L"***Adapter: ";
+			text += desc.Description + L'\n';
+			WLogln(text.c_str());
+
+			adapterList.push_back(adapter);
+			++i;
+		}
+
+#ifndef SKIP_LOG_OUTPUTS
+		for (size_t i = 0; i < adapterList.size(); ++i) {
+			LogAdapterOutputs(adapterList[i]);
+			ReleaseCom(adapterList[i]);
+		}
+#endif
+	}
+
+	void LogOutputDisplayModes(IDXGIOutput* pOutput, DXGI_FORMAT format) {
+		UINT count = 0;
+		UINT flags = 0;
+
+		// Call with nullptr to get list count.
+		pOutput->GetDisplayModeList(format, flags, &count, nullptr);
+
+		std::vector<DXGI_MODE_DESC> modelList(count);
+		pOutput->GetDisplayModeList(format, flags, &count, &modelList[0]);
+
+		for (auto& x : modelList) {
+			UINT n = x.RefreshRate.Numerator;
+			UINT d = x.RefreshRate.Denominator;
+			std::wstring text =
+				L"        Width = " + std::to_wstring(x.Width) + L'\n' +
+				L"        Height = " + std::to_wstring(x.Height) + L'\n' +
+				L"        Refresh = " + std::to_wstring(n) + L'/' + std::to_wstring(d) + L'\n';
+			WLogln(text);
+		}
+	}
+
+	void LogAdapterOutputs(IDXGIAdapter* pAapter, DXGI_FORMAT format) {
+		UINT i = 0;
+		IDXGIOutput* output = nullptr;
+		while (pAapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND) {
+			DXGI_OUTPUT_DESC desc;
+			output->GetDesc(&desc);
+
+			std::wstring text = L"***Output: ";
+			text += desc.DeviceName + L'\n';
+			WLogln(text);
+
+			LogOutputDisplayModes(output, format);
+
+			ReleaseCom(output);
+			++i;
+		}
+	}
+
 }
+
+LowRenderer::LowRenderer() {}
 
 LowRenderer::~LowRenderer() {
 	if (!bIsCleanedUp)
@@ -114,70 +179,6 @@ GameResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	return GameResultOk;
 }
 
-
-void LowRenderer::LogAdapters() {
-	UINT i = 0;
-	IDXGIAdapter* adapter = nullptr;
-	std::vector<IDXGIAdapter*> adapterList;
-	while (mdxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
-		DXGI_ADAPTER_DESC desc;
-		adapter->GetDesc(&desc);
-
-		std::wstring text = L"***Adapter: ";
-		text += desc.Description + L'\n';
-		WLogln(text.c_str());
-
-		adapterList.push_back(adapter);
-		++i;
-	}
-
-#ifndef SKIP_LOG_OUTPUTS
-	for (size_t i = 0; i < adapterList.size(); ++i) {
-		LogAdapterOutputs(adapterList[i]);
-		ReleaseCom(adapterList[i]);
-	}
-#endif
-}
-
-void LowRenderer::LogAdapterOutputs(IDXGIAdapter* inAdapter) {
-	UINT i = 0;
-	IDXGIOutput* output = nullptr;
-	while (inAdapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND) {
-		DXGI_OUTPUT_DESC desc;
-		output->GetDesc(&desc);
-
-		std::wstring text = L"***Output: ";
-		text += desc.DeviceName + L'\n';
-		WLogln(text);
-
-		LogOutputDisplayModes(output, mBackBufferFormat);
-
-		ReleaseCom(output);
-		++i;
-	}
-}
-
-void LowRenderer::LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFormat) {
-	UINT count = 0;
-	UINT flags = 0;
-
-	// Call with nullptr to get list count.
-	inOutput->GetDisplayModeList(inFormat, flags, &count, nullptr);
-
-	std::vector<DXGI_MODE_DESC> modelList(count);
-	inOutput->GetDisplayModeList(inFormat, flags, &count, &modelList[0]);
-
-	for (auto& x : modelList) {
-		UINT n = x.RefreshRate.Numerator;
-		UINT d = x.RefreshRate.Denominator;
-		std::wstring text =
-			L"        Width = " + std::to_wstring(x.Width) + L'\n' +
-			L"        Height = " + std::to_wstring(x.Height) + L'\n' +
-			L"        Refresh = " + std::to_wstring(n) + L'/' + std::to_wstring(d) + L'\n';
-		WLogln(text);
-	}
-}
-
 GameResult LowRenderer::InitDirect3D() {
 #ifdef _DEBUG
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
@@ -188,25 +189,33 @@ GameResult LowRenderer::InitDirect3D() {
 
 	ReturnIfFailed(CreateDXGIFactory2(mDXGIFactoryFlags, IID_PPV_ARGS(&mdxgiFactory)));
 
-#ifdef _DEBUG
-	LogAdapters();
-#endif
+	Adapters adapters;
+	SortAdapters(adapters);
 	
-	// Try to create hardware device.
-	HRESULT hardwareResult =  D3D12CreateDevice(
-		nullptr,
-		D3D_FEATURE_LEVEL_12_1,
-		__uuidof(ID3D12Device5),
-		static_cast<void**>(&md3dDevice)
-	);
+	bool found = false;
+	for (auto begin = adapters.rbegin(), end = adapters.rend(); begin != end; ++begin) {
+		auto adapter = begin->second;
 
-	// Fallback to WARP device.
-	if (FAILED(hardwareResult)) {
-		ComPtr<IDXGIAdapter1> pWarpAdapter;
+		// Try to create hardware device.
+		HRESULT hr = D3D12CreateDevice(
+			adapter,
+			D3D_FEATURE_LEVEL_12_1,
+			__uuidof(ID3D12Device5),
+			static_cast<void**>(&md3dDevice)
+		);
 
-		ReturnIfFailed(mdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
-		ReturnIfFailed(D3D12CreateDevice(pWarpAdapter.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&md3dDevice)));
-	}	
+		if (SUCCEEDED(hr)) {
+			found = true;
+#ifdef _DEBUG
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+			WLogln(desc.Description, L" is selected");
+#endif
+			break;
+		}
+	}
+
+	if (!found) ReturnGameResult(E_NOINTERFACE, L"There are no adapters that support the required features");
 	
 	// Checks that device supports ray-tracing.
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 ops = {};
@@ -227,6 +236,34 @@ GameResult LowRenderer::InitDirect3D() {
 	CheckGameResult(CreateRtvAndDsvDescriptorHeaps());
 
 	return GameResultOk;
+}
+
+void LowRenderer::SortAdapters(Adapters& map) {
+	UINT i = 0;
+	IDXGIAdapter* adapter = nullptr;
+
+#if _DEBUG
+	WLogln(L"Adapters:");
+	std::wstringstream wsstream;
+#endif
+
+	while (mdxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
+		DXGI_ADAPTER_DESC desc;
+		adapter->GetDesc(&desc);
+
+#if _DEBUG
+		wsstream << L"\t " << desc.Description << std::endl;
+#endif
+
+		size_t score = desc.DedicatedSystemMemory + desc.DedicatedVideoMemory + desc.SharedSystemMemory;
+
+		map.insert(std::make_pair(score, adapter));
+		++i;
+	}
+
+#if _DEBUG
+	WLog(wsstream.str());
+#endif
 }
 
 GameResult LowRenderer::CreateDebugObjects() {

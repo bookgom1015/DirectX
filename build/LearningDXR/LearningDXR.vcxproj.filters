@@ -75,6 +75,9 @@
     <ClInclude Include="..\..\include\LearningDXR\RTXStructures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\UploadBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp">
@@ -108,6 +111,12 @@
       <Filter>Common Files\Private</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\LearningDXR\FrameResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\UploadBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\RTXStructures.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

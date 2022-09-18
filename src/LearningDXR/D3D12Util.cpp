@@ -6,6 +6,8 @@
 
 using namespace Microsoft::WRL;
 
+const size_t D3D12Util::SizeOfUint = sizeof(UINT);
+
 GameResult D3D12Util::LoadBinary(const std::wstring& inFilename, ComPtr<ID3DBlob>& outBlob) {
 	std::ifstream fin(inFilename, std::ios::binary);
 
@@ -98,7 +100,7 @@ GameResult D3D12Util::CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROO
 	return GameResultOk;
 }
 
-GameResult D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource) {
+GameResult D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource, ID3D12InfoQueue* pInfoQueue) {
 	D3D12_HEAP_PROPERTIES heapDesc = {};
 	heapDesc.Type = inInfo.HeapType;
 	heapDesc.CreationNodeMask = 1;
@@ -116,8 +118,14 @@ GameResult D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo&
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	resourceDesc.Width = inInfo.Size;
 	resourceDesc.Flags = inInfo.Flags;
+	
+	if (pInfoQueue != nullptr) {
+		ReturnIfFailedDxDebug(pInfoQueue, pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
+	}
+	else {
+		ReturnIfFailed(pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
+	}
 
-	ReturnIfFailed(pDevice->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
 	return GameResultOk;
 }
 
@@ -125,4 +133,16 @@ GameResult D3D12Util::CreateConstantBuffer(ID3D12Device* pDevice, ID3D12Resource
 	D3D12BufferCreateInfo bufferInfo((inSize + 255) & ~255, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
 	CheckGameResult(CreateBuffer(pDevice, bufferInfo, ppResource));
 	return GameResultOk;
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE D3D12Util::GetCpuHandle(ID3D12DescriptorHeap* descHeap, INT index, UINT descriptorSize) {
+	auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(descHeap->GetCPUDescriptorHandleForHeapStart());
+	handle.Offset(index, descriptorSize);
+	return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE D3D12Util::GetGpuHandle(ID3D12DescriptorHeap* descHeap, INT index, UINT descriptorSize) {
+	auto handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descHeap->GetGPUDescriptorHandleForHeapStart());
+	handle.Offset(index, descriptorSize);
+	return handle;
 }

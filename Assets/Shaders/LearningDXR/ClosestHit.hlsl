@@ -30,17 +30,35 @@
 
 #include "RTXCommon.hlsl"
 
- // ---[ Closest Hit Shader ]---
-
 [shader("closesthit")]
-void ClosestHit(inout HitInfo payload, Attributes attrib) {
-	//uint triangleIndex = PrimitiveIndex();
-	//float3 barycentrics = float3((1.0f - attrib.TexC.x - attrib.TexC.y), attrib.TexC.x, attrib.TexC.y);
-	//VertexAttributes vertex = GetVertexAttributes(triangleIndex, barycentrics);
+void ClosestHit(inout RayPayload payload, in Attributes attr) {
+	float3 hitPosition = HitWorldPosition();
 
-	float3 color = lDiffuseAlbedo.rgb;
+	// Get the base index of the triangle's first 32 bit index.
+	uint indexSizeInBytes = 4;
+	uint indicesPerTriangle = 3;
+	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
-	payload.ShadedColorAndHitT = float4(color, 1.0f) * (1.0f - ((RayTCurrent() - 0.1f) / (1000.0f - 0.1f)));
+	// Load up 3 16 bit indices for the triangle.
+	const uint3 indices = Load3x32BitIndices(baseIndex);
+
+	// Retrieve corresponding vertex normals for the triangle vertices.
+	float3 vertexNormals[3] = {
+		gVertices[indices[0]].Normal,
+		gVertices[indices[1]].Normal,
+		gVertices[indices[2]].Normal
+	};
+
+	// Compute the triangle's normal.
+	// This is redundant and done for illustration purposes 
+	// as all the per-vertex normals are the same and match triangle's normal in this sample. 
+	float3 triangleNormal = HitAttribute(vertexNormals, attr);
+
+	float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
+	float4 color = gLightAmbientColor + diffuseColor;
+	
+	payload.Color = color;
 }
 
 #endif // __CLOSESTHIT_HLSL__

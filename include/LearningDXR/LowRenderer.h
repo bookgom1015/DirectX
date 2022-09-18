@@ -13,6 +13,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include "common/d3dx12.h"
 #include "GameResult.h"
@@ -20,6 +21,9 @@
 #define SKIP_LOG_OUTPUTS
 
 class LowRenderer {
+private:
+	using Adapters = std::multimap<size_t, IDXGIAdapter*>;
+
 protected:
 	LowRenderer();
 
@@ -54,11 +58,9 @@ protected:
 	virtual GameResult CreateRtvAndDsvDescriptorHeaps();
 
 private:
-	void LogAdapters();
-	void LogAdapterOutputs(IDXGIAdapter* inAdapter);
-	void LogOutputDisplayModes(IDXGIOutput* inOutput, DXGI_FORMAT inFormat);
-
 	GameResult InitDirect3D();
+
+	void SortAdapters(Adapters& map);
 
 	GameResult CreateDebugObjects();
 	GameResult CreateCommandObjects();

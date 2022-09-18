@@ -152,6 +152,7 @@
     <ClInclude Include="..\..\include\LearningDXR\Renderer.h" />
     <ClInclude Include="..\..\include\LearningDXR\RTXStructures.h" />
     <ClInclude Include="..\..\include\LearningDXR\ShaderManager.h" />
+    <ClInclude Include="..\..\include\LearningDXR\UploadBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
@@ -164,7 +165,9 @@
     <ClCompile Include="..\..\src\LearningDXR\GameTimer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\RTXStructures.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\ShaderManager.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\UploadBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\LearningDXR\RayGen.hlsl">

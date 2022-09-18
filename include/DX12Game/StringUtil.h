@@ -46,7 +46,7 @@
 		std::wstringstream _wsstream;							\
 																\
 		for (const auto& text : texts)							\
-			_wsstream << text << L' ';							\
+			_wsstream << text;									\
 																\
 		StringUtil::LogFunc(_wsstream.str());					\
 	}
@@ -59,7 +59,7 @@
 		std::wstringstream _wsstream;							\
 																\
 		for (const auto& text : texts)							\
-			_wsstream << text << L' ';							\
+			_wsstream << text;								\
 		_wsstream << L'\n';										\
 																\
 		StringUtil::LogFunc(_wsstream.str());					\
@@ -74,7 +74,7 @@
 																\
 		_sstream << "[Error] " << FileLineStr;					\
 		for (const auto& text : texts)							\
-			_sstream << text << ' ';							\
+			_sstream << text;									\
 																\
 		StringUtil::LogFunc(_sstream.str());					\
 	}
@@ -88,7 +88,7 @@
 																\
 		_wsstream << L"[Error] " << FileLineWStr;				\
 		for (const auto& text : texts)							\
-			_wsstream << text << L' ';							\
+			_wsstream << text;									\
 																\
 		StringUtil::LogFunc(_wsstream.str());					\
 	}
@@ -102,7 +102,7 @@
 																\
 		_sstream << "[Error] " << FileLineStr;					\
 		for (const auto& text : texts)							\
-			_sstream << text << ' ';							\
+			_sstream << text;									\
 		_sstream << '\n';										\
 																\
 		StringUtil::LogFunc(_sstream.str());					\
@@ -117,7 +117,7 @@
 																\
 		_wsstream << L"[Error] " << FileLineWStr;				\
 		for (const auto& text : texts)							\
-			_wsstream << text << L' ';							\
+			_wsstream << text;									\
 		_wsstream << L'\n';										\
 																\
 		StringUtil::LogFunc(_wsstream.str());					\

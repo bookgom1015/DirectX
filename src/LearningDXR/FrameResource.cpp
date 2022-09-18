@@ -17,5 +17,7 @@ GameResult FrameResource::Initialize() {
 	CheckGameResult(ObjectCB.Initialize(Device, ObjectCount, true));
 	CheckGameResult(MaterialCB.Initialize(Device, MaterialCount, true));
 
+	CheckGameResult(DXRPassCB.Initialize(Device, PassCount, true));
+
 	return GameResult(S_OK);
 }
