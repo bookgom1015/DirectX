@@ -1,22 +1,20 @@
 #pragma once
 
-#define NOMINMAX
-#include <Windows.h>
+#include "common/d3dx12.h"
+
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
-#include <wrl.h>
 
 #include <dxgi1_6.h>
 #include <dxc/dxcapi.h>
 #include <dxc/Support/dxcapi.use.h>
 
+#include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-
-#include "common/d3dx12.h"
-#include "GameResult.h"
+#include <wrl.h>
 
 #define SKIP_LOG_OUTPUTS
 
@@ -28,62 +26,86 @@ protected:
 	LowRenderer();
 
 private:
-	LowRenderer(const LowRenderer& inRef) = delete;
-	LowRenderer(LowRenderer&& inRVal) = delete;
-	LowRenderer& operator=(const LowRenderer& inRef) = delete;
-	LowRenderer& operator=(LowRenderer&& inRVal) = delete;
+	LowRenderer(const LowRenderer& ref) = delete;
+	LowRenderer(LowRenderer&& rval) = delete;
+	LowRenderer& operator=(const LowRenderer& ref) = delete;
+	LowRenderer& operator=(LowRenderer&& rval) = delete;
 
 public:
 	virtual ~LowRenderer();
 
 public:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth = 800, UINT inClientHeight = 600);
+	virtual bool Initialize(HWND hMainWnd, UINT width, UINT height);
 	virtual void CleanUp();
 
-	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight);
+	virtual bool OnResize(UINT width, UINT height);
 
-	GameResult FlushCommandQueue();
+	bool FlushCommandQueue();
 
 	ID3D12Resource* BackBuffer(int index) const;
 	ID3D12Resource* CurrentBackBuffer() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView() const;
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView() const;
 
-	bool IsValid() const;
 	HRESULT GetDeviceRemovedReason() const;
 
-	float AspectRatio() const;
-
 protected:
-	virtual GameResult CreateRtvAndDsvDescriptorHeaps();
+	virtual bool CreateRtvAndDsvDescriptorHeaps();
+
+	__forceinline constexpr float GetAspectRatio() const;
+	__forceinline constexpr UINT GetClientWidth() const;
+	__forceinline constexpr UINT GetClientHeight() const;
+
+	__forceinline constexpr UINT GetRtvDescriptorSize() const;
+	__forceinline constexpr UINT GetDsvDescriptorSize() const;
+	__forceinline constexpr UINT GetCbvSrvUavDescriptorSize() const;
+
+	UINT64 IncCurrentFence();
+	__forceinline constexpr UINT64 GetCurrentFence() const;
+
+	void NextBackBuffer();
 
 private:
-	GameResult InitDirect3D();
+	bool InitDirect3D();
+
+	bool OnResize();
 
 	void SortAdapters(Adapters& map);
 
-	GameResult CreateDebugObjects();
-	GameResult CreateCommandObjects();
-	GameResult CreateSwapChain();
+	bool CreateDebugObjects();
+	bool CreateCommandObjects();
+	bool CreateSwapChain();
 
-	GameResult OnResize();
+private:
+	bool bIsCleanedUp = false;
+
+	HWND mhMainWnd;
+	UINT mRefreshRate;
+
+	UINT mClientWidth;
+	UINT mClientHeight;
+
+	UINT mRtvDescriptorSize;
+	UINT mDsvDescriptorSize;
+	UINT mCbvSrvUavDescriptorSize;
+
+	UINT64 mCurrentFence;
+
+	UINT mDXGIFactoryFlags;
+
+	int mCurrBackBuffer;
 
 protected:
 	static const int SwapChainBufferCount = 2;
 
-	bool bIsCleanedUp = false;
-	bool bIsValid = false; 
-
-	Microsoft::WRL::ComPtr<ID3D12Debug> mDebugController;
-	UINT mDXGIFactoryFlags = 0;
+	static const D3D_DRIVER_TYPE D3DDriverType = D3D_DRIVER_TYPE_HARDWARE;
+	static const DXGI_FORMAT BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	static const DXGI_FORMAT DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	Microsoft::WRL::ComPtr<ID3D12InfoQueue> mInfoQueue;
 	
 	Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
 	Microsoft::WRL::ComPtr<ID3D12Device5> md3dDevice;
-
-	Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
-	UINT64 mCurrentFence = 0;
 
 	Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
 	Microsoft::WRL::ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
@@ -96,21 +118,12 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap;
 
+	Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
+
+	Microsoft::WRL::ComPtr<ID3D12Debug> mDebugController;
+
 	D3D12_VIEWPORT mScreenViewport;
 	D3D12_RECT mScissorRect;
-
-	D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
-	DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-	UINT mRtvDescriptorSize;
-	UINT mDsvDescriptorSize;
-	UINT mCbvSrvUavDescriptorSize;
-
-	HWND mhMainWnd;
-	UINT mClientWidth;
-	UINT mClientHeight;
-	UINT mRefreshRate = 60;
-
-	int mCurrBackBuffer = 0;
 };
+
+#include "LearningDXR/LowRenderer.inl"

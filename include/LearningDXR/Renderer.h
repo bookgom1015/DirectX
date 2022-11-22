@@ -4,14 +4,23 @@ const int gNumFrameResources = 3;
 
 #include "LearningDXR/LowRenderer.h"
 #include "LearningDXR/GameTimer.h"
-#include "LearningDXR/ShaderManager.h"
-#include "LearningDXR/FrameResource.h"
-#include "LearningDXR/Mesh.h"
-#include "LearningDXR/RTXStructures.h"
 #include "common/MathHelper.h"
+
+#include <unordered_map>
 
 const std::wstring ShaderFilePathW = L".\\..\\..\\..\\..\\Assets\\Shaders\\";
 const std::string ShaderFilePath = ".\\..\\..\\..\\..\\Assets\\Shaders\\";
+
+class Camera;
+class ShaderManager;
+
+struct MeshGeometry;
+struct Material;
+struct FrameResource;
+struct DXRObjectCB;
+struct PassConstants;
+struct DebugPassConstants;
+struct AccelerationStructureBuffer;
 
 struct RenderItem {
 	RenderItem() = default;
@@ -44,144 +53,163 @@ struct RenderItem {
 	int BaseVertexLocation = 0;
 };
 
-class Renderer : public LowRenderer {
-protected:
-	enum class GlobalRootSignatureParams : UINT {
-		EOutput = 0,
-		EAccelerationStructure,
-		EPassCB,
-		EGeometryBuffers,
-		Count
-	};
+enum class ERenderTypes {
+	EOpaque = 0,
+	EGizmo,
+	Count
+};
 
-	enum class LocalRootSignatureParams : UINT {
-		EObjectCB = 0,
-		Count
-	};
+enum class ERasterRootSignatureParams {
+	EObjectCB = 0,
+	EPassCB,
+	EMatCB,
+	Count
+};
 
-	enum class DXRDescriptors : INT {
-		EOutputUAV = 0,
-		EGeomtrySRVs = 1
-	};
-	
+enum class EDebugRootSignatureParams {
+	EPassCB = 0,
+	Count
+};
+
+enum class EGlobalRootSignatureParams {
+	EOutput = 0,
+	EAccelerationStructure,
+	EPassCB,
+	EGeometryBuffers,
+	Count
+};
+
+enum class ELocalRootSignatureParams {
+	EObjectCB = 0,
+	Count
+};
+
+enum class EDXRDescriptors {
+	EOutputUAV		= 0,	// 3 (gNumFrameResources)
+	EGeomtrySRVs	= 3,	// 2 (vertices and indices)
+	Count
+};
+
+
+class Renderer : public LowRenderer {	
 public:
 	Renderer();
 	virtual ~Renderer();
 
 private:
-	Renderer(const Renderer& inRef) = delete;
-	Renderer(Renderer&& inRVal) = delete;
-	Renderer& operator=(const Renderer& inRef) = delete;
-	Renderer& operator=(Renderer&& inRVal) = delete;
+	Renderer(const Renderer& ref) = delete;
+	Renderer(Renderer&& rval) = delete;
+	Renderer& operator=(const Renderer& ref) = delete;
+	Renderer& operator=(Renderer&& rval) = delete;
 
 public:
-	virtual GameResult Initialize(HWND hMainWnd, UINT inClientWidth = 800, UINT inClientHeight = 600) override;
+	virtual bool Initialize(HWND hMainWnd, UINT width, UINT height) override;
 	virtual void CleanUp() override;
 
-	GameResult Update(const GameTimer& gt);
-	GameResult Draw();
+	bool Update(const GameTimer& gt);
+	bool Draw();
 
-	virtual GameResult OnResize(UINT inClientWidth, UINT inClientHeight) override;
+	virtual bool OnResize(UINT width, UINT height) override;
 
-	bool GetRenderType() const;
-	void SetRenderType(bool inValue);
+	__forceinline constexpr bool GetRenderType() const;
+	void SetRenderType(bool bRaytrace);
+
+	void SetCamera(Camera* pCam);
+
+	__forceinline constexpr bool Initialized() const;
 
 protected:
-	virtual GameResult CreateRtvAndDsvDescriptorHeaps() override;
+	virtual bool CreateRtvAndDsvDescriptorHeaps() override;
+
+	void BuildDebugViewport();
 
 	// Shared
-	GameResult BuildFrameResources();
-	GameResult BuildGeometries();
-	GameResult BuildMaterials();
+	bool BuildFrameResources();
+	bool BuildGeometries();
+	bool BuildMaterials();
 
 	// Raterization
-	GameResult CompileShaders();
-	GameResult BuildRootSignatures();
-	GameResult BuildResources();
-	GameResult BuildDescriptorHeaps();
-	GameResult BuildDescriptors();
-	GameResult BuildPSOs();
-	GameResult BuildRenderItems();
+	bool CompileShaders();
+	bool BuildRootSignatures();
+	bool BuildResources();
+	bool BuildDescriptorHeaps();
+	bool BuildDescriptors();
+	bool BuildPSOs();
+	bool BuildRenderItems();
 
 	// Raytracing
-	GameResult CompileDXRShaders();
-	GameResult BuildDXRRootSignatures();
-	GameResult BuildDXRResources();
-	GameResult BuildDXRDescriptorHeaps();
-	GameResult BuildDXRDescriptors();
-	GameResult BuildBLAS();
-	GameResult BuildTLAS();
-	GameResult BuildDXRPSOs();
-	GameResult BuildDXRObjectCB();
-	GameResult BuildShaderTables();
+	bool CompileDXRShaders();
+	bool BuildDXRRootSignatures();
+	bool BuildDXRResources();
+	bool BuildDXRDescriptorHeaps();
+	bool BuildDXRDescriptors();
+	bool BuildBLAS();
+	bool BuildTLAS();
+	bool BuildDXRPSOs();
+	bool BuildDXRObjectCB();
+	bool BuildShaderTables();
 
-	GameResult UpdateCamera(const GameTimer& gt);
+	bool UpdateObjectCB(const GameTimer& gt);
+	bool UpdatePassCB(const GameTimer& gt);
+	bool UpdateMaterialCB(const GameTimer& gt);
+	bool UpdateDebugPassCB(const GameTimer& gt);
 
-	GameResult UpdateObjectCB(const GameTimer& gt);
-	GameResult UpdatePassCB(const GameTimer& gt);
-	GameResult UpdateMaterialCB(const GameTimer& gt);
+	bool Rasterize();
+	bool Raytrace();
+	bool DrawDebugLayer();
 
-	GameResult UpdateDXRPassCB(const GameTimer& gt);
-
-	GameResult Rasterize();
-	GameResult Raytrace();
-	GameResult DrawRenderItems();
+	bool DrawRenderItems(const std::vector<RenderItem*>& ritems);
 
 private:
-	bool bIsCleanedUp = false;
-	bool bRaytracing = false;
+	bool bIsCleanedUp;
+	bool bInitialized;
+	bool bRaytracing;
 
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
 	std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
 
 	std::vector<std::unique_ptr<FrameResource>> mFrameResources;
-	FrameResource* mCurrFrameResource = nullptr;
-	int mCurrFrameResourceIndex = 0;
+	FrameResource* mCurrFrameResource;
+	int mCurrFrameResourceIndex;
 
-	ShaderManager mShaderManager;
+	std::unique_ptr<ShaderManager> mShaderManager;
 
-	DirectX::XMFLOAT3 mEyePos = { -1.0f, 0.0f, 0.0f };
-	DirectX::XMFLOAT4X4 mView = MathHelper::Identity4x4();
-	DirectX::XMFLOAT4X4 mProj = MathHelper::Identity4x4();
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12RootSignature>> mRootSignatures;
 
-	float mTheta = 1.5f * DirectX::XM_PI;
-	float mPhi = 0.5f * DirectX::XM_PI;
-	float mRadius = 15.0f;
+	Camera* mCamera;
 
 	//
 	// Rasterization
 	//
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
+	std::unordered_map<ERenderTypes, std::vector<RenderItem*>> mRitems;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDescriptorHeap;
-	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> mMainRenderTargets;
+	
+	std::unique_ptr<PassConstants> mMainPassCB;
+	std::unique_ptr <DebugPassConstants> mDebugPassCB;
 
-	PassConstants mMainPassCB;
+	D3D12_VIEWPORT mDebugViewport;
+	D3D12_RECT mDebugScissorRect;
 
 	//
 	// Raytracing
 	//
-	Microsoft::WRL::ComPtr<ID3D12Resource> mDXROutput;
+	std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> mDXROutputs;
 	
-	AccelerationStructureBuffer mBLAS;
-	AccelerationStructureBuffer mTLAS;
+	std::unique_ptr<AccelerationStructureBuffer> mBLAS;
+	std::unique_ptr<AccelerationStructureBuffer> mTLAS;
 	
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mGlobalRootSignature;
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> mLocalRootSignature;
-
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDXRDescriptorHeap;
 
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObject>> mDXRPSOs;
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12StateObjectProperties>> mDXRPSOProps;
 
-	DXRObjectCB mDXRObjectCB;
-	DXRPassConstants mDXRPassCB;
+	std::unique_ptr<DXRObjectCB> mDXRObjectCB;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> mRayGenShaderTable;
-	Microsoft::WRL::ComPtr<ID3D12Resource> mHitGroupShaderTable;
-	Microsoft::WRL::ComPtr<ID3D12Resource> mMissShaderTable;
+	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12Resource>> mShaderTables;
 };
+
+#include "LearningDXR/Renderer.inl"

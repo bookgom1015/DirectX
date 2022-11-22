@@ -5,7 +5,7 @@
 
 [shader("miss")]
 void Miss(inout RayPayload payload) {
-	float4 background = float4(0.941176534, 0.972549081, 1.0, 1.0);
+	float4 background = float4(0.941176534f, 0.972549081f, 1.0f, 1.0f);
 	payload.Color = background;
 }
 

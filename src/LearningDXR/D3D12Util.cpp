@@ -1,4 +1,5 @@
 #include "LearningDXR/D3D12Util.h"
+#include "LearningDXR/Logger.h"
 #include "common/d3dx12.h"
 
 #include <d3dcompiler.h>
@@ -8,22 +9,22 @@ using namespace Microsoft::WRL;
 
 const size_t D3D12Util::SizeOfUint = sizeof(UINT);
 
-GameResult D3D12Util::LoadBinary(const std::wstring& inFilename, ComPtr<ID3DBlob>& outBlob) {
+bool D3D12Util::LoadBinary(const std::wstring& inFilename, ComPtr<ID3DBlob>& outBlob) {
 	std::ifstream fin(inFilename, std::ios::binary);
 
 	fin.seekg(0, std::ios_base::end);
 	std::ifstream::pos_type size = (int)fin.tellg();
 	fin.seekg(0, std::ios_base::beg);
 
-	ReturnIfFailed(D3DCreateBlob(size, outBlob.GetAddressOf()));
+	CheckHResult(D3DCreateBlob(size, outBlob.GetAddressOf()));
 
 	fin.read(reinterpret_cast<char*>(outBlob->GetBufferPointer()), size);
 	fin.close();
 
-	return GameResult(S_OK);
+	return true;
 }
 
-GameResult D3D12Util::CreateDefaultBuffer(
+bool D3D12Util::CreateDefaultBuffer(
 	ID3D12Device* inDevice,
 	ID3D12GraphicsCommandList* inCmdList,
 	const void* inInitData,
@@ -31,7 +32,7 @@ GameResult D3D12Util::CreateDefaultBuffer(
 	ComPtr<ID3D12Resource>& outUploadBuffer,
 	ComPtr<ID3D12Resource>& outDefaultBuffer) {
 	// Create the actual default buffer resource.
-	ReturnIfFailed(inDevice->CreateCommittedResource(
+	CheckHResult(inDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(inByteSize),
@@ -42,7 +43,7 @@ GameResult D3D12Util::CreateDefaultBuffer(
 
 	// In order to copy CPU memory data into our default buffer, we need to create
 	// an intermediate upload heap. 
-	ReturnIfFailed(inDevice->CreateCommittedResource(
+	CheckHResult(inDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(inByteSize),
@@ -70,10 +71,10 @@ GameResult D3D12Util::CreateDefaultBuffer(
 	// the command list has not been executed yet that performs the actual copy.
 	// The caller can Release the uploadBuffer after it knows the copy has been executed.
 
-	return GameResult(S_OK);
+	return true;
 }
 
-GameResult D3D12Util::CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC& inRootSignatureDesc, ID3D12RootSignature** ppRootSignature) {
+bool D3D12Util::CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC& inRootSignatureDesc, ID3D12RootSignature** ppRootSignature) {
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	HRESULT hr = D3D12SerializeRootSignature(
@@ -88,19 +89,19 @@ GameResult D3D12Util::CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROO
 		wsstream << reinterpret_cast<char*>(errorBlob->GetBufferPointer());
 
 	if (FAILED(hr))
-		ReturnGameResult(S_FALSE, wsstream.str());
+		ReturnFalse(wsstream.str());
 
-	ReturnIfFailed(pDevice->CreateRootSignature(
+	CheckHResult(pDevice->CreateRootSignature(
 		0,
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),
 		IID_PPV_ARGS(ppRootSignature)
 	));
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource, ID3D12InfoQueue* pInfoQueue) {
+bool D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource, ID3D12InfoQueue* pInfoQueue) {
 	D3D12_HEAP_PROPERTIES heapDesc = {};
 	heapDesc.Type = inInfo.HeapType;
 	heapDesc.CreationNodeMask = 1;
@@ -120,19 +121,21 @@ GameResult D3D12Util::CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo&
 	resourceDesc.Flags = inInfo.Flags;
 	
 	if (pInfoQueue != nullptr) {
-		ReturnIfFailedDxDebug(pInfoQueue, pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
+		CheckHResult(pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
+		//CheckHResult(pInfoQueue, pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
 	}
 	else {
-		ReturnIfFailed(pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
+		CheckHResult(pDevice->CreateCommittedResource(&heapDesc, inInfo.HeapFlags, &resourceDesc, inInfo.State, nullptr, IID_PPV_ARGS(ppResource)));
 	}
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult D3D12Util::CreateConstantBuffer(ID3D12Device* pDevice, ID3D12Resource** ppResource, UINT64 inSize) {
+bool D3D12Util::CreateConstantBuffer(ID3D12Device* pDevice, ID3D12Resource** ppResource, UINT64 inSize) {
 	D3D12BufferCreateInfo bufferInfo((inSize + 255) & ~255, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
-	CheckGameResult(CreateBuffer(pDevice, bufferInfo, ppResource));
-	return GameResultOk;
+	CheckIsValid(CreateBuffer(pDevice, bufferInfo, ppResource));
+
+	return true;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE D3D12Util::GetCpuHandle(ID3D12DescriptorHeap* descHeap, INT index, UINT descriptorSize) {

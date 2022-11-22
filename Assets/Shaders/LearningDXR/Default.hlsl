@@ -2,7 +2,7 @@
 #define __DEFAULT_HLSL__
 
 #ifndef NUM_DIR_LIGHTS
-	#define NUM_DIR_LIGHTS 3
+	#define NUM_DIR_LIGHTS 1
 #endif
 
 #ifndef NUM_POINT_LIGHTS
@@ -62,6 +62,7 @@ float4 PS(VertexOut pin) : SV_Target {
 	litColor.a = gDiffuseAlbedo.a;
 
 	return litColor;
+	//return float4(pin.NormalW, 1.0f);
 }
 
 #endif // __DEFAULT_HLSL__

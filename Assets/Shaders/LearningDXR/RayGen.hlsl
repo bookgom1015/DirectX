@@ -18,10 +18,10 @@ void RayGen() {
 	ray.Direction = rayDir;
 	// Set TMin to a non-zero small value to avoid aliasing issues due to floating - point errors.
 	// TMin should be kept small to prevent missing geometry at close contact areas.
-	ray.TMin = 0.1;
-	ray.TMax = 1000.0;
-	RayPayload payload = { float4(0, 0, 0, 0) };
-	TraceRay(gBVH, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
+	ray.TMin = 0.1f;
+	ray.TMax = 1000.0f;
+	RayPayload payload = { (float4)0.0f };
+	TraceRay(gBVH, RAY_FLAG_CULL_FRONT_FACING_TRIANGLES, ~0, 0, 1, 0, ray, payload);
 
 	// Write the raytraced color to the output texture.
 	gOutput[DispatchRaysIndex().xy] = payload.Color;

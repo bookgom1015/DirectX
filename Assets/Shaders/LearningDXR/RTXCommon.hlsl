@@ -1,6 +1,8 @@
 #ifndef __RTXCOMMON_HLSL__
 #define __RTXCOMMON_HLSL__
 
+#include "LightingUtil.hlsl"
+
 typedef BuiltInTriangleIntersectionAttributes Attributes;
 
 struct RayPayload {
@@ -8,10 +10,10 @@ struct RayPayload {
 };
 
 struct Vertex {
-	float3 Pos;
-	float3 Normal;
+	float3 PosW;
+	float3 NormalW;
 	float2 TexC;
-	float3 Tangent;
+	float3 TangentW;
 };
 
 //
@@ -22,18 +24,23 @@ RaytracingAccelerationStructure	gBVH		: register(t0);
 StructuredBuffer<Vertex>		gVertices	: register(t1);
 ByteAddressBuffer				gIndices	: register(t2);
 
-cbuffer PassCB	: register(b0) {
-	float4x4 gProjToWorld;
-	float4 gEyePosW;
-	float4 gLightPosW;
-	float4 gLightAmbientColor;
-	float4 gLightDiffuseColor;
+cbuffer cbPass	: register(b0) {
+	float4x4	gView;
+	float4x4	gInvView;
+	float4x4	gProj;
+	float4x4	gInvProj;
+	float4x4	gViewProj;
+	float4x4	gInvViewProj;
+	float3		gEyePosW;
+	float		gPassConstantsPad1;
+	float4		gAmbientLight;
+	Light		gLights[MaxLights];
 };
 
 //
 // Local root signatures
 //
-cbuffer lObjectCB : register(b1) {
+cbuffer cbObject : register(b1) {
 	float4 lAlbedo;
 };
 
@@ -52,33 +59,25 @@ float3 HitWorldPosition() {
 
 // Retrieve attribute at a hit position interpolated from vertex attributes using the hit's barycentrics.
 float3 HitAttribute(float3 vertexAttribute[3], Attributes attr) {
-	return normalize(vertexAttribute[0] + attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) + attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]));
+	return vertexAttribute[0] +
+		attr.barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+		attr.barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
 }
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
 inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction) {
 	float2 xy = index + 0.5f; // center in the middle of the pixel.
-	float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
+	float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0f - 1.0f;
 
 	// Invert Y for DirectX-style coordinates.
 	screenPos.y = -screenPos.y;
 
 	// Unproject the pixel coordinate into a ray.
-	float4 world = mul(float4(screenPos, 0, 1), gProjToWorld);
+	float4 world = mul(float4(screenPos, 0.0f, 1.0f), gInvViewProj);
 
 	world.xyz /= world.w;
-	origin = gEyePosW.xyz;
+	origin = gEyePosW;
 	direction = normalize(world.xyz - origin);
-}
-
-// Diffuse lighting calculation.
-float4 CalculateDiffuseLighting(float3 hitPosition, float3 normal) {
-	float3 pixelToLight = normalize(gLightPosW.xyz - hitPosition);
-
-	// Diffuse contribution.
-	float fNDotL = max(0.0, dot(pixelToLight, normal));
-
-	return lAlbedo * gLightDiffuseColor * fNDotL;
 }
 
 #endif // __RTXCOMMON_HLSL__

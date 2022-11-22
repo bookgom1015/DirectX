@@ -2,20 +2,22 @@
 
 #include "LearningDXR/Renderer.h"
 
+class Camera;
+
 class Application {
 public:
 	Application();
 	virtual ~Application();
 
 private:
-	Application(const Application& inRef) = delete;
-	Application(Application&& inRVal) = delete;
-	Application& operator=(const Application& inRef) = delete;
-	Application& operator=(Application&& inRVal) = delete;
+	Application(const Application& ref) = delete;
+	Application(Application&& rval) = delete;
+	Application& operator=(const Application& ref) = delete;
+	Application& operator=(Application&& rval) = delete;
 
 public:
-	GameResult Initialize();
-	GameResult RunLoop();
+	bool Initialize();
+	HRESULT RunLoop();
 	void CleanUp();
 
 	static Application* GetApp();
@@ -24,15 +26,18 @@ public:
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 private:
-	GameResult InitMainWindow();
-	void OnResize();
+	bool InitMainWindow();
+	void OnResize(UINT width, UINT height);
 
-	GameResult Update();
-	GameResult Draw();
+	bool Update(const GameTimer& gt);
+	bool Draw();
 
-	void OnMouseDown(WPARAM inBtnState, int inX, int inY);
-	void OnMouseUp(WPARAM inBtnState, int inX, int inY);
-	void OnMouseMove(WPARAM inBtnState, int inX, int inY);
+	bool UpdateGame(const GameTimer& gt);
+
+	void OnMouseDown(WPARAM state, int x, int y);
+	void OnMouseUp(WPARAM state, int x, int y);
+	void OnMouseMove(WPARAM state, int x, int y);
+	void OnScroll(bool up);
 
 	void OnKeyboardInput(UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -40,19 +45,21 @@ private:
 	static Application* sApp;
 
 	bool bIsCleanedUp;
-
-	HINSTANCE mhInst = nullptr;		// Application instance handle
-	HWND mhMainWnd = nullptr;		// Main window handle
-	bool mAppPaused = false;		// Is the application paused?
-	bool mMinimized = false;		// Is the application minimized?
-	bool mMaximized = false;		// Is the application maximized?
-	bool mResizing = false;			// Are the resize bars being dragged?
-	bool mFullscreenState = false;	// Fullscreen enabled
-
-	UINT mClientWidth;
-	UINT mClientHeight;
+	
+	HINSTANCE mhInst;			// Application instance handle
+	HWND mhMainWnd;				// Main window handle
+	bool bAppPaused;			// Is the application paused?
+	bool bMinimized;			// Is the application minimized?
+	bool bMaximized;			// Is the application maximized?
+	bool bResizing;				// Are the resize bars being dragged?
+	bool bFullscreenState;		// Fullscreen enabled
+	bool bMouseLeftButtonDowned;
+	
+	int mPrevMousePosX;
+	int mPrevMousePosY;
 
 	std::unique_ptr<Renderer> mRenderer;
+	std::unique_ptr<Camera> mCamera;
 
 	GameTimer mTimer;
 

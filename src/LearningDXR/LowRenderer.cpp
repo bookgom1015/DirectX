@@ -1,5 +1,6 @@
 #include "LearningDXR/LowRenderer.h"
-#include "LearningDXR/Macros.h"
+#include "LearningDXR/Logger.h"
+#include "LearningDXR/RenderMacros.h"
 
 using namespace Microsoft::WRL;
 
@@ -66,71 +67,76 @@ namespace {
 			++i;
 		}
 	}
-
 }
 
-LowRenderer::LowRenderer() {}
+LowRenderer::LowRenderer() {
+	mRefreshRate = 60;
+	mClientWidth = 0;
+	mClientHeight = 0;
+	mRtvDescriptorSize = 0;
+	mDsvDescriptorSize = 0;
+	mCbvSrvUavDescriptorSize = 0;
+	mCurrentFence = 0;
+	mDXGIFactoryFlags = 0;
+	mCurrBackBuffer = 0;
+}
 
 LowRenderer::~LowRenderer() {
 	if (!bIsCleanedUp)
 		CleanUp();
 }
 
-GameResult LowRenderer::Initialize(HWND hMainWnd, UINT inClientWidth /* = 800 */, UINT inClientHeight /* = 600 */) {
+bool LowRenderer::Initialize(HWND hMainWnd, UINT width, UINT height) {
 	mhMainWnd = hMainWnd;
-	mClientWidth = inClientWidth;
-	mClientHeight = inClientHeight;
+	mClientWidth = width;
+	mClientHeight = height;
 
-	CheckGameResult(InitDirect3D());
-	CheckGameResult(OnResize());
+	CheckIsValid(InitDirect3D());
+	CheckIsValid(OnResize());
 
-	bIsValid = true;
-
-	return GameResultOk;
+	return true;
 }
 
 void LowRenderer::CleanUp() {
 	if (md3dDevice != nullptr) {
-		auto result = FlushCommandQueue();
-		if (FAILED(result.hr))
-			WErrln(L"Failed to flush command queue during cleaning up");
+		if (!FlushCommandQueue())
+			WLogln(L"Failed to flush command queue during cleaning up");
 	}
 
 	bIsCleanedUp = true;
 }
 
-GameResult LowRenderer::OnResize(UINT inClientWidth, UINT inClientHeight) {
-	mClientWidth = inClientWidth;
-	mClientHeight = inClientHeight;
+bool LowRenderer::OnResize(UINT width, UINT height) {
+	mClientWidth = width;
+	mClientHeight = height;
 
-	CheckGameResult(OnResize());
+	CheckIsValid(OnResize());
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult LowRenderer::FlushCommandQueue() {
+bool LowRenderer::FlushCommandQueue() {
 	// Advance the fence value to mark commands up to this fence point.
 	++mCurrentFence;
 
 	// Add an instruction to the command queue to set a new fence point.
 	// Because we are on the GPU timeline, the new fence point won't be set until the GPU finishes
 	// processing all the commands prior to this Signal().
-	ReturnIfFailed(mCommandQueue->Signal(mFence.Get(), mCurrentFence));
+	CheckHResult(mCommandQueue->Signal(mFence.Get(), mCurrentFence));
 
 	// Wait until the GPU has compledted commands up to this fence point.
 	if (mFence->GetCompletedValue() < mCurrentFence) {
 		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
 
 		// Fire event when GPU hits current fence.
-		if (FAILED(mFence->SetEventOnCompletion(mCurrentFence, eventHandle))) 
-			ReturnGameResult(E_FAIL, L"Failed to set event");
+		CheckHResult(mFence->SetEventOnCompletion(mCurrentFence, eventHandle));
 
 		// Wait until the GPU hits current fence.
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
 
-	return GameResultOk;
+	return true;
 }
 
 ID3D12Resource* LowRenderer::BackBuffer(int index) const {
@@ -149,37 +155,37 @@ D3D12_CPU_DESCRIPTOR_HANDLE LowRenderer::DepthStencilView() const {
 	return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-bool LowRenderer::IsValid() const {
-	return bIsValid;
-}
-
 HRESULT LowRenderer::GetDeviceRemovedReason() const {
 	return md3dDevice->GetDeviceRemovedReason();
 }
 
-float LowRenderer::AspectRatio() const {
-	return static_cast<float>(mClientWidth) / static_cast<float>(mClientHeight);
-}
-
-GameResult LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
+bool LowRenderer::CreateRtvAndDsvDescriptorHeaps() {
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvHeapDesc.NodeMask = 0;
-	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
+	CheckHResult(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	dsvHeapDesc.NodeMask = 0;
-	ReturnIfFailed(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
+	CheckHResult(md3dDevice->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(mDsvHeap.GetAddressOf())));
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult LowRenderer::InitDirect3D() {
+UINT64 LowRenderer::IncCurrentFence() {
+	return ++mCurrentFence;
+}
+
+void LowRenderer::NextBackBuffer() {
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+}
+
+bool LowRenderer::InitDirect3D() {
 #ifdef _DEBUG
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&mDebugController)))) {
 		mDebugController->EnableDebugLayer();
@@ -187,7 +193,7 @@ GameResult LowRenderer::InitDirect3D() {
 	}
 #endif
 
-	ReturnIfFailed(CreateDXGIFactory2(mDXGIFactoryFlags, IID_PPV_ARGS(&mdxgiFactory)));
+	CheckHResult(CreateDXGIFactory2(mDXGIFactoryFlags, IID_PPV_ARGS(&mdxgiFactory)));
 
 	Adapters adapters;
 	SortAdapters(adapters);
@@ -215,27 +221,117 @@ GameResult LowRenderer::InitDirect3D() {
 		}
 	}
 
-	if (!found) ReturnGameResult(E_NOINTERFACE, L"There are no adapters that support the required features");
+	if (!found) ReturnFalse(L"There are no adapters that support the required features");
 	
 	// Checks that device supports ray-tracing.
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 ops = {};
 	HRESULT featureSupport = md3dDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &ops, sizeof(ops));
 
 	if (FAILED(featureSupport) || ops.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
-		ReturnGameResult(E_FAIL, L"Device or driver does not support ray-tracing");
+		ReturnFalse(L"Device or driver does not support ray-tracing");
 
-	ReturnIfFailed(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+	CheckHResult(md3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
 
 	mRtvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	mDsvDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 	mCbvSrvUavDescriptorSize = md3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	CheckGameResult(CreateDebugObjects());
-	CheckGameResult(CreateCommandObjects());
-	CheckGameResult(CreateSwapChain());
-	CheckGameResult(CreateRtvAndDsvDescriptorHeaps());
+	CheckIsValid(CreateDebugObjects());
+	CheckIsValid(CreateCommandObjects());
+	CheckIsValid(CreateSwapChain());
+	CheckIsValid(CreateRtvAndDsvDescriptorHeaps());
 
-	return GameResultOk;
+	return true;
+}
+
+bool LowRenderer::OnResize() {
+	if (!md3dDevice) ReturnFalse(L"md3dDevice is invalid");
+	if (!mSwapChain) ReturnFalse(L"mSwapChain is invalid");
+	if (!mDirectCmdListAlloc) ReturnFalse(L"mDirectCmdListAlloc is invalid");
+
+	// Flush before changing any resources.
+	CheckIsValid(FlushCommandQueue());
+
+	CheckHResult(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+
+	// Resize the previous resources we will be creating.
+	for (int i = 0; i < SwapChainBufferCount; ++i)
+		mSwapChainBuffer[i].Reset();
+
+	// Resize the swap chain.
+	CheckHResult(mSwapChain->ResizeBuffers(
+		SwapChainBufferCount,
+		mClientWidth,
+		mClientHeight,
+		BackBufferFormat,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH)
+	);
+
+	mCurrBackBuffer = 0;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (UINT i = 0; i < SwapChainBufferCount; ++i) {
+		CheckHResult(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+
+		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
+		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+	}
+
+	// Create the depth/stencil buffer and view.
+	D3D12_RESOURCE_DESC depthStencilDesc;
+	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	depthStencilDesc.Alignment = 0;
+	depthStencilDesc.Width = mClientWidth;
+	depthStencilDesc.Height = mClientHeight;
+	depthStencilDesc.DepthOrArraySize = 1;
+	depthStencilDesc.MipLevels = 1;
+	depthStencilDesc.Format = DepthStencilFormat;
+	depthStencilDesc.SampleDesc.Count = 1;
+	depthStencilDesc.SampleDesc.Quality = 0;
+	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_CLEAR_VALUE optClear;
+	optClear.Format = DepthStencilFormat;
+	optClear.DepthStencil.Depth = 1.0f;
+	optClear.DepthStencil.Stencil = 0;
+
+	CheckHResult(md3dDevice->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&depthStencilDesc,
+		D3D12_RESOURCE_STATE_COMMON,
+		&optClear,
+		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
+	));
+
+	// Create descriptor to mip level 0 of entire resource using the format of the resource.
+	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
+
+	// Transition the resource from its initial state to be used as a depth buffer.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+	// Execute the resize commands.
+	CheckHResult(mCommandList->Close());
+
+	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+	// Wait until resize is complete.
+	CheckIsValid(FlushCommandQueue());
+
+	// Update the viewport
+	mScreenViewport.TopLeftX = 0;
+	mScreenViewport.TopLeftY = 0;
+	mScreenViewport.Width = static_cast<float>(mClientWidth);
+	mScreenViewport.Height = static_cast<float>(mClientHeight);
+	mScreenViewport.MinDepth = 0.0f;
+	mScreenViewport.MaxDepth = 1.0f;
+
+	mScissorRect = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
+
+	return true;
 }
 
 void LowRenderer::SortAdapters(Adapters& map) {
@@ -266,23 +362,23 @@ void LowRenderer::SortAdapters(Adapters& map) {
 #endif
 }
 
-GameResult LowRenderer::CreateDebugObjects() {
-	ReturnIfFailed(md3dDevice->QueryInterface(IID_PPV_ARGS(&mInfoQueue)));
+bool LowRenderer::CreateDebugObjects() {
+	CheckHResult(md3dDevice->QueryInterface(IID_PPV_ARGS(&mInfoQueue)));
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult LowRenderer::CreateCommandObjects() {
+bool LowRenderer::CreateCommandObjects() {
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ReturnIfFailed(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
+	CheckHResult(md3dDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue)));
 
-	ReturnIfFailed(md3dDevice->CreateCommandAllocator(
+	CheckHResult(md3dDevice->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mDirectCmdListAlloc.GetAddressOf()))
 	);
 
-	ReturnIfFailed(md3dDevice->CreateCommandList(
+	CheckHResult(md3dDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		mDirectCmdListAlloc.Get(),	// Associated command allocator
@@ -295,10 +391,10 @@ GameResult LowRenderer::CreateCommandObjects() {
 	// calling Reset.
 	mCommandList->Close();
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult LowRenderer::CreateSwapChain() {
+bool LowRenderer::CreateSwapChain() {
 	// Release the previous swapchain we will be recreating.
 	mSwapChain.Reset();
 
@@ -307,7 +403,7 @@ GameResult LowRenderer::CreateSwapChain() {
 	sd.BufferDesc.Height = mClientHeight;
 	sd.BufferDesc.RefreshRate.Numerator = mRefreshRate;
 	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.BufferDesc.Format = mBackBufferFormat;
+	sd.BufferDesc.Format = BackBufferFormat;
 	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	sd.SampleDesc.Count = 1;
@@ -320,97 +416,7 @@ GameResult LowRenderer::CreateSwapChain() {
 	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	// Note: Swap chain uses queue to perfrom flush.
-	ReturnIfFailed(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
+	CheckHResult(mdxgiFactory->CreateSwapChain(mCommandQueue.Get(), &sd, mSwapChain.GetAddressOf()));
 
-	return GameResultOk;
-}
-
-GameResult LowRenderer::OnResize() {
-	if (!md3dDevice) ReturnGameResult(E_FAIL, L"md3dDevice is invalid");
-	if (!mSwapChain) ReturnGameResult(E_FAIL, L"mSwapChain is invalid");
-	if (!mDirectCmdListAlloc) ReturnGameResult(E_FAIL, L"mDirectCmdListAlloc is invalid");
-
-	// Flush before changing any resources.
-	CheckGameResult(FlushCommandQueue());
-
-	ReturnIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
-
-	// Resize the previous resources we will be creating.
-	for (int i = 0; i < SwapChainBufferCount; ++i)
-		mSwapChainBuffer[i].Reset();
-
-	// Resize the swap chain.
-	ReturnIfFailed(mSwapChain->ResizeBuffers(
-		SwapChainBufferCount, 
-		mClientWidth, 
-		mClientHeight, 
-		mBackBufferFormat, 
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH)
-	);
-
-	mCurrBackBuffer = 0;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < SwapChainBufferCount; ++i) {
-		ReturnIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
-
-		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
-		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
-	}
-
-	// Create the depth/stencil buffer and view.
-	D3D12_RESOURCE_DESC depthStencilDesc;
-	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	depthStencilDesc.Alignment = 0;
-	depthStencilDesc.Width = mClientWidth;
-	depthStencilDesc.Height = mClientHeight;
-	depthStencilDesc.DepthOrArraySize = 1;
-	depthStencilDesc.MipLevels = 1;
-	depthStencilDesc.Format = mDepthStencilFormat;
-	depthStencilDesc.SampleDesc.Count = 1;
-	depthStencilDesc.SampleDesc.Quality = 0;
-	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_CLEAR_VALUE optClear;
-	optClear.Format = mDepthStencilFormat;
-	optClear.DepthStencil.Depth = 1.0f;
-	optClear.DepthStencil.Stencil = 0;
-
-	ReturnIfFailed(md3dDevice->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE, 
-		&depthStencilDesc, 
-		D3D12_RESOURCE_STATE_COMMON, 
-		&optClear,
-		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
-	));
-
-	// Create descriptor to mip level 0 of entire resource using the format of the resource.
-	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), nullptr, DepthStencilView());
-
-	// Transition the resource from its initial state to be used as a depth buffer.
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-	// Execute the resize commands.
-	ReturnIfFailed(mCommandList->Close());
-
-	ID3D12CommandList* cmdLists[] = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-
-	// Wait until resize is complete.
-	CheckGameResult(FlushCommandQueue());
-
-	// Update the viewport
-	mScreenViewport.TopLeftX = 0;
-	mScreenViewport.TopLeftY = 0;
-	mScreenViewport.Width = static_cast<float>(mClientWidth);
-	mScreenViewport.Height = static_cast<float>(mClientHeight);
-	mScreenViewport.MinDepth = 0.0f;
-	mScreenViewport.MaxDepth = 1.0f;
-
-	mScissorRect = { 0, 0, static_cast<LONG>(mClientWidth), static_cast<LONG>(mClientHeight) };
-
-	return GameResultOk;;
+	return true;
 }

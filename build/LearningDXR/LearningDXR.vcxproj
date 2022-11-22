@@ -142,12 +142,13 @@
     <ClInclude Include="..\..\include\common\GeometryGenerator.h" />
     <ClInclude Include="..\..\include\common\MathHelper.h" />
     <ClInclude Include="..\..\include\LearningDXR\Application.h" />
+    <ClInclude Include="..\..\include\LearningDXR\Camera.h" />
     <ClInclude Include="..\..\include\LearningDXR\D3D12Util.h" />
     <ClInclude Include="..\..\include\LearningDXR\FrameResource.h" />
-    <ClInclude Include="..\..\include\LearningDXR\GameResult.h" />
     <ClInclude Include="..\..\include\LearningDXR\GameTimer.h" />
+    <ClInclude Include="..\..\include\LearningDXR\Logger.h" />
     <ClInclude Include="..\..\include\LearningDXR\LowRenderer.h" />
-    <ClInclude Include="..\..\include\LearningDXR\Macros.h" />
+    <ClInclude Include="..\..\include\LearningDXR\RenderMacros.h" />
     <ClInclude Include="..\..\include\LearningDXR\Mesh.h" />
     <ClInclude Include="..\..\include\LearningDXR\Renderer.h" />
     <ClInclude Include="..\..\include\LearningDXR\RTXStructures.h" />
@@ -157,12 +158,12 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp" />
     <ClCompile Include="..\..\src\common\MathHelper.cpp" />
-    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\Camera.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\D3D12Util.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\FrameResource.cpp" />
-    <ClCompile Include="..\..\src\LearningDXR\GameResult.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\GameTimer.cpp" />
+    <ClCompile Include="..\..\src\LearningDXR\Logger.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\LowRenderer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp" />
     <ClCompile Include="..\..\src\LearningDXR\RTXStructures.cpp" />
@@ -173,6 +174,9 @@
     <None Include="..\..\Assets\Shaders\LearningDXR\RayGen.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="..\..\include\LearningDXR\LowRenderer.inl" />
+    <None Include="..\..\include\LearningDXR\Renderer.inl" />
+    <None Include="..\..\include\LearningDXR\UploadBuffer.inl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\LearningDXR\RTXCommon.hlsl">
@@ -201,6 +205,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Assets\Shaders\LearningDXR\Common.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Gizmo.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Samplers.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

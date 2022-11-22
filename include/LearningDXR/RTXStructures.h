@@ -1,10 +1,8 @@
 #pragma once
 
 #include <d3d12.h>
-#include <Windows.h>
+#include <unordered_map>
 #include <wrl.h>
-
-#include "LearningDXR/GameResult.h"
 
 struct AccelerationStructureBuffer {
 	Microsoft::WRL::ComPtr<ID3D12Resource> Scratch;
@@ -22,8 +20,8 @@ public:
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetResource();
 
 protected:
-	GameResult Allocate(ID3D12Device* pDevice, UINT bufferSize, LPCWSTR resourceName = nullptr);
-	GameResult MapCpuWriteOnly(std::uint8_t*& pData);
+	bool Allocate(ID3D12Device* pDevice, UINT bufferSize, LPCWSTR resourceName = nullptr);
+	bool MapCpuWriteOnly(std::uint8_t*& pData);
 
 protected:
 	Microsoft::WRL::ComPtr<ID3D12Resource> mResource;
@@ -57,8 +55,8 @@ public:
 	ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shaderRecordSize, LPCWSTR resourceName = nullptr);
 
 public:
-	GameResult Initialze();
-	GameResult push_back(const ShaderRecord& shaderRecord);
+	bool Initialze();
+	bool push_back(const ShaderRecord& shaderRecord);
 
 	std::uint8_t* GetMappedShaderRecords();
 	UINT GetShaderRecordSize();

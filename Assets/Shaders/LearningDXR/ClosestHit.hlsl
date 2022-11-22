@@ -28,6 +28,18 @@
 #ifndef __CLOSESTHIT_HLSL__
 #define __CLOSESTHIT_HLSL__
 
+#ifndef NUM_DIR_LIGHTS
+	#define NUM_DIR_LIGHTS 1
+#endif
+
+#ifndef NUM_POINT_LIGHTS
+	#define NUM_POINT_LIGHTS 0
+#endif
+
+#ifndef NUM_SPOT_LIGHTS
+	#define NUM_SPOT_LIGHTS 0
+#endif
+
 #include "RTXCommon.hlsl"
 
 [shader("closesthit")]
@@ -40,14 +52,14 @@ void ClosestHit(inout RayPayload payload, in Attributes attr) {
 	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
 	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
-	// Load up 3 16 bit indices for the triangle.
+	// Load up 3 32 bit indices for the triangle.
 	const uint3 indices = Load3x32BitIndices(baseIndex);
 
 	// Retrieve corresponding vertex normals for the triangle vertices.
 	float3 vertexNormals[3] = {
-		gVertices[indices[0]].Normal,
-		gVertices[indices[1]].Normal,
-		gVertices[indices[2]].Normal
+		gVertices[indices[0]].NormalW,
+		gVertices[indices[1]].NormalW,
+		gVertices[indices[2]].NormalW
 	};
 
 	// Compute the triangle's normal.
@@ -55,10 +67,18 @@ void ClosestHit(inout RayPayload payload, in Attributes attr) {
 	// as all the per-vertex normals are the same and match triangle's normal in this sample. 
 	float3 triangleNormal = HitAttribute(vertexNormals, attr);
 
-	float4 diffuseColor = CalculateDiffuseLighting(hitPosition, triangleNormal);
-	float4 color = gLightAmbientColor + diffuseColor;
+	float3 toEyeW = normalize(gEyePosW - hitPosition);
+
+	const float shiness = 1.0f - 0.1f;
+	Material mat = { lAlbedo, float3(0.88725f, 0.88725f, 0.88725f) , shiness };
+
+	float3 shadowFactor = 1.0f;
+	float4 directLight = ComputeLighting(gLights, mat, hitPosition, triangleNormal, toEyeW, shadowFactor);
+
+	float4 color = gAmbientLight + directLight;
 	
 	payload.Color = color;
+	//payload.Color = float4(triangleNormal, 1.0f);
 }
 
 #endif // __CLOSESTHIT_HLSL__

@@ -1,8 +1,10 @@
 #pragma once
 
-#include <mutex>
-#include <sstream>
+#define NOMINMAX
 #include <Windows.h>
+
+#include <sstream>
+#include <mutex>
 
 #ifndef FileLineStr
 	#define FileLineStr __FILE__ << "; line: " << __LINE__ << "; "

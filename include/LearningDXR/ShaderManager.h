@@ -1,10 +1,11 @@
 #pragma once
 
-#include "GameResult.h"
-
 #include <d3d12.h>
 #include <dxcapi.h>
 #include <dxc/Support/dxcapi.use.h>
+
+#include <string>
+#include <unordered_map>
 #include <wrl.h>
 
 struct D3D12ShaderInfo {
@@ -30,17 +31,17 @@ public:
 	virtual ~ShaderManager();
 
 public:
-	GameResult Initialize();
+	bool Initialize();
 	void CleanUp();
 
-	GameResult CompileShader(
+	bool CompileShader(
 		const std::wstring& inFilePath,
 		const D3D_SHADER_MACRO* inDefines,
 		const std::string& inEntryPoint,
 		const std::string& inTarget,
 		const std::string& inName);
 
-	GameResult CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName);
+	bool CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName);
 
 	ID3DBlob* GetShader(const std::string& inName);
 	IDxcBlob* GetRTShader(const std::string& inName);

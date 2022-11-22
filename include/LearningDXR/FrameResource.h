@@ -1,19 +1,18 @@
 #pragma once
 
-#include <DirectXMath.h>
-
-#include "LearningDXR/GameResult.h"
 #include "LearningDXR/UploadBuffer.h"
+
+#include <DirectXMath.h>
 
 #define MaxLights 16
 
 struct Light {
-	DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
-	float FalloffStart = 1.0f;								// point/spot light only
-	DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };	// directional/spot light only
-	float FalloffEnd = 10.0f;								// point/spot light only
-	DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };		// point/spot light only
-	float SpotPower = 64.0f;								// spot light only
+	DirectX::XMFLOAT3 Strength	= { 0.5f, 0.5f, 0.5f };
+	float FalloffStart			= 1.0f;						// point/spot light only
+	DirectX::XMFLOAT3 Direction	= { 0.0f, -1.0f, 0.0f };	// directional/spot light only
+	float FalloffEnd			= 10.0f;					// point/spot light only
+	DirectX::XMFLOAT3 Position	= { 0.0f, 0.0f, 0.0f };		// point/spot light only
+	float SpotPower				= 64.0f;					// spot light only
 };
 
 struct ObjectConstants {
@@ -29,9 +28,13 @@ struct PassConstants {
 	DirectX::XMFLOAT4X4	ViewProj;
 	DirectX::XMFLOAT4X4	InvViewProj;
 	DirectX::XMFLOAT3	EyePosW;
-	float				CBPerObjectPad1;
+	float				PassConstantsPad1;
 	DirectX::XMFLOAT4	AmbientLight;
 	Light				Lights[MaxLights];
+};
+
+struct DebugPassConstants {
+	DirectX::XMFLOAT4X4	ViewProj;
 };
 
 struct MaterialConstants {
@@ -43,14 +46,6 @@ struct MaterialConstants {
 
 struct DXRObjectCB {
 	DirectX::XMFLOAT4 Albedo;
-};
-
-struct DXRPassConstants {
-	DirectX::XMFLOAT4X4 ProjectionToWorld;
-	DirectX::XMFLOAT4 EyePosW;
-	DirectX::XMFLOAT4 LightPosW;
-	DirectX::XMFLOAT4 LightAmbientColor;
-	DirectX::XMFLOAT4 LightDiffuseColor;
 };
 
 struct FrameResource {
@@ -69,7 +64,7 @@ private:
 	FrameResource& operator=(FrameResource&& rhs) = delete;
 
 public:
-	GameResult Initialize();
+	bool Initialize();
 
 public:
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CmdListAlloc;
@@ -77,10 +72,9 @@ public:
 	UploadBuffer<PassConstants> PassCB;
 	UploadBuffer<ObjectConstants> ObjectCB;
 	UploadBuffer<MaterialConstants> MaterialCB;
+	UploadBuffer<DebugPassConstants> DebugPassCB;
 
-	UploadBuffer<DXRPassConstants> DXRPassCB;
-
-	UINT64 Fence = 0;
+	UINT64 Fence;
 
 	ID3D12Device* Device;
 	UINT PassCount;

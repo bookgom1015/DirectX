@@ -1,7 +1,8 @@
 #include "LearningDXR/RTXStructures.h"
+#include "LearningDXR/RenderMacros.h"
+#include "LearningDXR/Logger.h"
 
 #include "common/d3dx12.h"
-#include "LearningDXR/Macros.h"
 
 using namespace Microsoft::WRL;
 
@@ -14,8 +15,8 @@ ComPtr<ID3D12Resource> GpuUploadBuffer::GetResource() {
 	return mResource;
 }
 
-GameResult GpuUploadBuffer::Allocate(ID3D12Device* pDevice, UINT bufferSize, LPCWSTR resourceName) {
-	ReturnIfFailed(pDevice->CreateCommittedResource(
+bool GpuUploadBuffer::Allocate(ID3D12Device* pDevice, UINT bufferSize, LPCWSTR resourceName) {
+	CheckHResult(pDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
@@ -23,14 +24,16 @@ GameResult GpuUploadBuffer::Allocate(ID3D12Device* pDevice, UINT bufferSize, LPC
 		nullptr,
 		IID_PPV_ARGS(&mResource)));
 	//mResource->SetName(resourceName);
-	return GameResultOk;
+
+	return true;
 }
 
-GameResult GpuUploadBuffer::MapCpuWriteOnly(std::uint8_t*& pData) {
+bool GpuUploadBuffer::MapCpuWriteOnly(std::uint8_t*& pData) {
 	// We don't unmap this until the app closes. Keeping buffer mapped for the lifetime of the resource is okay.
 	// We do not intend to read from this resource on the CPU.
-	ReturnIfFailed(mResource->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void**>(&pData)));
-	return GameResultOk;
+	CheckHResult(mResource->Map(0, &CD3DX12_RANGE(0, 0), reinterpret_cast<void**>(&pData)));
+
+	return true;
 }
 
 ShaderRecord::ShaderRecord(void* pShaderIdentifier, UINT shaderIdentifierSize) :
@@ -59,18 +62,21 @@ ShaderTable::ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shade
 	mBufferSize = numShaderRecords * mShaderRecordSize;
 }
 
-GameResult ShaderTable::Initialze() {
-	CheckGameResult(Allocate(mDevice, mBufferSize, mName.length() > 0 ? mName.c_str() : nullptr));
-	CheckGameResult(MapCpuWriteOnly(mMappedShaderRecords));
-	return GameResultOk;
+bool ShaderTable::Initialze() {
+	CheckIsValid(Allocate(mDevice, mBufferSize, mName.length() > 0 ? mName.c_str() : nullptr));
+	CheckIsValid(MapCpuWriteOnly(mMappedShaderRecords));
+
+	return true;
 }
 
-GameResult ShaderTable::push_back(const ShaderRecord& shaderRecord) {
-	ReturnIfFalse(mShaderRecords.size() < mShaderRecords.capacity());
+bool ShaderTable::push_back(const ShaderRecord& shaderRecord) {
+	CheckIsValid(mShaderRecords.size() < mShaderRecords.capacity());
+
 	mShaderRecords.push_back(shaderRecord);
 	shaderRecord.CopyTo(mMappedShaderRecords);
 	mMappedShaderRecords += mShaderRecordSize;
-	return GameResultOk;
+
+	return true;
 }
 
 std::uint8_t* ShaderTable::GetMappedShaderRecords() {

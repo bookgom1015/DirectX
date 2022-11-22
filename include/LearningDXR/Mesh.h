@@ -1,12 +1,13 @@
 #pragma once
 
+#include "common/MathHelper.h"
+
 #include <d3d12.h>
 #include <DirectXMath.h>
-#include <Windows.h>
-#include <wrl.h>
 #include <string>
 #include <unordered_map>
-#include "common/MathHelper.h"
+#include <wrl.h>
+#include <Windows.h>
 
 extern const int gNumFrameResources;
 

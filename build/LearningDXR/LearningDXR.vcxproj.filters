@@ -31,6 +31,9 @@
     <Filter Include="Common Files\Private">
       <UniqueIdentifier>{8dc60926-834c-4244-9e22-45b5f578c984}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Inline Files">
+      <UniqueIdentifier>{c79eac55-5067-4ddb-ba30-bd5d9759b322}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\LearningDXR\Application.h">
@@ -40,9 +43,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\LearningDXR\Renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\LearningDXR\GameResult.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\common\d3dx12.h">
@@ -55,9 +55,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\LearningDXR\ShaderManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\LearningDXR\Macros.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\LearningDXR\D3D12Util.h">
@@ -78,6 +75,15 @@
     <ClInclude Include="..\..\include\LearningDXR\UploadBuffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\Logger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\LearningDXR\RenderMacros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\LearningDXR\Application.cpp">
@@ -87,9 +93,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\LearningDXR\Renderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\LearningDXR\GameResult.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\common\MathHelper.cpp">
@@ -104,9 +107,6 @@
     <ClCompile Include="..\..\src\LearningDXR\D3D12Util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\DX12Game\StringUtil.cpp">
-      <Filter>Common Files\Private</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\common\GeometryGenerator.cpp">
       <Filter>Common Files\Private</Filter>
     </ClCompile>
@@ -117,6 +117,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\LearningDXR\RTXStructures.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\LearningDXR\Logger.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -141,6 +147,21 @@
     </None>
     <None Include="..\..\Assets\Shaders\LearningDXR\Common.hlsl">
       <Filter>Shader Files\Rasterization</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Gizmo.hlsl">
+      <Filter>Shader Files\Rasterization</Filter>
+    </None>
+    <None Include="..\..\Assets\Shaders\LearningDXR\Samplers.hlsl">
+      <Filter>Shader Files\Rasterization</Filter>
+    </None>
+    <None Include="..\..\include\LearningDXR\UploadBuffer.inl">
+      <Filter>Header Files\Inline Files</Filter>
+    </None>
+    <None Include="..\..\include\LearningDXR\LowRenderer.inl">
+      <Filter>Header Files\Inline Files</Filter>
+    </None>
+    <None Include="..\..\include\LearningDXR\Renderer.inl">
+      <Filter>Header Files\Inline Files</Filter>
     </None>
   </ItemGroup>
 </Project>

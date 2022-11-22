@@ -1,8 +1,7 @@
 #pragma once
 
-#include "LearningDXR/GameResult.h"
-
 #include <d3d12.h>
+#include <string>
 #include <wrl.h>
 
 struct D3D12BufferCreateInfo {
@@ -43,9 +42,9 @@ public:
 		return (byteSize + 255) & ~255;
 	}
 
-	static GameResult LoadBinary(const std::wstring& inFilename, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob);
+	static bool LoadBinary(const std::wstring& inFilename, Microsoft::WRL::ComPtr<ID3DBlob>& outBlob);
 
-	static GameResult CreateDefaultBuffer(
+	static bool CreateDefaultBuffer(
 		ID3D12Device* inDevice,
 		ID3D12GraphicsCommandList* inCmdList,
 		const void* inInitData,
@@ -53,10 +52,10 @@ public:
 		Microsoft::WRL::ComPtr<ID3D12Resource>& outUploadBuffer,
 		Microsoft::WRL::ComPtr<ID3D12Resource>& outDefaultBuffer);
 
-	static GameResult CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC& inRootSignatureDesc, ID3D12RootSignature** ppRootSignature);
+	static bool CreateRootSignature(ID3D12Device* pDevice, const D3D12_ROOT_SIGNATURE_DESC& inRootSignatureDesc, ID3D12RootSignature** ppRootSignature);
 
-	static GameResult CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource, ID3D12InfoQueue* pInfoQueue = nullptr);
-	static GameResult CreateConstantBuffer(ID3D12Device* pDevice, ID3D12Resource** ppResource, UINT64 inSize);
+	static bool CreateBuffer(ID3D12Device* pDevice, D3D12BufferCreateInfo& inInfo, ID3D12Resource** ppResource, ID3D12InfoQueue* pInfoQueue = nullptr);
+	static bool CreateConstantBuffer(ID3D12Device* pDevice, ID3D12Resource** ppResource, UINT64 inSize);
 
 	static D3D12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(ID3D12DescriptorHeap* descHeap, INT index, UINT descriptorSize);
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(ID3D12DescriptorHeap* descHeap, INT index, UINT descriptorSize);

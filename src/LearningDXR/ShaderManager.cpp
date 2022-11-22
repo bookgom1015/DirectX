@@ -1,5 +1,6 @@
 #include "LearningDXR/ShaderManager.h"
-#include "LearningDXR/Macros.h"
+#include "LearningDXR/Logger.h"
+#include "LearningDXR/RenderMacros.h"
 
 #include <d3dcompiler.h>
 
@@ -11,11 +12,11 @@ ShaderManager::~ShaderManager() {
 	}
 }
 
-GameResult ShaderManager::Initialize() {
-	ReturnIfFailed(mDxcDllHelper.Initialize());
-	ReturnIfFailed(mDxcDllHelper.CreateInstance(CLSID_DxcCompiler, &mCompiler));
-	ReturnIfFailed(mDxcDllHelper.CreateInstance(CLSID_DxcLibrary, &mLibrary));
-	return GameResultOk;
+bool ShaderManager::Initialize() {
+	CheckHResult(mDxcDllHelper.Initialize());
+	CheckHResult(mDxcDllHelper.CreateInstance(CLSID_DxcCompiler, &mCompiler));
+	CheckHResult(mDxcDllHelper.CreateInstance(CLSID_DxcLibrary, &mLibrary));
+	return true;
 }
 
 void ShaderManager::CleanUp() {
@@ -25,7 +26,7 @@ void ShaderManager::CleanUp() {
 	bIsCleanedUp = true;
 }
 
-GameResult ShaderManager::CompileShader(
+bool ShaderManager::CompileShader(
 		const std::wstring& inFilePath,
 		const D3D_SHADER_MACRO* inDefines,
 		const std::string& inEntryPoint,
@@ -49,22 +50,22 @@ GameResult ShaderManager::CompileShader(
 		wsstream << reinterpret_cast<char*>(errors->GetBufferPointer());
 
 	if (FAILED(hr)) {
-		ReturnGameResult(hr, wsstream.str());
+		ReturnFalse(wsstream.str());
 	}
 
-	return GameResultOk;
+	return true;
 }
 
-GameResult ShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName) {
+bool ShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, const std::string& inName) {
 	UINT32 code = 0;
 	IDxcBlobEncoding* shaderText = nullptr;
-	ReturnIfFailed(mLibrary->CreateBlobFromFile(inShaderInfo.FileName, &code, &shaderText));
+	CheckHResult(mLibrary->CreateBlobFromFile(inShaderInfo.FileName, &code, &shaderText));
 
 	ComPtr<IDxcIncludeHandler> includeHandler;
-	ReturnIfFailed(mLibrary->CreateIncludeHandler(&includeHandler));
+	CheckHResult(mLibrary->CreateIncludeHandler(&includeHandler));
 
 	IDxcOperationResult* result;
-	ReturnIfFailed(mCompiler->Compile(
+	CheckHResult(mCompiler->Compile(
 		shaderText,
 		inShaderInfo.FileName,
 		inShaderInfo.EntryPoint,
@@ -78,10 +79,10 @@ GameResult ShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, con
 	));
 
 	HRESULT hr;
-	ReturnIfFailed(result->GetStatus(&hr));
+	CheckHResult(result->GetStatus(&hr));
 	if (FAILED(hr)) {
 		IDxcBlobEncoding* error;
-		ReturnIfFailed(result->GetErrorBuffer(&error));
+		CheckHResult(result->GetErrorBuffer(&error));
 
 		auto bufferSize = error->GetBufferSize();
 		std::vector<char> infoLog(bufferSize + 1);
@@ -94,12 +95,12 @@ GameResult ShaderManager::CompileShader(const D3D12ShaderInfo& inShaderInfo, con
 		std::wstring errorMsgW;
 		errorMsgW.assign(errorMsg.begin(), errorMsg.end());
 
-		ReturnGameResult(E_FAIL, errorMsgW);
+		ReturnFalse(errorMsgW);
 	}
 
-	ReturnIfFailed(result->GetResult(&mRTShaders[inName]));
+	CheckHResult(result->GetResult(&mRTShaders[inName]));
 
-	return GameResultOk;
+	return true;
 }
 
 ID3DBlob* ShaderManager::GetShader(const std::string& inName) {
